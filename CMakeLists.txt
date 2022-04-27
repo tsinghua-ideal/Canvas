@@ -1,10 +1,12 @@
-cmake_minimum_required(VERSION 3.4)
+# Project settings
+cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 project(Canvas)
 
+# C++ standards
 set(CMAKE_CXX_STANDARD 17)
 
+# Fetch external dependencies
 include(FetchContent)
-
 
 # Fetch pybind11
 FetchContent_Declare(
@@ -13,6 +15,10 @@ FetchContent_Declare(
         GIT_TAG        v2.9.2
 )
 
+# Includes and libraries
+include_directories(3rd-party)
+include_directories(include)
+
 # Add subdirectory of pybind11
 FetchContent_GetProperties(pybind11)
 if(NOT pybind11_POPULATED)
@@ -20,6 +26,5 @@ if(NOT pybind11_POPULATED)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
 
-
-# Link C++ API entry
-pybind11_add_module(cc_canvas ccsrc/cc_api.cpp)
+# Sub-directories
+add_subdirectory(src)
