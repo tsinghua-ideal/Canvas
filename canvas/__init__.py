@@ -37,7 +37,11 @@ def sample(m: nn.Module,
            num_fc_range: Tuple[int, int] = (1, 4),
            timeout: int = 0):
     # noinspection PyUnresolvedReferences
-    r"""Sample an available kernel from the search space:
+    r"""Sample an available kernel for a module from the search space.
+        This function will find all convolutions in the module and
+        replace them with `canvas.Placeholder`. Later, you could use
+        `canvas.replace` function to substitute the kernels in the
+        placeholders.
 
         Parameters
         ----------

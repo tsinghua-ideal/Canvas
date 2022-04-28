@@ -1,5 +1,6 @@
 #include "Canvas/Utils/Common.hpp"
 
+
 namespace canvas {
 
 [[maybe_unused]] Random<int> global_int_random(0, kIntUnlimited, false, kDefaultGlobalRandomSeed);

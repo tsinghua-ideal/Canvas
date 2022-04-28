@@ -15,9 +15,15 @@ FetchContent_Declare(
         GIT_TAG        v2.9.2
 )
 
-# Includes and libraries
-include_directories(3rd-party)
-include_directories(include)
+# Boost
+find_package(Boost REQUIRED COMPONENTS filesystem program_options REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
+link_directories(${Boost_LIBRARY_DIRS})
+
+# GTest
+enable_testing()
+find_package(GTest REQUIRED)
+include_directories(${GTEST_INCLUDE_DIRS})
 
 # Add subdirectory of pybind11
 FetchContent_GetProperties(pybind11)
@@ -25,6 +31,10 @@ if(NOT pybind11_POPULATED)
     FetchContent_Populate(pybind11)
     add_subdirectory(${pybind11_SOURCE_DIR} ${pybind11_BINARY_DIR})
 endif()
+
+# Includes and libraries
+include_directories(3rd-party)
+include_directories(include)
 
 # Sub-directories
 add_subdirectory(src)
