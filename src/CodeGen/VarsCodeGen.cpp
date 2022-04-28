@@ -18,8 +18,8 @@ Code VarsCodeGen::GenImpl(const Solution& solution, std::string name) {
     j["r"] = preferences.r;
     if (net_fills and graph->DynamicVarCount() != 0) {
         j["x"] = nlohmann::json::array();
-        int n_layers = (int) net_fills->Size();
-        for (int i = 0; i < n_layers; ++ i)
+        int n_kernels = (int) net_fills->Size();
+        for (int i = 0; i < n_kernels; ++ i)
             j["x"].push_back(net_fills->At(i).x);
     }
 

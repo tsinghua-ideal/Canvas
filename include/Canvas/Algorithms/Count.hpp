@@ -9,17 +9,17 @@ namespace canvas {
 /// The predefined max batch size
 static constexpr size_t kPredefinedMaxBatchSize = 512;
 
-size_t LayerPsCount(const GraphSP& graph,
-                    const Variable::StaticSpecs& specs,
-                    const Variable::DynamicFills& fills=Variable::DynamicFills());
+size_t KernelPsCount(const GraphSP& graph,
+                     const Variable::StaticSpecs& specs,
+                     const Variable::DynamicFills& fills=Variable::DynamicFills());
 
-size_t LayerFLOPsCount(const GraphSP& graph,
-                       const Variable::StaticSpecs& specs,
-                       const Variable::DynamicFills& fills=Variable::DynamicFills());
+size_t KernelFLOPsCount(const GraphSP& graph,
+                        const Variable::StaticSpecs& specs,
+                        const Variable::DynamicFills& fills=Variable::DynamicFills());
 
-bool LayerCheckTensorSizeOverflow(const GraphSP& graph,
-                                  const Variable::StaticSpecs& specs,
-                                  const Variable::DynamicFills& fills=Variable::DynamicFills());
+bool KernelCheckTensorSizeOverflow(const GraphSP& graph,
+                                   const Variable::StaticSpecs& specs,
+                                   const Variable::DynamicFills& fills=Variable::DynamicFills());
 
 size_t NetPsCount(const NetSpecsSP& specs,
                   const GraphSP& graph,

@@ -13,7 +13,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
 
     // The `canvas.sample` function, sampling a kernel from the search space
     m.def("sample",
-          [](const std::vector<canvas::KernelSpecs>& layers,
+          [](const std::vector<canvas::KernelSpecs>& kernels,
              double flops_budget,
              double params_budget,
              bool allow_dynamic,
@@ -33,7 +33,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
           },
           "Set the global seed for the C++ random engine.");
 
-    // The layer specification class
+    // The kernel specification class
     pybind11::class_<canvas::KernelSpecs>(m, "KernelSpecs")
             .def(pybind11::init<size_t, size_t, size_t, size_t, size_t, size_t>())
             .def_readwrite("ic", &canvas::KernelSpecs::ic)

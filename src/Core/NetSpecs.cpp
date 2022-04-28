@@ -8,7 +8,7 @@ NetSpecs::NetSpecs(const std::string& str) {
     /*
      * `NetSpecs` format (in a single line):
      *   FLOPs_Min_Ratio, FLOPs_Max_Ratio, Ps_Min_Ratio, Ps_Max_Ratio,
-     *   Number_of_Layers, [C_i, OC_i, K_i, S_i, H_i, W_i]*
+     *   Number_of_Kernels, [C_i, OC_i, K_i, S_i, H_i, W_i]*
      * Example:
      *   0.1, 1.0, 0.1, 1.0, [19, [64, 64, 3, 1, 32, 32], [64, 64, 3, 1, 32, 32], [64, 64, 3, 1, 32, 32], [64, 64, 3, 1, 32, 32], [64, 128, 3, 2, 32, 32], [128, 128, 3, 1, 16, 16], [64, 128, 1, 2, 32, 32], [128, 128, 3, 1, 16, 16], [128, 128, 3, 1, 16, 16], [128, 256, 3, 2, 16, 16], [256, 256, 3, 1, 8, 8], [128, 256, 1, 2, 16, 16], [256, 256, 3, 1, 8, 8], [256, 256, 3, 1, 8, 8], [256, 512, 3, 2, 8, 8], [512, 512, 3, 1, 4, 4], [256, 512, 1, 2, 8, 8], [512, 512, 3, 1, 4, 4], [512, 512, 3, 1, 4, 4]]
      * */
@@ -36,8 +36,8 @@ NetSpecs::NetSpecs(const std::string& str) {
 
     int n = StringTo<int>(ReadNextToken());
     if (n <= 0)
-        CriticalError("Illegal number of layers");
-    layer_specs.reserve(n);
+        CriticalError("Illegal number of kernels");
+    kernel_specs.reserve(n);
     standard_conv_flops = 0, standard_conv_ps = 0;
     no_neighbor_involved = true;
     for (int i = 0; i < n; ++ i) {
@@ -54,7 +54,7 @@ NetSpecs::NetSpecs(const std::string& str) {
         w = StringTo<size_t>(ReadNextToken());
         if (h % s != 0 or w % s != 0)
             CriticalError("Height and width should be dividable by striding number");
-        layer_specs.emplace_back(ic, oc, k, h, w, s);
+        kernel_specs.emplace_back(ic, oc, k, h, w, s);
         standard_conv_flops += ic * k * k * oc * h / s * w / s * 2;
         standard_conv_ps += ic * k * k * oc;
     }
@@ -86,22 +86,22 @@ std::ostream& operator << (std::ostream& os, const NetSpecs& rhs) {
     }
     os << " > FLOPs range: " << rhs.flops_range << std::endl;
     os << " > Ps range: " << rhs.ps_range << std::endl;
-    os << " > Number of layers: " << rhs.layer_specs.size() << std::endl;
-    for (int i = 0; i < rhs.layer_specs.size(); ++ i) {
-        const auto& layer = rhs.layer_specs.at(i);
-        os << "   > Layer#" << i << ": "
-           << layer.ic << ", " << layer.oc << ", "
-           << layer.k << ", " << layer.h << ", "
-           << layer.w << ", " << layer.s
+    os << " > Number of kernels: " << rhs.kernel_specs.size() << std::endl;
+    for (int i = 0; i < rhs.kernel_specs.size(); ++ i) {
+        const auto& kernel = rhs.kernel_specs.at(i);
+        os << "   > Kernel#" << i << ": "
+           << kernel.ic << ", " << kernel.oc << ", "
+           << kernel.k << ", " << kernel.h << ", "
+           << kernel.w << ", " << kernel.s
            << std::endl;
     }
     return os;
 }
 
 std::ostream& operator <<(std::ostream& os, const NetFills& fills) {
-    os << "NetFills (" << fills.layer_fills.size() << " layers): ";
+    os << "NetFills (" << fills.kernel_fills.size() << " kernels): ";
     bool displayed = false;
-    for (const auto& dynamic_fills: fills.layer_fills)
+    for (const auto& dynamic_fills: fills.kernel_fills)
         os << (displayed ? ", " : "") << dynamic_fills, displayed = true;
     return displayed ? os : (os << "null");
 }

@@ -20,13 +20,13 @@ Code IRCodeGen::GenImpl(const Solution& solution, std::string name) {
     Write() << "g: " << preferences.g << std::endl;
     Write() << "r: " << preferences.r << std::endl;
 
-    // Layer specifications
+    // Kernel specifications
     if (not net_fills or graph->DynamicVarCount() == 0) {
-        Write() << "layers: 0" << std::endl;
+        Write() << "kernels: 0" << std::endl;
     } else {
-        int n_layers = (int) net_fills->Size();
-        auto& line = (Write() << "layers: " << n_layers);
-        for (int i = 0; i < n_layers; ++ i)
+        int n_kernels = (int) net_fills->Size();
+        auto& line = (Write() << "kernels: " << n_kernels);
+        for (int i = 0; i < n_kernels; ++ i)
             for (const auto& fill: net_fills->At(i).x)
                 line << " " << fill;
         line << std::endl;

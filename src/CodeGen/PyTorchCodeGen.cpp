@@ -701,8 +701,8 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         Write() << std::endl;
 #endif
 
-        // Define layers
-        Write() << "# Layers" << std::endl;
+        // Define kernels
+        Write() << "# Kernels" << std::endl;
 
         // Create variable map
         VarMap var_map;

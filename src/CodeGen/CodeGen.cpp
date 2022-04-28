@@ -41,9 +41,9 @@ void CodeGen::CommonChecks(const Solution& solution) {
             if (not t->shape.IsAllStatic())
                 CriticalError("Unable to generate code for a solution with dynamic variables, but without fills");
     } else {
-        assert(net_specs->layer_specs.size() == net_fills->Size());
-        for (int i = 0; i < net_specs->layer_specs.size(); ++ i)
-            if (not graph->AlgebraCheck(MergeIntoStaticSpecs(preferences, net_specs->layer_specs[i]),
+        assert(net_specs->kernel_specs.size() == net_fills->Size());
+        for (int i = 0; i < net_specs->kernel_specs.size(); ++ i)
+            if (not graph->AlgebraCheck(MergeIntoStaticSpecs(preferences, net_specs->kernel_specs[i]),
                                         net_fills->At(i)))
                 CriticalError("Unable to generate code with an illegal dynamic variable fills");
     }

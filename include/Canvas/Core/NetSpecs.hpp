@@ -67,7 +67,7 @@ public:
     size_t c_gcd = 0;
     std::vector<size_t> c_gcd_factors;
     bool no_neighbor_involved = false;
-    std::vector<KernelSpecs> layer_specs;
+    std::vector<KernelSpecs> kernel_specs;
     size_t standard_conv_flops = 0, standard_conv_ps = 0;
 
     // Convenient for debugging
@@ -77,12 +77,14 @@ public:
 
     explicit NetSpecs(const std::string& str);
 
+    // NetSpecs(size_t flops_budget, size_t ps_budget, std::vector<KernelSpecs> kernel_specs);
+
     [[nodiscard]] size_t Hash() {
         if (hash_cached)
             return hash_value;
         hash_cached = true;
         hash_value = 0;
-        for (const auto& specs: layer_specs)
+        for (const auto& specs: kernel_specs)
             hash_value = IterateHash(hash_value, specs.Hash());
         return hash_value;
     }
@@ -95,9 +97,9 @@ public:
         return flops <= flops_range.max and ps <= ps_range.max;
     }
 
-    [[nodiscard]] bool Empty() const { return layer_specs.empty(); }
+    [[nodiscard]] bool Empty() const { return kernel_specs.empty(); }
 
-    void PushLayer(const KernelSpecs& specs) { layer_specs.push_back(specs); }
+    void PushKernel(const KernelSpecs& specs) { kernel_specs.push_back(specs); }
 
     friend std::ostream& operator << (std::ostream& os, const NetSpecs& rhs);
 };
@@ -108,16 +110,16 @@ private:
     bool hash_cached = false;
     size_t hash_value = 0;
 
-    std::vector<Variable::DynamicFills> layer_fills;
+    std::vector<Variable::DynamicFills> kernel_fills;
 
 public:
     NetFills() = default;
 
-    [[nodiscard]] size_t Size() const { return layer_fills.size(); }
+    [[nodiscard]] size_t Size() const { return kernel_fills.size(); }
 
     [[nodiscard]] Variable::DynamicFills& At(int i) {
         hash_cached = false;
-        return layer_fills[i];
+        return kernel_fills[i];
     }
 
     size_t Hash() {
@@ -125,29 +127,29 @@ public:
             return hash_value;
         hash_cached = true;
         hash_value = 0;
-        for (const auto& fills: layer_fills)
+        for (const auto& fills: kernel_fills)
             hash_value = IterateHash(hash_value, fills.Hash());
         return hash_value;
     }
 
     void Double() {
         hash_cached = false;
-        for (auto& fills: layer_fills)
+        for (auto& fills: kernel_fills)
             fills.Double();
     }
 
     void Push(const Variable::DynamicFills& fills) {
         hash_cached = false;
-        layer_fills.push_back(fills);
+        kernel_fills.push_back(fills);
     }
 
     friend std::ostream& operator << (std::ostream& os, const NetFills& fills);
 
     [[nodiscard]] bool operator == (const NetFills& rhs) const {
-        if (layer_fills.size() != rhs.layer_fills.size())
+        if (kernel_fills.size() != rhs.kernel_fills.size())
             return false;
-        for (int i = 0; i < layer_fills.size(); ++ i)
-            if (layer_fills[i] != rhs.layer_fills[i])
+        for (int i = 0; i < kernel_fills.size(); ++ i)
+            if (kernel_fills[i] != rhs.kernel_fills[i])
                 return false;
         return true;
     }
@@ -158,9 +160,9 @@ public:
 };
 
 static Variable::StaticSpecs MergeIntoStaticSpecs(const HeuristicPreferences& preferences,
-                                                  const KernelSpecs& layer_specs) {
-    return {preferences.g, preferences.r, layer_specs.ic, layer_specs.oc,
-            layer_specs.k, layer_specs.h, layer_specs.w, layer_specs.s};
+                                                  const KernelSpecs& kernel_specs) {
+    return {preferences.g, preferences.r, kernel_specs.ic, kernel_specs.oc,
+            kernel_specs.k, kernel_specs.h, kernel_specs.w, kernel_specs.s};
 }
 
 typedef std::shared_ptr<NetSpecs> NetSpecsSP;

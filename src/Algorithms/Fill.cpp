@@ -9,21 +9,21 @@ namespace canvas {
 NetFillsSP GetMinimumFills(const NetSpecsSP& net_specs,
                            const GraphSP& graph,
                            const HeuristicPreferences& preferences) {
-    // Get minimum fills individually for every layer
+    // Get minimum fills individually for every kernel
     assert(net_specs);
     auto net_fills = std::make_shared<NetFills>();
-    for (const auto& layer_specs: net_specs->layer_specs)
-        net_fills->Push(graph->GetMinimumFills(MergeIntoStaticSpecs(preferences, layer_specs)));
+    for (const auto& kernel_specs: net_specs->kernel_specs)
+        net_fills->Push(graph->GetMinimumFills(MergeIntoStaticSpecs(preferences, kernel_specs)));
 
-    // Scale the parameters by layer channels
+    // Scale the parameters by kernel channels
     int min_i = 0;
-    for (int i = 1; i < net_specs->layer_specs.size(); ++ i)
-        if (net_specs->layer_specs[i].ChannelGeometricMean() < net_specs->layer_specs[min_i].ChannelGeometricMean())
+    for (int i = 1; i < net_specs->kernel_specs.size(); ++ i)
+        if (net_specs->kernel_specs[i].ChannelGeometricMean() < net_specs->kernel_specs[min_i].ChannelGeometricMean())
             min_i = i;
-    assert(net_fills->Size() == net_specs->layer_specs.size());
-    for (int i = 0; i < net_specs->layer_specs.size(); ++ i) {
-        size_t c1 = net_specs->layer_specs[min_i].ChannelGeometricMean();
-        size_t c2 = net_specs->layer_specs[i].ChannelGeometricMean();
+    assert(net_fills->Size() == net_specs->kernel_specs.size());
+    for (int i = 0; i < net_specs->kernel_specs.size(); ++ i) {
+        size_t c1 = net_specs->kernel_specs[min_i].ChannelGeometricMean();
+        size_t c2 = net_specs->kernel_specs[i].ChannelGeometricMean();
         for (int j = 0; j < Variable::kDynamicVarCount; ++ j) {
             size_t q1 = net_fills->At(min_i).x[j], q2 = net_fills->At(i).x[j];
             // Scale q2 by ceil(c2 * q1 / (c1 * q2))
@@ -56,18 +56,18 @@ void UpdateFullFillsUnderBudget(const NetSpecsSP& net_specs,
     if (graph->DynamicVarCount() == 0)
         return;
 
-    int n_layers = static_cast<int>(fills->Size());
-    assert(n_layers > 0);
+    int n_kernels = static_cast<int>(fills->Size());
+    assert(n_kernels > 0);
     std::vector<Variable::StaticSpecs> static_specs;
-    static_specs.reserve(n_layers);
-    for (int i = 0; i < n_layers; ++ i)
-        static_specs.push_back(MergeIntoStaticSpecs(preferences, net_specs->layer_specs[i]));
+    static_specs.reserve(n_kernels);
+    for (int i = 0; i < n_kernels; ++ i)
+        static_specs.push_back(MergeIntoStaticSpecs(preferences, net_specs->kernel_specs[i]));
 
     size_t total_flops = 0, total_ps = 0;
-    std::vector<size_t> flops(n_layers), ps(n_layers);
-    for (int i = 0; i < n_layers; ++ i) {
-        flops[i] = LayerFLOPsCount(graph, static_specs[i], fills->At(i));
-        ps[i] = LayerPsCount(graph, static_specs[i], fills->At(i));
+    std::vector<size_t> flops(n_kernels), ps(n_kernels);
+    for (int i = 0; i < n_kernels; ++ i) {
+        flops[i] = KernelFLOPsCount(graph, static_specs[i], fills->At(i));
+        ps[i] = KernelPsCount(graph, static_specs[i], fills->At(i));
         total_flops += flops[i], total_ps += ps[i];
     }
     assert(net_specs->BelowFlopsPsBudget(total_flops, total_ps));
@@ -86,23 +86,23 @@ void UpdateFullFillsUnderBudget(const NetSpecsSP& net_specs,
 
         // Get all deltas of FLOPs and Ps
         /// Index, delta of FLOPs, delta of Ps
-        typedef std::tuple<int, size_t, size_t> LayerDelta;
-        std::vector<LayerDelta> deltas;
-        for (int i = 0; i < n_layers; ++ i) {
+        typedef std::tuple<int, size_t, size_t> KernelDelta;
+        std::vector<KernelDelta> deltas;
+        for (int i = 0; i < n_kernels; ++ i) {
             auto copied_fills = fills->At(i);
             copied_fills.Double();
-            auto new_flops = LayerFLOPsCount(graph, static_specs[i], copied_fills);
-            auto new_ps = LayerPsCount(graph, static_specs[i], copied_fills);
+            auto new_flops = KernelFLOPsCount(graph, static_specs[i], copied_fills);
+            auto new_ps = KernelPsCount(graph, static_specs[i], copied_fills);
             assert(new_flops >= flops[i] and new_ps >= ps[i]);
             assert(new_flops > flops[i] or new_ps > ps[i]);
-            if (LayerCheckTensorSizeOverflow(graph, static_specs[i], copied_fills))
+            if (KernelCheckTensorSizeOverflow(graph, static_specs[i], copied_fills))
                 deltas.emplace_back(i, new_flops - flops[i], new_ps - ps[i]);
         }
 
         // Sort by delta of Ps (heuristically, maybe FLOPs also work)
         if (deltas.empty())
             break;
-        std::sort(deltas.begin(), deltas.end(), [](const LayerDelta &lhs, const LayerDelta& rhs) -> bool {
+        std::sort(deltas.begin(), deltas.end(), [](const KernelDelta &lhs, const KernelDelta& rhs) -> bool {
             return std::get<2>(lhs) < std::get<2>(rhs);
         });
 
@@ -112,18 +112,18 @@ void UpdateFullFillsUnderBudget(const NetSpecsSP& net_specs,
             if (net_specs->BelowFlopsPsBudget(total_flops + flops_delta, total_ps + ps_delta)) {
                 ++ doubled_count;
 #ifdef CANVAS_DEBUG_EVALUATOR_DOUBLE_ALGORITHM_PRINT_ROUND
-                std::cout << " > Layer#" << i << " doubled from " << fills->layer_fills[i] << " to ";
+                std::cout << " > Kernel#" << i << " doubled from " << fills->kernel_fills[i] << " to ";
 #endif
                 fills->At(i).Double();
 #ifdef CANVAS_DEBUG_EVALUATOR_DOUBLE_ALGORITHM_PRINT_ROUND
-                std::cout << fills->layer_fills[i] << std::endl;
+                std::cout << fills->kernel_fills[i] << std::endl;
 #endif
                 flops[i] += flops_delta, ps[i] += ps_delta;
                 total_flops += flops_delta, total_ps += ps_delta;
             }
         }
 #ifdef CANVAS_DEBUG_EVALUATOR_DOUBLE_ALGORITHM_PRINT_ROUND
-        std::cout << " > " << doubled_count << " layer(s) doubled" << std::endl;
+        std::cout << " > " << doubled_count << " kernel(s) doubled" << std::endl;
         std::cout << " > FLOPs: "<< total_flops << std::endl;
         std::cout << " > Ps: " << total_ps << std::endl;
 #endif
