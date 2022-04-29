@@ -43,6 +43,10 @@ struct Variable {
 
         DynamicFills(const DynamicFills& rhs) { std::memcpy(x, rhs.x, sizeof(x)); }
 
+        [[nodiscard]] std::vector<size_t> ToVector() const {
+            return std::vector<size_t>(x, x + kDynamicVarCount);
+        }
+
         void Double() {
             for (auto& v: x)
                 v *= 2;

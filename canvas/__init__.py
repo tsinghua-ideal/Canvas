@@ -82,7 +82,7 @@ def sample(m: nn.Module,
         -------
         >>> kernel_pack = canvas.sample(m)
         >>> print(kernel_pack.module)  # Show generated torch.nn.Module class
-        >>> print(kernel_pack.specs)  # Show specifications for every replaced kernel
+        >>> print(kernel_pack.fills)  # Show dynamic fills for every replaced kernel
         >>> print(kernel_pack.graphviz)   # Show generated GraphViz code
         >>> m.replace(m, kernel_pack)  # Replace all convolution kernels
 

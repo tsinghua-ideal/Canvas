@@ -126,6 +126,14 @@ public:
         return kernel_fills[i];
     }
 
+    [[nodiscard]] std::vector<std::vector<size_t>> ToVector() const {
+        std::vector<std::vector<size_t>> vec;
+        vec.reserve(kernel_fills.size());
+        for (const auto& fill: kernel_fills)
+            vec.push_back(fill.ToVector());
+        return vec;
+    }
+
     size_t Hash() {
         if (hash_cached)
             return hash_value;
