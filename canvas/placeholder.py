@@ -12,6 +12,9 @@ class Placeholder(nn.Module):
         self.conv = nn.Conv2d(ic, oc, k, s, padding=(k - 1) // 2, bias=False)
         self.id = None
 
+    def clear(self):
+        self.h = self.w = 0
+
     def reload(self, kernel_cls, x: [int]):
         self.conv = kernel_cls(self.ic, self.oc, self.k, self.s, self.h, self.w, x)
 

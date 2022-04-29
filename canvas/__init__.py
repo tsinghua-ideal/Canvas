@@ -123,6 +123,8 @@ def sample(m: nn.Module,
 
     # Replace convolutions with placeholders and analyze shapes
     kernels = placeholder.get_placeholders(m)
+    for kernel in kernels:
+        kernel.clear()
     m(example_input)
 
     # Sample
