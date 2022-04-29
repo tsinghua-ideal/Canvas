@@ -60,6 +60,8 @@ private:
     static constexpr double kMinCheckRatio = 0;
     static constexpr double kMaxCheckRatio = 10.0;
 
+    void BuildPreferences();
+
 public:
     Range<double> flops_ratio_range = {0, 0}, ps_ratio_range = {0, 0};
     Range<size_t> flops_range = {0, 0}, ps_range = {0, 0};
@@ -77,7 +79,9 @@ public:
 
     explicit NetSpecs(const std::string& str);
 
-    // NetSpecs(size_t flops_budget, size_t ps_budget, std::vector<KernelSpecs> kernel_specs);
+    NetSpecs(const Range<double>& flops_ratio_range,
+             const Range<double>& ps_ratio_budget,
+             std::vector<KernelSpecs> kernel_specs);
 
     [[nodiscard]] size_t Hash() {
         if (hash_cached)

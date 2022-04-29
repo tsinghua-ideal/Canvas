@@ -37,27 +37,49 @@ NetSpecs::NetSpecs(const std::string& str) {
     int n = StringTo<int>(ReadNextToken());
     if (n <= 0)
         CriticalError("Illegal number of kernels");
+
     kernel_specs.reserve(n);
-    standard_conv_flops = 0, standard_conv_ps = 0;
-    no_neighbor_involved = true;
     for (int i = 0; i < n; ++ i) {
         size_t ic, oc, k, h, w, s;
         ic = StringTo<size_t>(ReadNextToken());
         oc = StringTo<size_t>(ReadNextToken());
-        assert(std::gcd(ic, oc) == std::min(ic, oc));
-        c_gcd = c_gcd == 0 ? std::min(ic, oc) : std::gcd(std::min(ic, oc), c_gcd);
         k = StringTo<size_t>(ReadNextToken());
-        if (k > 1)
-            no_neighbor_involved = false;
         s = StringTo<size_t>(ReadNextToken());
         h = StringTo<size_t>(ReadNextToken());
         w = StringTo<size_t>(ReadNextToken());
-        if (h % s != 0 or w % s != 0)
-            CriticalError("Height and width should be dividable by striding number");
         kernel_specs.emplace_back(ic, oc, k, h, w, s);
-        standard_conv_flops += ic * k * k * oc * h / s * w / s * 2;
-        standard_conv_ps += ic * k * k * oc;
     }
+
+    BuildPreferences();
+}
+
+NetSpecs::NetSpecs(const Range<double>& flops_ratio_range,
+                   const Range<double>& ps_ratio_range,
+                   std::vector<KernelSpecs> kernel_specs):
+        flops_ratio_range(flops_ratio_range),
+        ps_ratio_range(ps_ratio_range),
+        kernel_specs(std::move(kernel_specs)) {
+    BuildPreferences();
+}
+
+void NetSpecs::BuildPreferences() {
+    c_gcd = 0;
+    c_gcd_factors.clear();
+
+    standard_conv_flops = 0, standard_conv_ps = 0;
+    no_neighbor_involved = true;
+    for (const auto& kernel: this->kernel_specs) {
+        assert(std::gcd(kernel.ic, kernel.oc) == std::min(kernel.ic, kernel.oc));
+        if (kernel.k > 1)
+            no_neighbor_involved = false;
+        if (kernel.h % kernel.s != 0 or kernel.w % kernel.s != 0)
+            CriticalError("Height and width should be dividable by striding number");
+
+        c_gcd = c_gcd == 0 ? std::min(kernel.ic, kernel.oc) : std::gcd(std::min(kernel.ic, kernel.oc), c_gcd);
+        standard_conv_flops += kernel.ic * kernel.k * kernel.k * kernel.oc * kernel.h / kernel.s * kernel.w / kernel.s * 2;
+        standard_conv_ps += kernel.ic * kernel.k * kernel.k * kernel.oc;
+    }
+
     size_t min, max;
     min = static_cast<size_t>(static_cast<double>(standard_conv_flops) * flops_ratio_range.min);
     max = static_cast<size_t>(static_cast<double>(standard_conv_flops) * flops_ratio_range.max);
