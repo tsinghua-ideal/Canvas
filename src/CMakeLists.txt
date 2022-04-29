@@ -12,6 +12,5 @@ set_property(GLOBAL PROPERTY CANVAS_ALL_LIBS_PROPERTY
         SearchLib CodeGenLib KernelsLib AlgorithmsLib CoreLib PrimitiveLib UtilsLib ${Boost_LIBRARIES} -lstdc++ -lm)
 get_property(CANVAS_ALL_LIBS GLOBAL PROPERTY CANVAS_ALL_LIBS_PROPERTY)
 
-# Add PyBind API
-pybind11_add_module(cpp_canvas pybind_api.cpp)
-target_link_libraries(cpp_canvas PRIVATE ${CANVAS_ALL_LIBS})
+# Packed executables/libraries
+add_subdirectory(PyBind)

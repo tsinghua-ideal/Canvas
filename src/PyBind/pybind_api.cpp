@@ -5,6 +5,8 @@
 #include <pybind11/stl.h>
 
 #include "Canvas/Core/NetSpecs.hpp"
+#include "Canvas/CodeGen/DotCodeGen.hpp"
+#include "Canvas/CodeGen/PyTorchCodeGen.hpp"
 #include "Canvas/Search/RandomSample.hpp"
 #include "Canvas/Utils/Common.hpp"
 
@@ -23,7 +25,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
              bool add_relu_bn_after_fc,
              int np_min, int np_max,
              int fc_min, int fc_max,
-             int timeout) -> void {
+             int timeout) -> std::string {
               auto net_specs = std::make_shared<canvas::NetSpecs>(
                       canvas::Range(flops_min, flops_max),
                       canvas::Range(params_min, params_max),
@@ -35,6 +37,9 @@ PYBIND11_MODULE(cpp_canvas, m) {
                                                    canvas::Range(np_min, np_max),
                                                    canvas::Range(fc_min, fc_max),
                                                    std::chrono::seconds(timeout));
+              auto torch_code = canvas::PyTorchCodeGen().Gen(solution);
+              // auto graphviz_code = canvas::DotCodeGen().Gen(solution);
+              return torch_code.ToString();
           },
           "Sample a kernel from the space specified by the configuration.");
 
