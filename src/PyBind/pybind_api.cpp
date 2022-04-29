@@ -27,7 +27,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
             .def_readwrite("s", &canvas::KernelSpecs::s);
 
     // The kernel pack (solution class in Python)
-    pybind11::class_<canvas::KernelPack>(m, "KernelPack")
+    pybind11::class_<canvas::KernelPack>(m, "KernelPackImpl")
             .def_readwrite("torch_code", &canvas::KernelPack::torch_code)
             .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code)
             .def_readwrite("fills", &canvas::KernelPack::fills);

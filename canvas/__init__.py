@@ -4,7 +4,19 @@ from typing import Tuple
 
 import cpp_canvas
 from . import placeholder
-from .utils import *
+from . import kernel_pack
+from . import utils
+
+
+def remove_cache():
+    # noinspection PyUnresolvedReferences
+    r"""Remove the cached kernel code directory:
+
+        Example
+        -------
+        >>> canvas.remove_cache()
+    """
+    kernel_pack.remove_cache_dir()
 
 
 def seed(value: int):
@@ -80,11 +92,11 @@ def sample(m: nn.Module,
 
         Example
         -------
-        >>> kernel_pack = canvas.sample(m)
-        >>> print(kernel_pack.module)  # Show generated torch.nn.Module class
-        >>> print(kernel_pack.fills)  # Show dynamic fills for every replaced kernel
-        >>> print(kernel_pack.graphviz)   # Show generated GraphViz code
-        >>> m.replace(m, kernel_pack)  # Replace all convolution kernels
+        >>> conv = canvas.sample(m)
+        >>> print(conv.module)  # Show generated torch.nn.Module class
+        >>> print(conv.fills)  # Show dynamic fills for every replaced kernel
+        >>> print(conv.graphviz)   # Show generated GraphViz code
+        >>> m.replace(m, conv)  # Replace all convolution kernels
 
         """
     # Check module and input type
@@ -94,10 +106,10 @@ def sample(m: nn.Module,
         raise ValueError('The example tensor \'example_input\' should an instance of nn.Tensor.')
 
     # Check budget types
-    if not float_range_check(flops_range, 0, 10):
+    if not utils.float_range_check(flops_range, 0, 10):
         raise ValueError('The budget of FLOPs \'flops_budget\' should be a float, '
                          'which is in the range of (0, 10].')
-    if not float_range_check(params_range, 0, 10):
+    if not utils.float_range_check(params_range, 0, 10):
         raise ValueError('The budget of parameters \'params_budget\' should be a float, '
                          'which is in the range of (0, 10].')
 
@@ -109,10 +121,10 @@ def sample(m: nn.Module,
     if type(add_relu_bn_after_fc) != bool:
         raise ValueError('The variable `add_relu_bn_after_fc` should be a bool.')
 
-    if not int_range_check(num_primitive_range):
+    if not utils.int_range_check(num_primitive_range):
         raise ValueError('Tuple \'num_primitive_range\' should be a tuple of'
                          'two positive ints [L, R], where L <= R.')
-    if not int_range_check(num_fc_range):
+    if not utils.int_range_check(num_fc_range):
         raise ValueError('Tuple \'num_fc_range\' should be a tuple of'
                          'two positive ints [L, R], where L <= R.')
 
@@ -130,7 +142,7 @@ def sample(m: nn.Module,
     # Sample
     kernel_specs = [cpp_canvas.KernelSpecs(ker.ic, ker.oc, ker.k, ker.h, ker.w, ker.s) for ker in kernels]
     # noinspection PyArgumentList
-    return cpp_canvas.sample(kernel_specs,
+    pack = cpp_canvas.sample(kernel_specs,
                              flops_range[0], flops_range[1],
                              params_range[0], params_range[1],
                              allow_dynamic, force_irregular,
@@ -138,3 +150,6 @@ def sample(m: nn.Module,
                              num_primitive_range[0], num_primitive_range[1],
                              num_fc_range[0], num_fc_range[1],
                              timeout)
+
+    # Load generated code into Python class
+    return kernel_pack.KernelPack(pack)
