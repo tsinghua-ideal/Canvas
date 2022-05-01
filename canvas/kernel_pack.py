@@ -62,6 +62,7 @@ def remove_cache_dir():
 
 class KernelPack:
     def __init__(self, kernel_pack_impl: cpp_canvas.KernelPackImpl):
+        self.code = kernel_pack_impl.torch_code
         self.module = load_from_code(kernel_pack_impl.torch_code)
         self.fills = kernel_pack_impl.fills
         self.graphviz = kernel_pack_impl.graphviz_code

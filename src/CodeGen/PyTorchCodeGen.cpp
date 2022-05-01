@@ -201,7 +201,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
         if (fc->with_norm)
             gen->Write() << "self." << primitive_var << "_bn"
                          << " = nn.BatchNorm2d("
-                         << TorchStyleVariable(out_shape.C())
+                         << TorchStyleVariable(out_shape.GCKK())
                          << ")"
                          << std::endl;
         if (fc->with_relu)
