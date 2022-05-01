@@ -60,11 +60,11 @@ def replace_with_placeholders(m: nn.Module):
 
 
 def get_placeholders(m: nn.Module):
-    if not hasattr(m, 'canvas_kernels_cached'):
+    if not hasattr(m, 'canvas_cached_placeholders'):
         replace_with_placeholders(m)
-        setattr(m, 'canvas_kernels_cached', [])
+        setattr(m, 'canvas_cached_placeholders', [])
         for kernel in m.modules():
             if isinstance(kernel, Placeholder):
-                kernel.id = len(m.canvas_kernels_cached)
-                m.canvas_kernels_cached.append(kernel)
-    return m.canvas_kernels_cached
+                kernel.id = len(m.canvas_cached_placeholders)
+                m.canvas_cached_placeholders.append(kernel)
+    return m.canvas_cached_placeholders
