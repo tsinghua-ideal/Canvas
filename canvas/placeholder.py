@@ -4,7 +4,54 @@ from torch import nn
 
 
 class Placeholder(nn.Module):
+    r"""Placeholder for replaced kernels.
+
+        Attributes
+        ----------
+        ic : int
+            Input channel numbers.
+
+        oc : int
+            Output channel numbers.
+
+        k : int
+            Kernel size (height and width).
+
+        s : int
+            Striding number.
+
+        h : int
+            Input feature map height.
+
+        w : int
+            Output feature map width.
+
+        conv : torch.nn.Module
+            The replaced kernel instance.
+
+        id : int
+            The index of current kernel in the network.
+
+    """
+
     def __init__(self, ic: int, oc: int, k: int, s: int):
+        r"""Construct a kernel placeholder.
+
+            Parameters
+            ----------
+            ic : int
+                Input channel numbers.
+
+            oc : int
+                Output channel numbers.
+
+            k : int
+                Kernel size (height and width).
+
+            s : int
+                Striding number.
+        """
+
         super().__init__()
         assert math.gcd(ic, oc) == min(ic, oc), f'Input channel {ic} and output {oc} should be aligned'
         self.ic, self.oc, self.k, self.s = ic, oc, k, s
@@ -13,12 +60,40 @@ class Placeholder(nn.Module):
         self.id = None
 
     def clear(self):
+        r"""Reset the information of `h` and `w`, which is
+            inferred during analysis.
+        """
+
         self.h = self.w = 0
 
     def reload(self, kernel_cls, x: [int]):
+        r"""Reload the internal kernel implement.
+
+            Parameters
+            ----------
+            kernel_cls: type
+                The Python class of the kernel to replace.
+
+            x: [int]
+                Dynamic variables in the kernel.
+        """
+
         self.conv = kernel_cls(self.ic, self.oc, self.k, self.s, self.h, self.w, x)
 
     def forward(self, x: torch.Tensor):
+        r"""Forward propagation of the kernel.
+
+            Parameters
+            ----------
+            x: torch.Tensor
+                The input tensor.
+
+            Returns
+            -------
+            x: torch.Tensor
+                The calculation result of this module.
+        """
+
         assert self.conv is not None
         if self.h == 0 or self.w == 0:
             self.h, self.w = x.size()[2], x.size()[3]

@@ -200,8 +200,8 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
     # Reload all kernels
     kernels = m.canvas_cached_placeholders
     assert len(pack.fills) == len(kernels)
-    for (i, kernel) in enumerate(kernels):
-        kernel.reload(pack.module, pack.fills[i])
+    for kernel in kernels:
+        kernel.reload(pack.module, pack.fills[kernel.id])
 
     # Re-initialization
     def reset_weights(module):
