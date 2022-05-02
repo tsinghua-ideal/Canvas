@@ -60,6 +60,24 @@ def replace_with_placeholders(m: nn.Module):
 
 
 def get_placeholders(m: nn.Module):
+    r"""Get all placeholders of a `torch.nn.Module`, replace all
+        available convolutions if not analyzed before.
+
+        Parameters
+        ----------
+        m: torch.nn.Module
+            The module to analyze.
+
+        Returns
+        -------
+        placeholders: [canvas.Placeholder]
+            All placeholders collected in the input module.
+
+        Example
+        -------
+        >>> m = torchvision.models.resnet18()
+        >>> placeholders = canvas.get_placeholders(m)
+    """
     if not hasattr(m, 'canvas_cached_placeholders'):
         replace_with_placeholders(m)
         setattr(m, 'canvas_cached_placeholders', [])

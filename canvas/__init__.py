@@ -184,6 +184,7 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
 
         Example
         -------
+        >>> m = torchvision.models.resnet18()
         >>> conv = canvas.sample(m, torch.zeros((1, 3, 224, 224)))
         >>> print(conv.module)  # Show generated torch.nn.Module class
         >>> print(conv.fills)  # Show dynamic fills for every replaced kernel

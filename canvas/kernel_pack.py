@@ -61,6 +61,26 @@ def remove_cache_dir():
 
 
 class KernelPack:
+    r"""Kernel replacement solution for `nn.Module`s.
+
+        Attributes
+        ----------
+        code : str
+            The generated PyTorch code, implemented in a `torch.nn.Module`.
+
+        module : torch.nn.Module
+            The class type of the code, you can directly use this to make
+            kernel instances.
+
+        fills : [[int]]
+            The values of dynamic variables $x_0$ to $x_7$,
+            values may be meaningless while a certain $x_i$
+            does not occur in the kernel.
+
+        graphviz : str
+            The generated GraphViz code, you may use some tool to visualize.
+    """
+
     def __init__(self, kernel_pack_impl: cpp_canvas.KernelPackImpl):
         self.code = kernel_pack_impl.torch_code
         self.module = load_from_code(kernel_pack_impl.torch_code)
