@@ -208,3 +208,5 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
             module.reset_parameters()
     for kernel in kernels:
         kernel.apply(reset_weights)
+
+    return m
