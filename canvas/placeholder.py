@@ -8,28 +8,28 @@ class Placeholder(nn.Module):
 
         Attributes
         ----------
-        ic : int
+        ic: int
             Input channel numbers.
 
-        oc : int
+        oc: int
             Output channel numbers.
 
-        k : int
+        k: int
             Kernel size (height and width).
 
-        s : int
+        s: int
             Striding number.
 
-        h : int
+        h: int
             Input feature map height.
 
-        w : int
+        w: int
             Output feature map width.
 
-        conv : torch.nn.Module
+        conv: torch.nn.Module
             The replaced kernel instance.
 
-        id : int
+        id: int
             The index of current kernel in the network.
 
     """
@@ -39,16 +39,16 @@ class Placeholder(nn.Module):
 
             Parameters
             ----------
-            ic : int
+            ic: int
                 Input channel numbers.
 
-            oc : int
+            oc: int
                 Output channel numbers.
 
-            k : int
+            k: int
                 Kernel size (height and width).
 
-            s : int
+            s: int
                 Striding number.
         """
 
@@ -134,7 +134,9 @@ def replace_with_placeholders(m: nn.Module):
             replace_with_placeholders(child)
 
 
-def get_placeholders(m: nn.Module):
+def get_placeholders(m: nn.Module,
+                     example_input: torch.Tensor = None,
+                     check_shapes: bool = False):
     r"""Get all placeholders of a `torch.nn.Module`, replace all
         available convolutions if not analyzed before.
 
@@ -142,6 +144,11 @@ def get_placeholders(m: nn.Module):
         ----------
         m: torch.nn.Module
             The module to analyze.
+        example_input: torch.Tensor
+            An example input tensor, for static shape inference and
+            analysis if set. For the first analysis or changing to
+            different shapes, you must not set it into `None`.
+        check_shapes: bool
 
         Returns
         -------
@@ -151,7 +158,7 @@ def get_placeholders(m: nn.Module):
         Example
         -------
         >>> m = torchvision.models.resnet18()
-        >>> placeholders = canvas.get_placeholders(m)
+        >>> placeholders = canvas.get_placeholders(m, torch.zeros(1, 3, 224, 224))
     """
     if not hasattr(m, 'canvas_cached_placeholders'):
         replace_with_placeholders(m)
@@ -160,4 +167,27 @@ def get_placeholders(m: nn.Module):
             if isinstance(kernel, Placeholder):
                 kernel.id = len(m.canvas_cached_placeholders)
                 m.canvas_cached_placeholders.append(kernel)
+
+    # Analyze shapes
+    if example_input is not None:
+        if not isinstance(example_input, torch.Tensor):
+            raise ValueError('The example tensor `example_input` should be '
+                             'an instance of `torch.Tensor`.')
+        for kernel in m.canvas_cached_placeholders:
+            kernel.clear()
+        setattr(m, 'canvas_cached_example_input_shape', example_input.shape)
+        m(example_input)
+
+    # Check shapes
+    if check_shapes:
+        failure = False
+        if not hasattr(m, 'canvas_cached_example_input_shape'):
+            failure = True
+        for kernel in m.canvas_cached_placeholders:
+            if kernel.h == 0 or kernel.w == 0:
+                failure = True
+        if failure:
+            raise AttributeError('Failed to analyze shape information, '
+                                 'please set `example_input` as not `None`.')
+
     return m.canvas_cached_placeholders

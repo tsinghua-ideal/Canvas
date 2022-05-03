@@ -1,3 +1,4 @@
+import ptflops
 import torch
 from torch import nn
 from typing import Tuple
@@ -37,6 +38,55 @@ def seed(value: int):
     cpp_canvas.seed(value)
 
 
+def statistics(m: nn.Module,
+               example_input: torch.Tensor = None,
+               original: bool = True,
+               entire: bool = False):
+    r"""Calculate MACs and number of parameters for a module.
+
+        Parameters
+        ----------
+        m: torch.nn.Module
+            The module to be calculated.
+
+        example_input: torch.Tensor
+            An example input tensor, for static shape inference and
+            analysis if set. For the first analysis or changing to
+            different shapes, you must not set it into `None`.
+
+        original: bool
+            Whether to count placeholders as original convolutions.
+
+        entire: bool
+            Whether to count all the layers but not only the placeholders.
+
+        Returns
+        -------
+        macs: int
+            The MACs of selected kernels in the module.
+
+        n_params: int
+            The number of parameters of selected kernels in the module.
+    """
+    placeholders = get_placeholders(m, example_input, True)
+
+    if entire:
+        if not original:
+            macs, params = ptflops.get_model_complexity_info(m,
+                                                             tuple(m.canvas_cached_example_input_shape),
+                                                             as_strings=False,
+                                                             print_per_layer_stat=False,
+                                                             verbose=False)
+        else:
+            raise NotImplementedError
+    else:
+        if original:
+            raise NotImplementedError
+        else:
+            raise NotImplementedError
+    return macs, params
+
+
 def sample(m: nn.Module,
            example_input: torch.Tensor = None,
            flops_range: Tuple[float, float] = (0, 1.0),
@@ -60,8 +110,8 @@ def sample(m: nn.Module,
             convolutions will occur recursively in this module.
         example_input: torch.Tensor
             An example input tensor, for static shape inference and
-            analysis if set. For the first sample or different shape
-            sample, you must not set it into `None`.
+            analysis if set. For the first analysis or changing to
+            different shapes, you must not set it into `None`.
         flops_range: Tuple[float, float]
             The budget ratio range of FLOPs (FLoating point OPerations) compared
             to all the convolutions in the original module.
@@ -131,22 +181,7 @@ def sample(m: nn.Module,
                          'greater than zero.')
 
     # Replace convolutions with placeholders and analyze shapes
-    kernels = placeholder.get_placeholders(m)
-
-    # Analyze shapes
-    if example_input is not None:
-        if not isinstance(example_input, torch.Tensor):
-            raise ValueError('The example tensor `example_input` should be '
-                             'an instance of `torch.Tensor`.')
-        for kernel in kernels:
-            kernel.clear()
-        m(example_input)
-
-    # Check shapes
-    for kernel in kernels:
-        if kernel.h == 0 or kernel.w == 0:
-            raise AttributeError('Failed to analyze shape information, '
-                                 'please set `example_input` as not `None`.')
+    kernels = placeholder.get_placeholders(m, example_input, check_shapes=True)
 
     # Sample
     kernel_specs = [cpp_canvas.KernelSpecs(ker.ic, ker.oc, ker.k, ker.h, ker.w, ker.s) for ker in kernels]
@@ -207,6 +242,7 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
     def reset_weights(module):
         if hasattr(module, 'reset_parameters'):
             module.reset_parameters()
+
     for kernel in kernels:
         kernel.apply(reset_weights)
 
