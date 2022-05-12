@@ -3,6 +3,16 @@ import torch
 import torchvision
 
 
+def demo():
+    net = torchvision.models.resnet18()
+    pack = canvas.sample(net,
+                         example_input=torch.zeros(1, 3, 224, 224),
+                         flops_range=(0.1, 1.0), params_range=(0.2, 0.3),
+                         allow_dynamic=True, force_irregular=False)
+    net = canvas.replace(net, pack)
+    # Do something with your new net ...!
+
+
 def test_seed():
     net = torchvision.models.resnet18()
     canvas.seed(1998)
