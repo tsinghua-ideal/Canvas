@@ -26,7 +26,7 @@ def test_seed():
 def test_sample():
     net = torchvision.models.resnet18()
     canvas.sample(net, torch.zeros(1, 3, 224, 224))
-    for _ in range(1000):
+    for _ in range(10):
         pack = canvas.sample(net)
         net = canvas.replace(net, pack)
         t = net(torch.zeros(1, 3, 224, 224))
