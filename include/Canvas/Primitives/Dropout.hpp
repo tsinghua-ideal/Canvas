@@ -11,4 +11,4 @@ struct DropoutPrimitive: Primitive {
     CanvasPrimitiveCopyTemplate(DropoutPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

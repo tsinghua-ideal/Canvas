@@ -59,4 +59,4 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
     return Dump();
 }
 
-} // End namespace canvas
+} // namespace canvas

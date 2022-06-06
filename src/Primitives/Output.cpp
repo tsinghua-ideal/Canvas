@@ -12,4 +12,4 @@ OutputPrimitive::OutputPrimitive(const TensorSP& t):
     outs.push_back(std::make_shared<Tensor>(Shape::StandardCHW()));
 }
 
-} // End namespace canvas
+} // namespace canvas

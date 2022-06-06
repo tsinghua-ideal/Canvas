@@ -39,4 +39,4 @@ std::ostream& operator << (std::ostream& os, const Primitive& rhs) {
     return Print(rhs.outs);
 }
 
-} // End namespace canvas
+} // namespace canvas

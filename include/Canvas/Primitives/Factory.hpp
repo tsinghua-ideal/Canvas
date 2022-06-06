@@ -16,8 +16,6 @@
 #include "Canvas/Primitives/Norm.hpp"
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Primitives/Pool.hpp"
-#include "Canvas/Primitives/Reorder.hpp"
-#include "Canvas/Primitives/Reshape.hpp"
 #include "Canvas/Primitives/Shift.hpp"
 #include "Canvas/Primitives/Softmax.hpp"
 #include "Canvas/Primitives/Transpose.hpp"
@@ -59,7 +57,6 @@ struct PrimitiveGenOptions {
     bool unfold_h = false, unfold_w = false, unfold_hw = false;
     bool group_all = false, group_by_factor = false;
     bool pool_h = false, pool_w = false, pool_hw = false;
-    bool reorder_h = false, reorder_w = false, reorder_hw = false;
     bool shift_h = false, shift_w = false, shift_hw = false;
     bool transpose = false;
 
@@ -84,7 +81,6 @@ struct PrimitiveGenOptions {
             unfold_h = unfold_w = unfold_hw = true;
             group_all = group_by_factor = true;
             pool_h = pool_w = pool_hw = true;
-            reorder_h = reorder_w = reorder_hw = true;
             shift_h = shift_w = shift_hw = true;
             transpose = true;
         }
@@ -99,11 +95,6 @@ struct PrimitiveGenOptions {
     static PrimitiveGenOptions Recommended() {
         auto options = PrimitiveGenOptions(true, 1, false);
         options.allow_dynamic_variables = true, options.force_irregular = false, options.optimize_fc = false;
-        // options.dropout = options.norm = options.gelu = options.tanh = false;
-        // options.abs = options.exp = options.neg = options.sin = false;
-        // options.channel_shuffle = false;
-        // options.transpose = false;
-        // options.softmax_c = options.softmax_h = options.softmax_w = options.softmax_hw = false;
         return options;
     }
 
@@ -115,23 +106,15 @@ struct PrimitiveGenOptions {
         return options;
     }
 
-    static PrimitiveGenOptions NoNeighborInvolved() {
-        auto options = Unlimited();
-        options.unfold_hw = options.unfold_h = options.unfold_w = false;
-        options.fold_h = options.fold_w = options.fold_hw = options.fold_max = options.fold_avg = false;
-        return options;
-    }
-
     static PrimitiveGenOptions ReduceWidth() { return {true, -1}; }
 
     static PrimitiveGenOptions NotExpanding() { return {true, 0}; }
 
     static PrimitiveGenOptions FC(int max_delta_width=1) { return {false, max_delta_width, true}; }
 
-    static PrimitiveGenOptions None() { return {false, 1}; }
-
     [[nodiscard]] bool Adapt(const PrimitiveApply& apply) const;
 
+    // TODO: rewrite and recheck this function.
     friend PrimitiveGenOptions operator and (const PrimitiveGenOptions& lhs, const PrimitiveGenOptions& rhs) {
         PrimitiveGenOptions options = PrimitiveGenOptions::Unlimited();
 #define CANVAS_AND_OPT(name) options.name = lhs.name and rhs.name
@@ -150,7 +133,6 @@ struct PrimitiveGenOptions {
         CANVAS_AND_OPT(unfold_h), CANVAS_AND_OPT(unfold_w), CANVAS_AND_OPT(unfold_hw);
         CANVAS_AND_OPT(group_by_factor), CANVAS_AND_OPT(group_all);
         CANVAS_AND_OPT(pool_h), CANVAS_AND_OPT(pool_w), CANVAS_AND_OPT(pool_hw);
-        CANVAS_AND_OPT(reorder_h), CANVAS_AND_OPT(reorder_w), CANVAS_AND_OPT(reorder_hw);
         CANVAS_AND_OPT(shift_h), CANVAS_AND_OPT(shift_w), CANVAS_AND_OPT(shift_hw);
         CANVAS_AND_OPT(transpose);
 #undef CANVAS_AND_OPT
@@ -223,4 +205,4 @@ static void TryMakeAndPush(std::vector<PrimitiveApply>& vec,
     } catch (CanNotApplyPrimitive& e) {}
 }
 
-} // End namespace canvas
+} // namespace canvas

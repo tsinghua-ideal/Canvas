@@ -31,4 +31,4 @@ struct IndentOS {
     std::ostream& operator () (bool do_indent=true) const { return do_indent ? (os << indent) : os; }
 };
 
-} // End namespace canvas
+} // namespace canvas

@@ -18,4 +18,4 @@ std::ostream& operator << (std::ostream& os, const Shape& rhs) {
     return os << "]";
 }
 
-} // End namespace canvas
+} // namespace canvas

@@ -37,10 +37,7 @@ struct ActivationPrimitive: Primitive {
 
     explicit ActivationPrimitive(const TensorSP& t, ActivationType type=ReLU);
 
-    [[nodiscard]] size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills) const override;
-
     CanvasPrimitiveCopyTemplate(ActivationPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

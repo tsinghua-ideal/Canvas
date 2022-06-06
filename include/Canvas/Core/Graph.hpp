@@ -58,9 +58,6 @@ struct Graph {
 
     void LegalityCheck() const;
 
-    [[nodiscard]] bool AlgebraCheck(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills=Variable::DynamicFills()) const;
-
     [[nodiscard]] bool IsTopologicalFinished() const;
 
     template <typename PrimitiveType>
@@ -94,8 +91,6 @@ struct Graph {
 
     size_t CalculateHash();
 
-    Variable::DynamicFills GetMinimumFills(const Variable::StaticSpecs& specs);
-
     void SolveDynamicVar(const VarSolution& s);
 
     /// Apply a primitive in the current graph (later can not be applied in another graph)
@@ -112,6 +107,6 @@ struct Graph {
     [[nodiscard]] std::pair<GraphSP, PrimitiveApply> CopyAndApply(const PrimitiveApply& pa) const;
 };
 
-} // End namespace canvas
+} // namespace canvas
 
 CanvasHashTemplate(canvas::GraphSP, ->Hash());

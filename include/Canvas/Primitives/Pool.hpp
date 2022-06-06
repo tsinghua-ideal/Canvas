@@ -25,10 +25,7 @@ struct PoolPrimitive: Primitive {
 
     explicit PoolPrimitive(const TensorSP& t, PoolType type=PoolHW);
 
-    [[nodiscard]] size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills) const override;
-
     CanvasPrimitiveCopyTemplate(PoolPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

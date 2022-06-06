@@ -17,7 +17,7 @@ namespace canvas {
 
 namespace bcd = boost::compute::detail;
 
-/// String-format code
+/// String-format code.
 struct Code {
     std::string code;
 
@@ -39,12 +39,12 @@ struct Code {
 };
 
 struct OptimizationStorage {
-    virtual ~OptimizationStorage() = default; // To make polymorphic
+    virtual ~OptimizationStorage() = default; // To make polymorphic.
 };
 
 typedef std::shared_ptr<OptimizationStorage> OptimizationStorageSP;
 
-/// Variable map
+/// Variable map.
 struct VarMap {
     std::map<TensorSP, std::string> tensor_map;
     std::map<PrimitiveSP, std::string> primitive_map;
@@ -63,7 +63,7 @@ struct VarMap {
     std::string& operator [] (const PrimitiveSP& p) { return primitive_map[p]; }
 };
 
-/// Code generator prototype
+/// Code generator prototype.
 class CodeGen {
 private:
     static constexpr int kDefaultNetFillsCacheSize = 65536;
@@ -77,7 +77,7 @@ public:
 
     static void CommonChecks(const Solution& solution);
 
-    /// Generate code for specific graphs and configurations
+    /// Generate code for specific graphs and configurations.
     virtual Code GenImpl(const Solution& solution, std::string name) = 0;
 
     Code Gen(const Solution& solution, const std::string& name="") {
@@ -107,7 +107,7 @@ public:
 
     std::ostream& Write(bool do_indent=true) { return indent_os(do_indent); }
 
-    /// Travel the entire graph in a topological order
+    /// Travel the entire graph in a topological order.
     void Travel(const GraphSP& graph, const std::function<void(CodeGen*, PrimitiveSP)>& func, bool reverse=false);
 
     Code Dump() {
@@ -117,4 +117,4 @@ public:
     }
 };
 
-} // End namespace canvas
+} // namespace canvas

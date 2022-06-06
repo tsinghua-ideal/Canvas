@@ -28,4 +28,4 @@ struct UnfoldPrimitive: Primitive {
     CanvasPrimitiveCopyTemplate(UnfoldPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

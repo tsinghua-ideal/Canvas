@@ -27,10 +27,7 @@ struct ElementWisePrimitive: Primitive {
 
     explicit ElementWisePrimitive(const TensorSP& t, ElementWiseType type);
 
-    [[nodiscard]] size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills) const override;
-
     CanvasPrimitiveCopyTemplate(ElementWisePrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

@@ -10,26 +10,27 @@
 
 namespace canvas {
 
-/// Translate into PyTorch-style variable, return "1" if the variable is empty
+/// Translate into PyTorch-style variable, return "1" if the variable is empty.
 static std::string TorchStyleVariable(const Variable& var) {
     if (not var.SatisfyAssumption()) {
         std::stringstream ss;
         ss << "Find a variable which does not satisfy the requirement: " << var;
         throw CanNotApplyPyTorchCodeGen(ss.str());
     }
-    static_assert(Variable::kStaticVarCount == 8);
+    static_assert(Variable::kStaticVarCount == 6);
     static const char* info[Variable::kStaticVarCount] =
-            {"self.g", "self.a", "self.c", "self.k", "self.k", "self.h", "self.w", "self.r"};
-    return var.Format(info, " * ", " // ", "self.x[", "]");
+            {"self.g", "self.c", "self.k", "self.k", "self.h", "self.w"};
+    assert(var.IsStatic());
+    return var.Format(info, " * ", " // ", "None[", "]");
 }
 
-/// Translate into PyTorch-style variable, return "1" if the variable is empty
+/// Translate into PyTorch-style variable, return "1" if the variable is empty.
 static std::string TorchStyleGCKK(const Variable& g, const Variable& c,
                                   const Variable& kh, const Variable& kw) {
     return TorchStyleVariable(g * c * kh * kw);
 }
 
-/// Translate into PyTorch-style shape, skip if the variable inside is empty
+/// Translate into PyTorch-style shape, skip if the variable inside is empty.
 static std::string TorchStyleShape(const Shape& shape) {
     bool displayed = false;
     std::stringstream ss;
@@ -39,7 +40,7 @@ static std::string TorchStyleShape(const Shape& shape) {
     return ss.str();
 }
 
-/// Translate into PyTorch-style shape, skip if the variable inside is empty
+/// Translate into PyTorch-style shape, skip if the variable inside is empty.
 static std::string TorchStyleShapeWithoutHW(const Shape& shape) {
     bool displayed = false;
     std::stringstream ss;
@@ -252,8 +253,6 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
             DynamicCast<GroupPrimitive>(p) or
             DynamicCast<OutputPrimitive>(p) or
             DynamicCast<PoolPrimitive>(p) or
-            DynamicCast<ReorderPrimitive>(p) or
-            DynamicCast<ReshapePrimitive>(p) or
             DynamicCast<TransposePrimitive>(p) or
             DynamicCast<UnfoldPrimitive>(p)) {
         gen->Write() << "pass" << std::endl;
@@ -487,96 +486,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << TorchStyleShape(pool->outs[0]->shape)
                      << ")"
                      << std::endl;
-    } else if (auto reorder = DynamicCast<ReorderPrimitive>(p)) {
-        PyTorchNCHWRecorder recorder(gen, var_map, reorder->ins[0], reorder->outs[0], true);
-        if (not reorder->inverse) {
-            auto reference = recorder.reference;
-            if (reorder->type == ReorderH or reorder->type == ReorderHW) {
-                gen->Write() << var_map[reorder->outs[0]] << "_0"
-                             << " = " << reference
-                             << "[::, ::, 0::2, ::]"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]] << "_1"
-                             << " = " << reference
-                             << "[::, ::, 1::2, ::]"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]]
-                             << " = torch.cat(("
-                             << var_map[reorder->outs[0]] << "_0, "
-                             << var_map[reorder->outs[0]] << "_1), "
-                             << "-2)"
-                             << std::endl;
-                reference = var_map[reorder->outs[0]];
-            }
-            if (reorder->type == ReorderW or reorder->type == ReorderHW) {
-                gen->Write() << var_map[reorder->outs[0]] << "_0"
-                             << " = " << reference
-                             << "[::, ::, ::, 0::2]"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]] << "_1"
-                             << " = " << reference
-                             << "[::, ::, ::, 1::2]"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]]
-                             << " = torch.cat(("
-                             << var_map[reorder->outs[0]] << "_0, "
-                             << var_map[reorder->outs[0]] << "_1), "
-                             << "-1)"
-                             << std::endl;
-                reference = var_map[reorder->outs[0]];
-            }
-        } else {
-            auto reference = recorder.reference;
-            gen->Write() << var_map[reorder->outs[0]]
-                         << " = "
-                         << reference << ".clone()"
-                         << std::endl;
-            if (reorder->type == ReorderH or reorder->type == ReorderHW) {
-                gen->Write() << "half"
-                             << " = "
-                             << "(" << reference << ".size(-2) + 1) // 2"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]]
-                             << "[::, ::, 0::2, ::]"
-                             << " = "
-                             << reference
-                             << "[::, ::, 0:half, ::]"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]]
-                             << "[::, ::, 1::2, ::]"
-                             << " = "
-                             << reference
-                             << "[::, ::, half:, ::]"
-                             << std::endl;
-            }
-            if (reorder->type == ReorderW or reorder->type == ReorderHW) {
-                gen->Write() << "half"
-                             << " = "
-                             << "(" << reference << ".size(-1) + 1) // 2"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]]
-                             << "[::, ::, ::, 0::2]"
-                             << " = "
-                             << reference
-                             << "[::, ::, ::, 0:half]"
-                             << std::endl;
-                gen->Write() << var_map[reorder->outs[0]]
-                             << "[::, ::, ::, 1::2]"
-                             << " = "
-                             << reference
-                             << "[::, ::, ::, half:]"
-                             << std::endl;
-            }
-        }
-        recorder.GenCopyShapeCode();
-    } else if (auto reshape = DynamicCast<ReshapePrimitive>(p)) {
-        gen->Write() << var_map[reshape->outs[0]]
-                     << " = "
-                     << var_map[reshape->ins[0]]
-                     << ".view(self.n, "
-                     << TorchStyleShape(reshape->outs[0]->shape)
-                     << ")"
-                     << std::endl;
     } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         int h_index = -1, w_index = -1;
         h_index -= static_cast<int>(not shift->ins[0]->shape.W().Empty());
@@ -662,8 +571,6 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
     try {
         auto net_specs = solution.specs;
         auto graph = solution.graph;
-        auto preferences = solution.preferences;
-        auto net_fills = solution.fills;
 
         // Rename if with an empty name
         if (name.empty())
@@ -680,19 +587,14 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         // Class definition and configurations
         Write() << "class " << name << "(nn.Module):" << std::endl;
         BeginScope();
-        Write() << "def __init__(self, ic: int, oc: int, k: int, s: int, h: int, w: int, x: [int]):" << std::endl;
+        Write() << "def __init__(self, c: int, h: int, w: int):" << std::endl;
         BeginScope();
         Write() << "# Configurations" << std::endl;
         Write() << "super(" << name << ", self).__init__()" << std::endl;
-        Write() << "assert k % 2 == 1" << std::endl;
-        Write() << "assert math.gcd(ic, oc) == min(ic, oc)" << std::endl;
-        Write() << "self.ic, self.oc = ic, oc" << std::endl;
-        Write() << "self.a = max(ic, oc) // min(ic, oc)" << std::endl;
-        Write() << "assert self.a >= 1" << std::endl;
-        Write() << "self.c, self.k, self.s, self.p = min(ic, oc), k, s, (k - 1) // 2" << std::endl;
-        Write() << "self.g, self.r = " << preferences.g << ", " << preferences.r << std::endl;
-        Write() << "self.h, self.w = h // s, w // s" << std::endl;
-        Write() << "self.x = x" << std::endl;
+        Write() << "self.c, self.h, self.w = c, h, w" << std::endl;
+        // TODO: support flexible shapes.
+        Write() << "self.k, self.p = 3, 1" << std::endl;
+        Write() << "self.g, self.r = 1, 1" << std::endl;
         Write() << std::endl;
 
 #ifdef CANVAS_DEBUG_PYTORCH_CODEGEN_PRINT_SPECS_IN_PYTHON
@@ -736,7 +638,7 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
     }
 }
 
-} // End namespace canvas
+} // namespace canvas
 
 #ifdef CANVAS_DEBUG_PYTORCH_CODEGEN_PRINT_SHAPES_IN_PYTHON
 #undef CANVAS_DEBUG_PYTORCH_CODEGEN_PRINT_SHAPES_IN_PYTHON

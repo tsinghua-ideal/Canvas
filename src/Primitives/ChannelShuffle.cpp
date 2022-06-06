@@ -15,4 +15,4 @@ std::vector<Variable> ChannelShufflePrimitive::IntermediateVariables() const {
     return {ins[0]->shape.GCKK() / StaticVar::VG};
 }
 
-} // End namespace canvas
+} // namespace canvas

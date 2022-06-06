@@ -28,4 +28,4 @@ struct ShiftPrimitive: Primitive {
     CanvasPrimitiveCopyTemplate(ShiftPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

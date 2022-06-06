@@ -11,14 +11,4 @@ NormPrimitive::NormPrimitive(const TensorSP& t):
     outs.push_back(std::make_shared<Tensor>(s));
 }
 
-size_t NormPrimitive::PsCount(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    // \gamma, \beta, moving_mean and moving_variance
-    return ins[0]->shape.GCKK().FillToInteger(specs, fills) * 4;
-}
-
-size_t NormPrimitive::FLOPsCount(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    // FMA counts 2 FLOPs
-    return ins[0]->shape.Pi().FillToInteger(specs, fills) * 2;
-}
-
-} // End namespace canvas
+} // namespace canvas

@@ -142,18 +142,7 @@ BroadcastPrimitive::GetAllPossibleMatches(const TensorSP& lhs, const TensorSP& r
     Unreachable();
 }
 
-size_t BroadcastPrimitive::FLOPsCount(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    assert(ins.size() == 2);
-    auto static_rhs_shape = ins[1]->shape.FillToStaticShape(specs, fills);
-    return static_rhs_shape.Pi();
-}
-
-void BroadcastPrimitive::AmplifyIntermediateVariables() {
-    assert(ins[0]->shape.G().Amplified() and ins[1]->shape.G().Amplified() and outs[0]->shape.G().Amplified());
-    InferShapes(ins[0], ins[1]);
-}
-
-} // End namespace canvas
+} // namespace canvas
 
 #ifdef CANVAS_DEBUG_BROADCAST_PRIMITIVE_PRINT_SHAPES
 #undef CANVAS_DEBUG_BROADCAST_PRIMITIVE_PRINT_SHAPES

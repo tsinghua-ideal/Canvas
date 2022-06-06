@@ -26,4 +26,4 @@ struct GroupPrimitive: Primitive {
     CanvasPrimitiveCopyTemplate(GroupPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

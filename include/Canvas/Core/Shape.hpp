@@ -12,14 +12,14 @@ namespace canvas {
 struct Shape {
     static constexpr int kShapeMaxDim = 6;
 
-    /// Shape dim position indices
+    /// Shape dim position indices.
     enum DimPos {
-        PG = 0,     // Groups
-        PC = 1,     // Channels
-        PKH = 2,    // Kernel height
-        PKW = 3,    // Kernel width
-        PH = 4,     // Height
-        PW = 5,     // Width
+        PG = 0,     // Groups.
+        PC = 1,     // Channels.
+        PKH = 2,    // Kernel height.
+        PKW = 3,    // Kernel width.
+        PH = 4,     // Height.
+        PW = 5,     // Width.
     };
 
     Variable dims[kShapeMaxDim] = {};
@@ -78,12 +78,6 @@ struct Shape {
         return s;
     }
 
-    [[nodiscard]] static Shape StandardACHW() {
-        Shape s = StandardCHW();
-        s.G() = StaticVar::VA;
-        return s;
-    }
-
     [[nodiscard]] Variable CKK() const {
         return dims[DimPos::PC] * dims[DimPos::PKH] * dims[DimPos::PKW];
     }
@@ -102,29 +96,6 @@ struct Shape {
     void SolveDynamicVar(const VarSolution& s) {
         for (auto& dim: dims)
             dim.SolveDynamicVar(s);
-    }
-
-    void UpdateMinimumFills(Variable::DynamicFills& fills, const Variable::StaticSpecs& specs) const {
-        for (const auto& dim: dims)
-            dim.UpdateMinimumFills(fills, specs);
-    }
-
-    [[nodiscard]] StaticShape FillToStaticShape(const Variable::StaticSpecs& specs,
-                                                const Variable::DynamicFills& fills=Variable::DynamicFills()) {
-        StaticShape static_shape;
-        for (int i = 0; i < kShapeMaxDim; ++ i) {
-            size_t static_value = dims[i].FillToInteger(specs, fills);
-            assert(static_value > 0);
-            static_shape.dims[i] = static_value;
-        }
-        return static_shape;
-    }
-
-    [[nodiscard]] bool CouldBeFilledToInteger(const Variable::StaticSpecs& specs,
-                                              const Variable::DynamicFills& fills=Variable::DynamicFills()) {
-        return std::all_of(dims, dims + kShapeMaxDim, [=](const Variable& var) -> bool {
-            return var.FillToInteger(specs, fills) != 0;
-        });
     }
 
     [[nodiscard]] bool CouldBeReshapeToCHW() const {
@@ -181,6 +152,6 @@ struct Shape {
 using DimPos = Shape::DimPos;
 using StaticShape = Shape::StaticShape;
 
-} // End namespace canvas
+} // namespace canvas
 
 CanvasHashTemplate(canvas::Shape, .Hash());

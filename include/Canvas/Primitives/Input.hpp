@@ -9,9 +9,6 @@ struct InputPrimitive: Primitive {
     InputPrimitive();
 
     CanvasPrimitiveCopyTemplate(InputPrimitive);
-
-    [[nodiscard]] size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills=Variable::DynamicFills()) const override;
 };
 
-} // End namespace canvas
+} // namespace canvas

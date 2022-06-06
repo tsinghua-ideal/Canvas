@@ -5,4 +5,4 @@ namespace canvas {
 
 int Tensor::num_deconstruction = 0;
 
-} // End namespace canvas
+} // namespace canvas

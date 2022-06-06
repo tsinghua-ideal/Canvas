@@ -63,4 +63,4 @@ public:
     }
 };
 
-} // End namespace canvas
+} // namespace canvas

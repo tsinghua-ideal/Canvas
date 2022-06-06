@@ -328,7 +328,7 @@ static Type Power(Type base, int power) {
     return result;
 }
 
-} // End namespace canvas
+} // namespace canvas
 
 #define CanvasHashTemplate(Type, expr)    template <> \
 struct std::hash<Type> { \

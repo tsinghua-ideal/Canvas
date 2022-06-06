@@ -22,8 +22,4 @@ FoldPrimitive::FoldPrimitive(const TensorSP& t, FoldType type, FoldArithmeticTyp
     outs.push_back(std::make_shared<Tensor>(new_shape));
 }
 
-size_t FoldPrimitive::FLOPsCount(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    return ins[0]->shape.Pi().FillToInteger(specs, fills); // Just sum or max
-}
-
-} // End namespace canvas
+} // namespace canvas

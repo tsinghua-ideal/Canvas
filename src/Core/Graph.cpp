@@ -1,9 +1,6 @@
 #include <cassert>
 
 #include "Canvas/Core/Graph.hpp"
-#include "Canvas/Primitives/Broadcast.hpp"
-#include "Canvas/Primitives/Dot.hpp"
-#include "Canvas/Primitives/FC.hpp"
 #include "Canvas/Primitives/Input.hpp"
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Utils/Common.hpp"
@@ -13,11 +10,11 @@
 namespace canvas {
 
 Graph::Graph(const Graph& rhs) {
-    // Copy hash
+    // Copy hash.
     hash_cached = rhs.hash_cached;
     hash_value = rhs.hash_value;
 
-    // Copy every tensor
+    // Copy every tensor.
     tensors = rhs.tensors;
     for (auto &t: tensors) {
         t = std::make_shared<Tensor>(*t);
@@ -25,7 +22,7 @@ Graph::Graph(const Graph& rhs) {
     }
     in = tensors[rhs.in->id];
 
-    // Copy every primitive, change inputs and outputs into new tensors
+    // Copy every primitive, change inputs and outputs into new tensors.
     primitives = rhs.primitives;
     for (auto &p: primitives) {
         p = p->Copy();
@@ -33,7 +30,7 @@ Graph::Graph(const Graph& rhs) {
             p_t = tensors[p_t->id];
     }
 
-    // Change tensors' producers and consumers
+    // Change tensors' producers and consumers.
     for (const auto& t: tensors) {
         t->producer = primitives[t->producer->id];
         for (auto& p: t->consumers)
@@ -42,7 +39,7 @@ Graph::Graph(const Graph& rhs) {
 }
 
 Graph::~Graph() {
-    // Clear one of the links between tensors and primitives
+    // Clear one of the links between tensors and primitives.
     in = nullptr;
     for (const auto& t: tensors) {
         t->producer = nullptr;
@@ -51,7 +48,7 @@ Graph::~Graph() {
 }
 
 void Graph::LegalityCheck() const {
-    // Topology checks
+    // Topology checks.
     std::set<TensorSP> t_set(tensors.begin(), tensors.end());
     std::set<PrimitiveSP> p_set(primitives.begin(), primitives.end());
     assert(t_set.size() == tensors.size());
@@ -65,42 +62,19 @@ void Graph::LegalityCheck() const {
         for (const auto& t: br::join(p->ins, p->outs))
             assert(t_set.count(t));
 
-    // Shape checks
+    // Shape checks.
     for (const auto& t: tensors) {
         auto& shape = t->shape;
-        // G
+        // G.
         assert(shape.G().SatisfyAssumption());
-        // C
+        // C.
         assert(shape.C().SatisfyAssumption());
-        assert(not shape.C().Amplified());
-        // KH, KW, H, W
+        // KH, KW, H, W.
         assert(shape.KH().IsStaticInteger());
-        assert(not shape.KH().Amplified());
         assert(shape.KW().IsStaticInteger());
-        assert(not shape.KW().Amplified());
         assert(shape.H() == Variable(StaticVar::VH) or shape.H().Empty());
-        assert(not shape.H().Amplified());
         assert(shape.W() == Variable(StaticVar::VW) or shape.W().Empty());
-        assert(not shape.W().Amplified());
     }
-}
-
-bool Graph::AlgebraCheck(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    // Get all parameters
-    size_t ic = specs.ic, oc = specs.oc;
-    auto k = specs.k, h = specs.h, w = specs.w;
-    size_t s = specs.s, g = specs.g, r = specs.r;
-    assert(h % s == 0 and w % s == 0);
-    assert(ic > 0 and oc > 0 and k > 0 and h > 0 and w > 0 and g > 0 and r > 0 and s > 0);
-    assert(std::gcd(ic, oc) == std::min(ic, oc));
-
-    // Run dynamic variable substitutions
-    for (const auto& t: tensors)
-        assert(t->shape.CouldBeFilledToInteger(specs, fills));
-    for (const auto& p: primitives)
-        for (const auto& var: p->IntermediateVariables())
-            assert(var.FillToInteger(specs, fills) != 0);
-    return true;
 }
 
 bool Graph::IsTopologicalFinished() const {
@@ -112,7 +86,7 @@ bool Graph::IsTopologicalFinished() const {
         output_count += (DynamicCast<OutputPrimitive>(p) != nullptr);
     return output_count == 1
         and DynamicCast<OutputPrimitive>(out->producer) != nullptr
-        and out->shape == Shape::StandardACHW(); // `ACHW` means that the amplifier rewriting pass is done
+        and out->shape == Shape::StandardCHW();
 }
 
 int Graph::DynamicVarCount() const {
@@ -202,16 +176,6 @@ size_t Graph::CalculateHash() {
     return hash_value = CalculateSubgraphHash(in, cache);
 }
 
-Variable::DynamicFills Graph::GetMinimumFills(const Variable::StaticSpecs& specs) {
-    Variable::DynamicFills minimum_fills;
-    for (const auto& t: tensors)
-        t->shape.UpdateMinimumFills(minimum_fills, specs);
-    for (const auto& p: primitives)
-        for (const auto& v: p->IntermediateVariables())
-            v.UpdateMinimumFills(minimum_fills, specs);
-    return minimum_fills;
-}
-
 void Graph::Apply(const PrimitiveSP& p) {
     hash_cached = false;
     for (const auto& t: p->ins)
@@ -237,12 +201,6 @@ void Graph::ApplyOutput() {
     auto out = Out();
     assert(out and DynamicCast<OutputPrimitive>(out->producer) == nullptr);
     Apply(std::make_shared<OutputPrimitive>(out));
-
-    // Rewrite with amplifier
-    for (const auto& t: tensors)
-        t->shape.G() *= StaticVar::VA;
-    for (const auto& p: primitives)
-        p->AmplifyIntermediateVariables();
 }
 
 PrimitiveSP Graph::RemapPrimitive(const PrimitiveSP& p) const {
@@ -283,4 +241,4 @@ void Graph::SolveDynamicVar(const VarSolution& s) {
     }
 }
 
-} // End namespace canvas
+} // namespace canvas

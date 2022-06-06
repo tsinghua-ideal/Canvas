@@ -45,4 +45,4 @@ struct Tensor {
 
 typedef std::shared_ptr<Tensor> TensorSP;
 
-} // End namespace canvas
+} // namespace canvas

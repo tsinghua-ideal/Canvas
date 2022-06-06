@@ -39,10 +39,7 @@ struct FoldPrimitive: Primitive {
 
     explicit FoldPrimitive(const TensorSP& t, FoldType type=FoldHW, FoldArithmeticType arith_type=FoldAvg);
 
-    [[nodiscard]] size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills) const override;
-
     CanvasPrimitiveCopyTemplate(FoldPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

@@ -9,8 +9,8 @@ namespace canvas {
 bool PrimitiveGenOptions::Adapt(const PrimitiveApply& apply) const {
     assert(apply.primitive);
 
-    // Check types
-    // Broadcast
+    // Check types.
+    // Broadcast.
     if (auto broadcast = DynamicCast<BroadcastPrimitive>(apply.primitive)) {
         if (not b_add and broadcast->type == BAdd)
             return false;
@@ -20,13 +20,13 @@ bool PrimitiveGenOptions::Adapt(const PrimitiveApply& apply) const {
             return false;
     }
 
-    // With parameters
+    // With parameters.
     if (not dot and DynamicCast<DotPrimitive>(apply.primitive))
         return false;
     if (not fc and DynamicCast<FCPrimitive>(apply.primitive))
         return false;
 
-    // Arithmetic operators
+    // Arithmetic operators.
     if (auto activation = DynamicCast<ActivationPrimitive>(apply.primitive)) {
         if (not gelu and activation->type == GeLU)
             return false;
@@ -62,7 +62,7 @@ bool PrimitiveGenOptions::Adapt(const PrimitiveApply& apply) const {
             return false;
     }
 
-    // Spatial operators
+    // Spatial operators.
     if (not channel_shuffle and DynamicCast<ChannelShufflePrimitive>(apply.primitive))
         return false;
     if (auto fold = DynamicCast<FoldPrimitive>(apply.primitive)) {
@@ -99,14 +99,6 @@ bool PrimitiveGenOptions::Adapt(const PrimitiveApply& apply) const {
         if (not pool_hw and pool->type == PoolHW)
             return false;
     }
-    if (auto reorder = DynamicCast<ReorderPrimitive>(apply.primitive)) {
-        if (not reorder_h and reorder->type == ReorderH)
-            return false;
-        if (not reorder_w and reorder->type == ReorderW)
-            return false;
-        if (not reorder_hw and reorder->type == ReorderHW)
-            return false;
-    }
     if (auto shift = DynamicCast<ShiftPrimitive>(apply.primitive)) {
         if (not shift_h and shift->type == ShiftH)
             return false;
@@ -118,37 +110,37 @@ bool PrimitiveGenOptions::Adapt(const PrimitiveApply& apply) const {
     if (not transpose and DynamicCast<TransposePrimitive>(apply.primitive))
         return false;
 
-    // Check width
+    // Check width.
     int delta_width = static_cast<int>(apply.primitive->outs.size());
     for (const auto& t: ToUnorderedSet(apply.primitive->ins))
-        delta_width -= static_cast<int>(t->consumers.empty()); // Not applied yet
+        delta_width -= static_cast<int>(t->consumers.empty()); // Not applied yet.
     return delta_width <= max_delta_width;
 }
 
 std::vector<PrimitiveApply> PrimitiveFactory::GetPrimitiveApplies(const GraphSP& graph,
                                                                   bool allow_dynamic_variables,
                                                                   const std::set<TensorSP>& forbidden_successor) {
-    // Get all filters
+    // Get all filters.
     std::unordered_set<size_t> filter;
     for (const auto& p: graph->primitives)
         filter.insert(p->Hash(true));
 
     std::vector<PrimitiveApply> primitives;
 
-    // Get primitives without inputs
+    // Get primitives without inputs.
     GetPrimitiveApplies(graph, primitives, filter, allow_dynamic_variables);
 
-    // Filter tensors
+    // Filter tensors.
     std::vector<TensorSP> filtered;
     for (const auto& t: graph->tensors)
         if (not forbidden_successor.count(t))
             filtered.push_back(t);
 
-    // Get primitives with one input
+    // Get primitives with one input.
     for (const auto& t: filtered)
         GetPrimitiveApplies(graph, primitives, t, filter, allow_dynamic_variables);
 
-    // Get primitives with two inputs
+    // Get primitives with two inputs.
     for (const auto& lhs: filtered)
         for (const auto& rhs: filtered)
             GetPrimitiveApplies(graph, primitives, lhs, rhs, filter, allow_dynamic_variables);
@@ -161,7 +153,7 @@ std::vector<PrimitiveApply> PrimitiveFactory::RescalePossibilities(const std::ve
     std::vector<PrimitiveApply> applies_copy = applies;
     RandomShuffle(applies_copy);
 
-    // Push all the first in the shuffle into the candidates
+    // Push all the first in the shuffle into the candidates.
     std::vector<PrimitiveApply> new_applies;
     std::set<std::string> filter;
     for (const auto& apply: applies_copy) {
@@ -186,7 +178,7 @@ std::vector<PrimitiveApply> PrimitiveFactory::FilterPrimitiveApplies(const std::
 
 std::vector<PrimitiveApply> PrimitiveFactory::FilterPrimitiveApplies(const std::vector<PrimitiveApply>& applies,
                                                                      const std::vector<PrimitiveGenOptions>& or_options) {
-    // No requirements, just return the original primitives
+    // No requirements, just return the original primitives.
     if (or_options.empty())
         return applies;
     std::vector<PrimitiveApply> new_applies;
@@ -211,7 +203,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                                            std::vector<PrimitiveApply>& primitives,
                                            std::unordered_set<size_t>& filter,
                                            bool allow_dynamic_variables) {
-    // Currently none
+    // Currently none.
 }
 
 void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
@@ -220,39 +212,39 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                                            std::unordered_set<size_t>& filter,
                                            bool allow_dynamic_variables) {
     assert(t->producer);
-    // The next variable index
+    // The next variable index.
     auto next_index_opt = graph->NextUnusedDynamicVarIndex();
 
-    // Dot: no new variables
+    // Dot: no new variables.
     TryMakeAndPush<DotPrimitive>(primitives, filter, t);
 
     // FC: The channel could be a new variable
     if (allow_dynamic_variables) {
-        if (t->shape.G().IsStatic()) { // Could not have dynamic variables in G
+        if (t->shape.G().IsStatic()) { // Could not have dynamic variables in G.
             if (next_index_opt.has_value())
                 TryMakeAndPush<FCPrimitive>(primitives, filter, t, Variable::Dynamic(next_index_opt.value()));
             else
-                TryMakeAndPush<FCPrimitive>(primitives, filter, t); // By default, we retain the channel number and fold spatial information
+                TryMakeAndPush<FCPrimitive>(primitives, filter, t); // By default, we retain the channel number and fold spatial information.
         }
     } else {
-        TryMakeAndPush<FCPrimitive>(primitives, filter, t); // By default, we retain the channel number and fold spatial information
+        TryMakeAndPush<FCPrimitive>(primitives, filter, t); // By default, we retain the channel number and fold spatial information.
     }
 
-    // Activation: no new variables, pruning: input could not have been activated
+    // Activation: no new variables, pruning: input could not have been activated.
     if (DynamicCast<InputPrimitive>(t->producer) == nullptr and DynamicCast<ActivationPrimitive>(t->producer) == nullptr) {
         for (const auto &type: {GeLU, ReLU, Sigmoid, TanH})
             TryMakeAndPush<ActivationPrimitive>(primitives, filter, t, type);
     }
 
-    // Dropout: no new variables, pruning: input could not have been `Dropout`-ed
+    // Dropout: no new variables, pruning: input could not have been `Dropout`-ed.
     if (DynamicCast<DropoutPrimitive>(t->producer) == nullptr)
         TryMakeAndPush<DropoutPrimitive>(primitives, filter, t);
 
-    // Norm: no new variables, pruning: input could not have been already normalized
+    // Norm: no new variables, pruning: input could not have been already normalized.
     if (DynamicCast<InputPrimitive>(t->producer) == nullptr and DynamicCast<NormPrimitive>(t->producer) == nullptr)
         TryMakeAndPush<NormPrimitive>(primitives, filter, t);
 
-    // Softmax: no new variables, pruning: the last primitive could not be the same
+    // Softmax: no new variables, pruning: the last primitive could not be the same.
     for (const auto& type: {SoftmaxC, SoftmaxH, SoftmaxW, SoftmaxHW}) {
         if (auto last_softmax = DynamicCast<SoftmaxPrimitive>(t->producer))
             if (last_softmax->type == type)
@@ -260,20 +252,20 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         TryMakeAndPush<SoftmaxPrimitive>(primitives, filter, t, type);
     }
 
-    // Element-wise: no new variables, pruning: the last primitive could not be the same
+    // Element-wise: no new variables, pruning: the last primitive could not be the same.
     for (const auto& type: {Abs, Exp, Neg, Sin}) {
         if (auto element_wise = DynamicCast<ElementWisePrimitive>(t->producer)) {
-            // Same type operators
+            // Same type operators.
             if (element_wise->type == type)
                 continue;
-            // Special pruning for absolute
+            // Special pruning for absolute.
             if (type == Abs and (element_wise->type == Exp or element_wise->type == Neg))
                 continue;
         }
         TryMakeAndPush<ElementWisePrimitive>(primitives, filter, t, type);
     }
 
-    // ChannelShuffle: no new variables, pruning: input could not be shuffled
+    // ChannelShuffle: no new variables, pruning: input could not be shuffled.
     if (DynamicCast<ChannelShufflePrimitive>(t->producer) == nullptr)
         TryMakeAndPush<ChannelShufflePrimitive>(primitives, filter, t);
 
@@ -282,7 +274,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         for (const auto& arith_type: {FoldAvg, FoldMax})
             TryMakeAndPush<FoldPrimitive>(primitives, filter, t, type, arith_type);
 
-    // Unfold: no new variables, pruning: can not separately unfold
+    // Unfold: no new variables, pruning: can not separately unfold.
     for (const auto& type: {UnfoldH, UnfoldW, UnfoldHW}) {
         if (auto last_unfold = DynamicCast<UnfoldPrimitive>(t->producer))
             if ((last_unfold->type == UnfoldH and type == UnfoldW) or
@@ -291,28 +283,19 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         TryMakeAndPush<UnfoldPrimitive>(primitives, filter, t, type);
     }
 
-    // Group: no new variables
+    // Group: no new variables.
     for (const auto& type: {GroupByFactor, GroupAllChannels})
         TryMakeAndPush<GroupPrimitive>(primitives, filter, t, type);
 
-    // Pool: no new variables
+    // Pool: no new variables.
     for (const auto& type: {PoolH, PoolW, PoolHW})
         TryMakeAndPush<PoolPrimitive>(primitives, filter, t, type);
 
-    // Reorder: no new variables, pruning: reorder and inverse
-    for (const auto& type: {ReorderH, ReorderW, ReorderHW})
-        for (const auto& inverse: {false, true}) {
-            if (auto last_reorder = DynamicCast<ReorderPrimitive>(t->producer))
-                if (last_reorder->type == type and last_reorder->inverse != inverse)
-                    continue;
-            TryMakeAndPush<ReorderPrimitive>(primitives, filter, t, type, inverse);
-        }
-
-    // Shift: no new variables
+    // Shift: no new variables.
     for (const auto& type: {ShiftH, ShiftW, ShiftHW})
         TryMakeAndPush<ShiftPrimitive>(primitives, filter, t, type);
 
-    // Transpose: no new variables, pruning: input could not have been transposed
+    // Transpose: no new variables, pruning: input could not have been transposed.
     if (DynamicCast<TransposePrimitive>(t->producer) == nullptr)
         TryMakeAndPush<TransposePrimitive>(primitives, filter, t);
 }
@@ -323,12 +306,12 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                                            const TensorSP& rhs,
                                            std::unordered_set<size_t>& filter,
                                            bool allow_dynamic_variables) {
-    // Element-wise broadcasting operations
+    // Element-wise broadcasting operations.
     for (const auto& type: {BAdd, BSub, BMul}) {
-        // Pruning for subtraction to zero
+        // Pruning for subtraction to zero.
         if (lhs == rhs and type == BSub)
             continue;
-        // Pruning for multiplying 2
+        // Pruning for multiplying 2.
         if (lhs == rhs and type == BAdd)
             continue;
         auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type);
@@ -337,4 +320,4 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     }
 }
 
-} // End namespace canvas
+} // namespace canvas

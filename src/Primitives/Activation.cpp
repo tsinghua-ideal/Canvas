@@ -8,8 +8,4 @@ ActivationPrimitive::ActivationPrimitive(const TensorSP& t, ActivationType type)
     outs.push_back(std::make_shared<Tensor>(t->shape));
 }
 
-size_t ActivationPrimitive::FLOPsCount(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    return ins[0]->shape.Pi().FillToInteger(specs, fills) * ActivationFLOPsFactor(type);
-}
-
-} // End namespace canvas
+} // namespace canvas

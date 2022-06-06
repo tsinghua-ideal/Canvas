@@ -13,4 +13,4 @@ ShiftPrimitive::ShiftPrimitive(const TensorSP& t, ShiftType type):
     outs.push_back(std::make_shared<Tensor>(s));
 }
 
-} // End namespace canvas
+} // namespace canvas

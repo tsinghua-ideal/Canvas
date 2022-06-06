@@ -15,8 +15,4 @@ SoftmaxPrimitive::SoftmaxPrimitive(const TensorSP& t, SoftmaxType type):
     outs.push_back(std::make_shared<Tensor>(s));
 }
 
-size_t SoftmaxPrimitive::FLOPsCount(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    return ins[0]->shape.Pi().FillToInteger(specs, fills) * 3; // Exp, add and division
-}
-
-} // End namespace canvas
+} // namespace canvas

@@ -8,4 +8,4 @@ DropoutPrimitive::DropoutPrimitive(const TensorSP& t):
     outs.push_back(std::make_shared<Tensor>(t->shape));
 }
 
-} // End namespace canvas
+} // namespace canvas

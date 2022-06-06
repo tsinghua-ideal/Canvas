@@ -1,4 +1,3 @@
-import ptflops
 import torch
 from torch import nn
 from typing import Tuple
@@ -38,86 +37,30 @@ def seed(value: int):
     cpp_canvas.seed(value)
 
 
-def statistics(m: nn.Module,
-               example_input: torch.Tensor = None,
-               original: bool = True,
-               entire: bool = False):
-    r"""Calculate MACs and number of parameters for a module.
-
-        Parameters
-        ----------
-        m: torch.nn.Module
-            The module to be calculated.
-
-        example_input: torch.Tensor
-            An example input tensor, for static shape inference and
-            analysis if set. For the first analysis or changing to
-            different shapes, you must not set it into `None`.
-
-        original: bool
-            Whether to count placeholders as original convolutions.
-
-        entire: bool
-            Whether to count all the layers but not only the placeholders.
-
-        Returns
-        -------
-        macs: int
-            The MACs of selected kernels in the module.
-
-        n_params: int
-            The number of parameters of selected kernels in the module.
-    """
-    placeholders = get_placeholders(m, example_input, True)
-
-    if entire:
-        if not original:
-            macs, params = ptflops.get_model_complexity_info(m,
-                                                             tuple(m.canvas_cached_example_input_shape),
-                                                             as_strings=False,
-                                                             print_per_layer_stat=False,
-                                                             verbose=False)
-        else:
-            raise NotImplementedError
-    else:
-        if original:
-            raise NotImplementedError
-        else:
-            raise NotImplementedError
-    return macs, params
-
-
+# TODO: fix options of FLOPs and params.
 def sample(m: nn.Module,
            example_input: torch.Tensor = None,
-           flops_range: Tuple[float, float] = (0, 1.0),
-           params_range: Tuple[float, float] = (0, 1.0),
            allow_dynamic: bool = True,
            force_irregular: bool = False,
            add_relu_bn_after_fc: bool = True,
-           num_primitive_range: Tuple[int, int] = (3, 12),
-           num_fc_range: Tuple[int, int] = (1, 4),
+           num_primitive_range: Tuple[int, int] = (3, 25),
+           num_fc_range: Tuple[int, int] = (1, 8),
            timeout: int = 0):
     r"""Sample an available kernel for a module from the search space.
-        This function will find all convolutions in the module and
-        replace them with `canvas.Placeholder`. Later, you could use
-        `canvas.replace` function to substitute the kernels in the
+        This function will find all placeholders in the module, and sample
+        an available to substitute the originals.
+        You may use `canvas.replace` function to substitute the kernels in the
         placeholders.
 
         Parameters
         ----------
         m: torch.nn.Module
-            The module to be optimized, all possible replacements for
-            convolutions will occur recursively in this module.
+            The module to be searched, all placeholders will be analyzed to
+            create a new kernel.
         example_input: torch.Tensor
             An example input tensor, for static shape inference and
             analysis if set. For the first analysis or changing to
             different shapes, you must not set it into `None`.
-        flops_range: Tuple[float, float]
-            The budget ratio range of FLOPs (FLoating point OPerations) compared
-            to all the convolutions in the original module.
-        params_range: Tuple[float, float]
-            The budget ratio range of parameters compared to all the convolutions
-            in the original module.
         allow_dynamic: bool
             Whether allow dynamic variables to occur in the search space.
         force_irregular: bool
@@ -141,26 +84,17 @@ def sample(m: nn.Module,
 
         Example
         -------
-        >>> conv = canvas.sample(m, torch.zeros((1, 3, 224, 224)))
-        >>> print(conv.module)  # Show generated torch.nn.Module class
-        >>> print(conv.fills)  # Show dynamic fills for every replaced kernel
-        >>> print(conv.graphviz)   # Show generated GraphViz code
-        >>> canvas.replace(m, conv)  # Replace all convolution kernels
+        >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)))
+        >>> print(kernel.module)        # Show generated torch.nn.Module class.
+        >>> print(kernel.graphviz)      # Show generated GraphViz code.
+        >>> canvas.replace(m, kernel)   # Replace all kernels.
 
         """
-    # Check module type
+    # Check module type.
     if not isinstance(m, nn.Module):
         raise ValueError('The input module `m` should be an instance of nn.Module.')
 
-    # Check budget types
-    if not utils.float_range_check(flops_range, 0, 10):
-        raise ValueError('The budget of FLOPs `flops_budget` should be a float, '
-                         'which is in the range of (0, 10].')
-    if not utils.float_range_check(params_range, 0, 10):
-        raise ValueError('The budget of parameters `params_budget` should be a float, '
-                         'which is in the range of (0, 10].')
-
-    # Check option types
+    # Check option types.
     if type(allow_dynamic) != bool:
         raise ValueError('The variable `allow_dynamic` should be a bool.')
     if type(force_irregular) != bool:
@@ -175,27 +109,29 @@ def sample(m: nn.Module,
         raise ValueError('Tuple `num_fc_range` should be a tuple of'
                          'two positive ints [L, R], where L <= R.')
 
-    # Check timeout type
+    # Check timeout type.
     if not (type(timeout) == int and timeout >= 0):
         raise ValueError('Timeout value `timeout` should be an int '
                          'greater than zero.')
 
-    # Replace convolutions with placeholders and analyze shapes
+    # Get placeholders in the module.
     kernels = placeholder.get_placeholders(m, example_input, check_shapes=True)
+    if len(kernels) == 0:
+        print('No `canvas.Placeholder` found in the module, '
+              'you may re-design your model with placeholders.')
+        return None
 
-    # Sample
-    kernel_specs = [cpp_canvas.KernelSpecs(ker.ic, ker.oc, ker.k, ker.h, ker.w, ker.s) for ker in kernels]
+    # Sample a kernel design.
+    kernel_specs = [cpp_canvas.KernelSpecs(ker.c, ker.h, ker.w) for ker in kernels]
     # noinspection PyArgumentList
     pack = cpp_canvas.sample(kernel_specs,
-                             flops_range[0], flops_range[1],
-                             params_range[0], params_range[1],
                              allow_dynamic, force_irregular,
                              add_relu_bn_after_fc,
                              num_primitive_range[0], num_primitive_range[1],
                              num_fc_range[0], num_fc_range[1],
                              timeout)
 
-    # Load generated code into Python class
+    # Load generated code into Python class.
     return kernel_pack.KernelPack(pack)
 
 
@@ -219,31 +155,22 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
 
         Example
         -------
-        >>> m = torchvision.models.resnet18()
-        >>> conv = canvas.sample(m, torch.zeros((1, 3, 224, 224)))
-        >>> print(conv.module)  # Show generated torch.nn.Module class
-        >>> print(conv.fills)  # Show dynamic fills for every replaced kernel
-        >>> print(conv.graphviz)   # Show generated GraphViz code
-        >>> canvas.replace(m, conv)  # Replace all convolution kernels
+        >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)))
+        >>> print(conv.module)          # Show generated torch.nn.Module class.
+        >>> print(conv.graphviz)        # Show generated GraphViz code.
+        >>> canvas.replace(m, kernel)   # Replace all kernels.
     """
 
-    if not hasattr(m, 'canvas_cached_placeholders'):
+    # Check placeholders.
+    if not hasattr(m, 'canvas_cached_placeholders') or len(m.canvas_cached_placeholders) == 0:
         raise AttributeError('The module has been not initialized with `canvas.Placeholder`, '
                              'you may run `canvas.sample` or `canvas.get_placeholders` '
                              'before using `canvas.replace`.')
 
-    # Reload all kernels
+    # Reload all kernels.
     kernels = m.canvas_cached_placeholders
-    assert len(pack.fills) == len(kernels)
     for kernel in kernels:
-        kernel.reload(pack.module, pack.fills[kernel.id])
+        kernel.reload(pack.module)
 
-    # Re-initialization
-    def reset_weights(module):
-        if hasattr(module, 'reset_parameters'):
-            module.reset_parameters()
-
-    for kernel in kernels:
-        kernel.apply(reset_weights)
-
+    # TODO: add parameter initialization/reset.
     return m

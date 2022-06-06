@@ -11,4 +11,4 @@ struct TransposePrimitive: Primitive {
     CanvasPrimitiveCopyTemplate(TransposePrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

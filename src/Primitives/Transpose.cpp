@@ -11,4 +11,4 @@ TransposePrimitive::TransposePrimitive(const TensorSP& t):
     outs.push_back(std::make_shared<Tensor>(s));
 }
 
-} // End namespace canvas
+} // namespace canvas

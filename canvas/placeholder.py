@@ -1,4 +1,3 @@
-import math
 import torch
 from torch import nn
 
@@ -8,17 +7,8 @@ class Placeholder(nn.Module):
 
         Attributes
         ----------
-        ic: int
-            Input channel numbers.
-
-        oc: int
-            Output channel numbers.
-
-        k: int
-            Kernel size (height and width).
-
-        s: int
-            Striding number.
+        c: int
+            Input/output channel numbers.
 
         h: int
             Input feature map height.
@@ -26,7 +16,7 @@ class Placeholder(nn.Module):
         w: int
             Output feature map width.
 
-        conv: torch.nn.Module
+        kernel: torch.nn.Module
             The replaced kernel instance.
 
         id: int
@@ -34,30 +24,19 @@ class Placeholder(nn.Module):
 
     """
 
-    def __init__(self, ic: int, oc: int, k: int, s: int):
+    def __init__(self, c: int):
         r"""Construct a kernel placeholder.
 
             Parameters
             ----------
-            ic: int
-                Input channel numbers.
-
-            oc: int
-                Output channel numbers.
-
-            k: int
-                Kernel size (height and width).
-
-            s: int
-                Striding number.
+            c: int
+                Input/output channel numbers.
         """
 
         super().__init__()
-        assert math.gcd(ic, oc) == min(ic, oc), f'Input channel {ic} and output {oc} should be aligned'
-        self.ic, self.oc, self.k, self.s = ic, oc, k, s
-        self.h, self.w = 0, 0
-        self.conv = nn.Conv2d(ic, oc, k, s, padding=(k - 1) // 2, bias=False)
         self.id = None
+        self.c, self.h, self.w = c, 0, 0
+        self.kernel = nn.Conv2d(c, c, 1, bias=False)
 
     def clear(self):
         r"""Reset the information of `h` and `w`, which is
@@ -66,19 +45,16 @@ class Placeholder(nn.Module):
 
         self.h = self.w = 0
 
-    def reload(self, kernel_cls, x: [int]):
+    def reload(self, kernel_cls):
         r"""Reload the internal kernel implement.
 
             Parameters
             ----------
             kernel_cls: type
                 The Python class of the kernel to replace.
-
-            x: [int]
-                Dynamic variables in the kernel.
         """
 
-        self.conv = kernel_cls(self.ic, self.oc, self.k, self.s, self.h, self.w, x)
+        self.kernel = kernel_cls(self.c, self.h, self.w)
 
     def forward(self, x: torch.Tensor):
         r"""Forward propagation of the kernel.
@@ -100,45 +76,13 @@ class Placeholder(nn.Module):
             assert self.h > 0 and self.w > 0
         else:
             assert self.h == x.size()[2], self.w == x.size()[3]
-        return self.conv(x)
-
-
-def replaceable_filter(conv: nn.Conv2d) -> bool:
-    if conv.groups > 1:
-        return False
-    if conv.kernel_size not in [(1, 1), (3, 3), (5, 5), (7, 7)]:
-        return False
-    if conv.kernel_size == (1, 1) and conv.padding != (0, 0):
-        return False
-    if conv.kernel_size == (3, 3) and conv.padding != (1, 1):
-        return False
-    if conv.kernel_size == (5, 5) and conv.padding != (2, 2):
-        return False
-    if conv.kernel_size == (7, 7) and conv.padding != (3, 3):
-        return False
-    width = math.gcd(conv.in_channels, conv.out_channels)
-    if width != min(conv.in_channels, conv.out_channels):
-        return False
-    return True
-
-
-def replace_with_placeholders(m: nn.Module):
-    if isinstance(m, Placeholder):
-        return
-    for name, child in m.named_children():
-        if isinstance(child, nn.Conv2d) and replaceable_filter(child):
-            setattr(m, name,
-                    Placeholder(child.in_channels, child.out_channels,
-                                child.kernel_size[0], child.stride[0]))
-        elif len(list(child.named_children())) > 0:
-            replace_with_placeholders(child)
+        return self.kernel(x)
 
 
 def get_placeholders(m: nn.Module,
                      example_input: torch.Tensor = None,
                      check_shapes: bool = False):
-    r"""Get all placeholders of a `torch.nn.Module`, replace all
-        available convolutions if not analyzed before.
+    r"""Get all placeholders of a `torch.nn.Module`.
 
         Parameters
         ----------
@@ -149,6 +93,8 @@ def get_placeholders(m: nn.Module,
             analysis if set. For the first analysis or changing to
             different shapes, you must not set it into `None`.
         check_shapes: bool
+            With this option, the function will throw errors
+            if the shapes are not analyzed.
 
         Returns
         -------
@@ -161,14 +107,13 @@ def get_placeholders(m: nn.Module,
         >>> placeholders = canvas.get_placeholders(m, torch.zeros(1, 3, 224, 224))
     """
     if not hasattr(m, 'canvas_cached_placeholders'):
-        replace_with_placeholders(m)
         setattr(m, 'canvas_cached_placeholders', [])
         for kernel in m.modules():
             if isinstance(kernel, Placeholder):
                 kernel.id = len(m.canvas_cached_placeholders)
                 m.canvas_cached_placeholders.append(kernel)
 
-    # Analyze shapes
+    # Analyze shapes.
     if example_input is not None:
         if not isinstance(example_input, torch.Tensor):
             raise ValueError('The example tensor `example_input` should be '
@@ -178,7 +123,7 @@ def get_placeholders(m: nn.Module,
         setattr(m, 'canvas_cached_example_input_shape', example_input.shape)
         m(example_input)
 
-    # Check shapes
+    # Check shapes.
     if check_shapes:
         failure = False
         if not hasattr(m, 'canvas_cached_example_input_shape'):

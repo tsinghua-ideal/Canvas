@@ -27,10 +27,7 @@ struct SoftmaxPrimitive: Primitive {
 
     explicit SoftmaxPrimitive(const TensorSP& t, SoftmaxType type=SoftmaxHW);
 
-    [[nodiscard]] size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills) const override;
-
     CanvasPrimitiveCopyTemplate(SoftmaxPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

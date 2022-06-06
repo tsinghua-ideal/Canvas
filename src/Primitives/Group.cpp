@@ -20,4 +20,4 @@ GroupPrimitive::GroupPrimitive(const TensorSP& t, GroupType type):
     outs.push_back(std::make_shared<Tensor>(new_shape));
 }
 
-} // End namespace canvas
+} // namespace canvas

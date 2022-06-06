@@ -13,40 +13,32 @@
 
 
 PYBIND11_MODULE(cpp_canvas, m) {
-    // Document
+    // Document.
     m.doc() = "Python/C++ API for Canvas";
 
-    // The kernel specification class
+    // The kernel specification class.
     pybind11::class_<canvas::KernelSpecs>(m, "KernelSpecs")
-            .def(pybind11::init<size_t, size_t, size_t, size_t, size_t, size_t>())
-            .def_readwrite("ic", &canvas::KernelSpecs::ic)
-            .def_readwrite("oc", &canvas::KernelSpecs::oc)
-            .def_readwrite("k", &canvas::KernelSpecs::k)
+            .def(pybind11::init<size_t, size_t, size_t>())
+            .def_readwrite("c", &canvas::KernelSpecs::c)
             .def_readwrite("h", &canvas::KernelSpecs::h)
-            .def_readwrite("w", &canvas::KernelSpecs::w)
-            .def_readwrite("s", &canvas::KernelSpecs::s);
+            .def_readwrite("w", &canvas::KernelSpecs::w);
 
-    // The kernel pack (solution class in Python)
+    // The kernel pack (solution class in Python).
     pybind11::class_<canvas::KernelPack>(m, "KernelPackImpl")
             .def_readwrite("torch_code", &canvas::KernelPack::torch_code)
-            .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code)
-            .def_readwrite("fills", &canvas::KernelPack::fills);
+            .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code);
 
-    // The `canvas.sample` function, sampling a kernel from the search space
+    // The `canvas.sample` function, sampling a kernel from the search space.
+    // TODO: wrap the sample options into a class.
     m.def("sample",
           [](const std::vector<canvas::KernelSpecs>& kernels,
-             double flops_min, double flops_max,
-             double params_min, double params_max,
              bool allow_dynamic,
              bool force_irregular,
              bool add_relu_bn_after_fc,
              int np_min, int np_max,
              int fc_min, int fc_max,
              int timeout) -> canvas::KernelPack {
-              auto net_specs = std::make_shared<canvas::NetSpecs>(
-                      canvas::Range(flops_min, flops_max),
-                      canvas::Range(params_min, params_max),
-                      kernels);
+              auto net_specs = std::make_shared<canvas::NetSpecs>(kernels);
               auto solution = canvas::RandomSample(net_specs,
                                                    allow_dynamic,
                                                    force_irregular,
@@ -56,11 +48,11 @@ PYBIND11_MODULE(cpp_canvas, m) {
                                                    std::chrono::seconds(timeout));
               auto torch_code = canvas::PyTorchCodeGen().Gen(solution);
               auto graphviz_code = canvas::DotCodeGen().Gen(solution);
-              return {torch_code.ToString(), graphviz_code.ToString(), solution.fills->ToVector()};
+              return {torch_code.ToString(), graphviz_code.ToString()};
           },
           "Sample a kernel from the space specified by the configuration.");
 
-    // The `canvas.seed` function, setting seed for the random engine
+    // The `canvas.seed` function, setting seed for the random engine.
     m.def("seed",
           [](uint32_t seed) -> void {
               canvas::InitRandomEngine(false, seed);

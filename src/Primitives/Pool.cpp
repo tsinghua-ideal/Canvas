@@ -19,8 +19,4 @@ PoolPrimitive::PoolPrimitive(const TensorSP& t, PoolType type):
     outs.push_back(std::make_shared<Tensor>(new_shape));
 }
 
-size_t PoolPrimitive::FLOPsCount(const Variable::StaticSpecs& specs, const Variable::DynamicFills& fills) const {
-    return ins[0]->shape.Pi().FillToInteger(specs, fills);
-}
-
-} // End namespace canvas
+} // namespace canvas

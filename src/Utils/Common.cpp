@@ -13,4 +13,4 @@ void InitRandomEngine(bool pure, uint32_t seed) {
     global_norm_uniform_random = Random<double>(0, 1, pure, seed + 2);
 }
 
-} // End namespace canvas
+} // namespace canvas

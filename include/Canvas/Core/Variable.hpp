@@ -18,19 +18,8 @@ struct Variable;
 struct VarSolution;
 
 struct Variable {
-    static constexpr int kStaticVarCount = 8;
+    static constexpr int kStaticVarCount = 6;
     static constexpr int kDynamicVarCount = 8;
-
-    struct StaticSpecs {
-        size_t g, a, r, ic, oc, k, h, w, s, c;
-
-        StaticSpecs(size_t g, size_t r, size_t ic, size_t oc, size_t k, size_t h, size_t w, size_t s):
-            g(g), r(r), ic(ic), oc(oc), k(k), h(h), w(w), s(s) {
-            c = std::min(ic, oc);
-            assert(std::gcd(ic, oc) == c);
-            a = std::max(ic, oc) / c;
-        }
-    };
 
     struct DynamicFills {
         size_t x[kDynamicVarCount] = {0};
@@ -44,7 +33,7 @@ struct Variable {
         DynamicFills(const DynamicFills& rhs) { std::memcpy(x, rhs.x, sizeof(x)); }
 
         [[nodiscard]] std::vector<size_t> ToVector() const {
-            return std::vector<size_t>(x, x + kDynamicVarCount);
+            return {x, x + kDynamicVarCount};
         }
 
         void Double() {
@@ -76,15 +65,12 @@ struct Variable {
     /// Variable position indices
     enum StaticVarPos {
         VG = 0,     // Groups
-        VA = 1,     // Channel Amplifier
-        VC = 2,     // Channels
-        VKH = 3,    // Kernel height
-        VKW = 4,    // Kernel width
-        VH = 5,     // Height
-        VW = 6,     // Width
-        VR = 7,     // Reduction
-        VDG = 8,    // Divided by groups (not really exists)
-        VDR = 9,    // Divided by reduction (not really exists)
+        VC = 1,     // Channels
+        VKH = 2,    // Kernel height
+        VKW = 3,    // Kernel width
+        VH = 4,     // Height
+        VW = 5,     // Width
+        VDG = 6,    // Divided by groups (not really exists)
     };
 
     static const char* var_info[kStaticVarCount];
@@ -109,16 +95,7 @@ struct Variable {
         return var;
     }
 
-    [[nodiscard]] bool Amplified() const {
-        assert(static_power[StaticVarPos::VA] <= 1);
-        return static_power[StaticVarPos::VA] == 1;
-    }
-
     void Reset() { std::memset(this, 0, sizeof(Variable)); }
-
-    [[nodiscard]] size_t FillToInteger(const StaticSpecs& specs, const DynamicFills& fills=DynamicFills()) const;
-
-    void UpdateMinimumFills(DynamicFills& fills, const StaticSpecs& specs) const;
 
     [[nodiscard]] bool SatisfyAssumption() const {
         return Denominator().IsStatic() and Numerator().DynamicVarCount() <= 1;
@@ -160,7 +137,7 @@ struct Variable {
         return true;
     }
 
-    /// Solve dynamic variable `i` with `x`
+    /// Solve dynamic variable `i` with `x`.
     void SolveDynamicVar(const VarSolution &s);
 
     [[nodiscard]] std::vector<int> UnsolvedIndices() {
@@ -224,11 +201,11 @@ struct Variable {
                std::any_of(dynamic_power, dynamic_power + kDynamicVarCount, negative_check);
     }
 
-    /// Judge whether a variable is static and an integer: * or, *C*/G, or *C*/R
+    /// Judge whether a variable is static and an integer: * or, *C*/G, or *C*/R.
     [[nodiscard]] bool IsStaticInteger() const;
 
     [[nodiscard]] bool MaybeInteger() const {
-        // With dynamic variables in the numerator, we can always eliminate the denominator
+        // With dynamic variables in the numerator, we can always eliminate the denominator.
         return IsDynamic() or IsStaticInteger();
     }
 
@@ -347,6 +324,6 @@ public:
     }
 };
 
-} // End namespace canvas
+} // namespace canvas
 
 CanvasHashTemplate(canvas::Variable, .Hash());

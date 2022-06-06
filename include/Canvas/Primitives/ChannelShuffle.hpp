@@ -13,4 +13,4 @@ struct ChannelShufflePrimitive: Primitive {
     CanvasPrimitiveCopyTemplate(ChannelShufflePrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas

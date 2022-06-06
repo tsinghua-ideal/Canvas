@@ -12,8 +12,8 @@ parent_dir = os.getcwd()
 cache_dir = parent_dir + '/' + cache_dir_name
 sys.path.append(parent_dir)
 
-cached_torch_kernels = {}  # The names of kernels
-cached_torch_modules = {}  # The module class of kernels
+cached_torch_kernels = {}  # The names of kernels.
+cached_torch_modules = {}  # The module class of kernels.
 
 
 def load_from_cache_dir(name: str):
@@ -28,12 +28,12 @@ def load_from_cache_dir(name: str):
 
 
 def load_from_code(code: str, overwrite: bool = True):
-    # Get class name from the code
+    # Get class name from the code.
     obj = re.search(r'class (.*?)\(nn.Module\):', code)
     assert obj is not None, 'No class founded in code'
     name = obj.group(1)
 
-    # Write into the cache directory
+    # Write into the cache directory.
     global cached_torch_kernels
     if not overwrite and name in cached_torch_kernels:
         return cached_torch_kernels[name]
@@ -46,7 +46,7 @@ def load_from_code(code: str, overwrite: bool = True):
             file.flush()
             file.close()
 
-    # Load kernel and specs
+    # Load kernel and specs.
     cls = load_from_cache_dir(name)
     return cls
 
@@ -72,11 +72,6 @@ class KernelPack:
             The class type of the code, you can directly use this to make
             kernel instances.
 
-        fills : [[int]]
-            The values of dynamic variables $x_0$ to $x_7$,
-            values may be meaningless while a certain $x_i$
-            does not occur in the kernel.
-
         graphviz : str
             The generated GraphViz code, you may use some tool to visualize.
     """
@@ -84,5 +79,4 @@ class KernelPack:
     def __init__(self, kernel_pack_impl: cpp_canvas.KernelPackImpl):
         self.code = kernel_pack_impl.torch_code
         self.module = load_from_code(kernel_pack_impl.torch_code)
-        self.fills = kernel_pack_impl.fills
         self.graphviz = kernel_pack_impl.graphviz_code

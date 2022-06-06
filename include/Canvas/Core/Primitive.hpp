@@ -27,7 +27,7 @@ struct Primitive {
     static int num_deconstruction;
 
     int id = kInvalidIndex;
-    bool input_commutative; // Outputs must be not commutative
+    bool input_commutative; // Outputs must be not commutative.
     std::string name;
     TensorArray ins, outs;
 
@@ -44,22 +44,10 @@ struct Primitive {
 
     ~Primitive() { ++ num_deconstruction; }
 
-    virtual void AmplifyIntermediateVariables() {}
-
-    /// Note the returned values are not references but copies
+    /// Note the returned values are not references but copies.
     [[nodiscard]] virtual std::vector<Variable> IntermediateVariables() const { return {}; }
 
-    [[nodiscard]] virtual size_t PsCount(const Variable::StaticSpecs& specs,
-                                         const Variable::DynamicFills& fills) const {
-        return 0;
-    }
-
-    [[nodiscard]] virtual size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                            const Variable::DynamicFills& fills) const {
-        return 0;
-    }
-
-    /// Only solve the special variables in the primitive (inputs and outputs' shape not included)
+    /// Only solve the special variables in the primitive (inputs and outputs' shape not included).
     virtual void SolveDynamicVar(const VarSolution& s) {}
 
     [[nodiscard]] virtual size_t Hash(bool ignore_outs) const;
@@ -96,7 +84,7 @@ public:
     }
 };
 
-} // End namespace canvas
+} // namespace canvas
 
 #define CanvasPrimitiveCopyTemplate(Type)  Type(const Type& rhs) = default; \
 [[nodiscard]] PrimitiveSP Copy() const override { \

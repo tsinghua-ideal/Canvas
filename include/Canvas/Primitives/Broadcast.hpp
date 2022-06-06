@@ -61,14 +61,9 @@ struct BroadcastPrimitive: Primitive {
 
     void SolveDynamicVar(const VarSolution& s) override;
 
-    void AmplifyIntermediateVariables() override;
-
     [[nodiscard]] std::vector<Variable> IntermediateVariables() const override;
-
-    [[nodiscard]] size_t FLOPsCount(const Variable::StaticSpecs& specs,
-                                    const Variable::DynamicFills& fills) const override;
 
     CanvasPrimitiveCopyTemplate(BroadcastPrimitive);
 };
 
-} // End namespace canvas
+} // namespace canvas
