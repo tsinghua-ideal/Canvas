@@ -21,10 +21,6 @@ namespace canvas {
 
 static constexpr int kInvalidIndex = -1;
 
-// TODO: refactor random utils.
-static constexpr int kIntUnlimited = std::numeric_limits<int>::max();
-static constexpr uint64_t kUInt64Unlimited = std::numeric_limits<uint64_t>::max();
-
 /// Console colors.
 class [[maybe_unused]] ConsoleUtils {
 public:
@@ -78,7 +74,6 @@ public:
 /// A critical error raiser.
 #define CriticalError(info) CriticalErrorImpl(__LINE__, __FILE__, info)
 
-
 /// Pretty numeric ratio.
 template <typename T1, typename T2>
 double NumericRatio(const T1& lhs, const T2& rhs) {
@@ -93,9 +88,8 @@ std::string PrettyRatio(const T1& lhs, const T2& rhs) {
     return std::to_string(ratio * 100) + "%";
 }
 
-/// A random number generator.
 template <typename ValueType>
-class [[maybe_unused]] Random {
+class [[maybe_unused]] RandomGen {
 private:
     typedef typename std::conditional<
             std::is_integral<ValueType>::value,
@@ -106,9 +100,8 @@ private:
     DistType dist;
 
 public:
-    /// The interval is closed ([`min`, `max`]).
-    [[maybe_unused]] Random(ValueType min, ValueType max,
-                            bool pure=true, uint32_t seed=0) { // NOLINT(cert-msc51-cpp)
+    /// Random a value between [`min`, `max`].
+    [[maybe_unused]] RandomGen(ValueType min, ValueType max, bool pure=true, uint32_t seed=0) { // NOLINT(cert-msc51-cpp)
         assert(min <= max);
         if (pure)
             seed = std::random_device()();
@@ -116,7 +109,6 @@ public:
         dist = DistType(min, max);
     }
 
-    /// Generate a random number.
     [[maybe_unused]] ValueType operator () () {
         return dist(engine);
     }
@@ -124,50 +116,36 @@ public:
 
 constexpr static uint32_t kDefaultGlobalRandomSeed = 19981011;
 
-extern Random<int> global_int_random;
-extern Random<uint64_t> global_uint64_random;
-extern Random<double> global_norm_uniform_random;
+extern RandomGen<int> global_int_random;
+extern RandomGen<double> global_uniform_random;
 
-/// Init global random engine.
-void InitRandomEngine(bool pure=true, uint32_t seed=kDefaultGlobalRandomSeed);
+void ResetRandomSeed(bool pure=true, uint32_t seed=kDefaultGlobalRandomSeed);
 
-/// Random a positive integer of 32 bits.
-static int RandomInt(int min=0, int max=kIntUnlimited) {
-    assert(0 <= min and min <= max);
-    // Overflow with `max - min + 1`
-    if (min == 0 and max == kIntUnlimited)
-        return global_int_random();
-    return global_int_random() % (max - min + 1) + min;
-}
-
-/// Random a positive integer of 64 bits.
-static uint64_t RandomUInt64(uint64_t min=0, uint64_t max=kUInt64Unlimited) {
-    assert(min <= max);
-    // Overflow with `max - min + 1`
-    if (min == 0 and max == kUInt64Unlimited)
-        return global_uint64_random();
-    return global_uint64_random() % (max - min + 1) + min;
+static int RandomInt(int min=0, int max=std::numeric_limits<int>::max()) {
+    return (RandomGen<int>(min, max, false, global_int_random()))();
 }
 
 /// Random choice with possibility.
 static bool MakeChoice(double p) {
     assert(0 <= p and p <= 1);
-    return global_norm_uniform_random() <= p;
+    return global_uniform_random() <= p;
 }
 
-/// Range: [`min`, `max`]
+/// Range: [`min`, `max`].
 template <typename RangeType=int>
 struct Range {
     RangeType min, max;
 
     Range(const Range<RangeType>& rhs) = default;
 
-    Range(RangeType min, RangeType max): min(min), max(max) { assert(min <= max); }
+    Range(RangeType min, RangeType max): min(min), max(max) {
+        assert(min <= max);
+    }
 
     [[nodiscard]] bool Contains(const RangeType& v) const { return min <= v and v <= max; }
 
     [[nodiscard]] RangeType Random() const {
-        return RandomUInt64(static_cast<RangeType>(min), static_cast<RangeType>(max));
+        return (RandomGen<RangeType>(min, max, false, global_int_random()))();
     }
 
     friend std::ostream& operator << (std::ostream& os, const Range<RangeType>& range) {

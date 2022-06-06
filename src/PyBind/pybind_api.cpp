@@ -55,7 +55,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
     // The `canvas.seed` function, setting seed for the random engine.
     m.def("seed",
           [](uint32_t seed) -> void {
-              canvas::InitRandomEngine(false, seed);
+              canvas::ResetRandomSeed(false, seed);
           },
           "Set the global seed for the C++ random engine.");
 }
