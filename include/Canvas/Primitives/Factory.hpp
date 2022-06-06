@@ -29,28 +29,28 @@ struct Graph;
 typedef std::shared_ptr<Graph> GraphSP;
 
 struct PrimitiveGenOptions {
-    // Dynamic variables
+    // Dynamic variables.
     bool allow_dynamic_variables = true;
 
-    // Optimize FC
+    // Optimize FC.
     bool optimize_fc = false;
 
-    // Force irregular applies
+    // Force irregular applies.
     bool force_irregular = false;
 
-    // Broadcast
+    // Broadcast.
     bool b_add = false, b_mul = false, b_sub = false;
 
-    // With parameters
+    // With parameters.
     bool dot = false, fc = false;
 
-    // Arithmetic operators
+    // Arithmetic operators.
     bool dropout = false, norm = false;
     bool gelu = false, relu = false, sigmoid = false, tanh = false;
     bool softmax_c = false, softmax_h = false, softmax_w = false, softmax_hw = false;
     bool abs = false, exp = false, neg = false, sin = false;
 
-    // Spatial operators
+    // Spatial operators.
     bool channel_shuffle = false;
     bool fold_h = false, fold_w = false, fold_hw = false;
     bool fold_avg = false, fold_max = false;
@@ -60,7 +60,7 @@ struct PrimitiveGenOptions {
     bool shift_h = false, shift_w = false, shift_hw = false;
     bool transpose = false;
 
-    /// `max_delta_width` could be -1 (reducing width), 0 (retaining width), 1 (unlimited)
+    /// `max_delta_width` could be -1 (reducing width), 0 (retaining width), 1 (unlimited).
     int max_delta_width = 1;
 
     PrimitiveGenOptions(bool enable_all, int max_delta_width, bool only_fc=false):
@@ -141,14 +141,14 @@ struct PrimitiveGenOptions {
     }
 };
 
-/// Register all primitive constructions here
+/// Register all primitive constructions here.
 struct PrimitiveFactory {
-    /// Get all primitives for a graph
+    /// Get all primitives for a graph.
     static std::vector<PrimitiveApply> GetPrimitiveApplies(const GraphSP& graph,
                                                            bool allow_dynamic_variables=true,
                                                            const std::set<TensorSP>& forbidden_successor={});
 
-    /// Filter primitive applies with conditions
+    /// Filter primitive applies with conditions.
     static std::vector<PrimitiveApply> FilterPrimitiveApplies(const std::vector<PrimitiveApply>& applies,
                                                               const PrimitiveGenOptions& options);
 
@@ -156,27 +156,27 @@ struct PrimitiveFactory {
     static std::vector<PrimitiveApply> FilterPrimitiveApplies(const std::vector<PrimitiveApply>& applies,
                                                               const std::vector<PrimitiveGenOptions>& or_options);
 
-    /// Filter for output
+    /// Filter for output.
     static std::vector<PrimitiveApply> FilterPrimitiveAppliesForOutput(const std::vector<PrimitiveApply>& applies);
 
-    /// Rescale with possibilities
+    /// Rescale with possibilities.
     static std::vector<PrimitiveApply> RescalePossibilities(const std::vector<PrimitiveApply>& applies,
                                                             bool remove_fc=false);
 
-    /// Get primitives without inputs
+    /// Get primitives without inputs.
     static void GetPrimitiveApplies(const GraphSP &graph,
                                     std::vector<PrimitiveApply>& primitives,
                                     std::unordered_set<size_t>& filter,
                                     bool allow_dynamic_variables=true);
 
-    /// Get primitives with one input
+    /// Get primitives with one input.
     static void GetPrimitiveApplies(const GraphSP &graph,
                                     std::vector<PrimitiveApply>& primitives,
                                     const TensorSP& t,
                                     std::unordered_set<size_t>& filter,
                                     bool allow_dynamic_variables=true);
 
-    /// Get primitives with two inputs
+    /// Get primitives with two inputs.
     static void GetPrimitiveApplies(const GraphSP &graph,
                                     std::vector<PrimitiveApply>& primitives,
                                     const TensorSP& lhs,
@@ -187,7 +187,7 @@ struct PrimitiveFactory {
 
 static void TryPush(const PrimitiveApply& pa, std::vector<PrimitiveApply>& vec,
                     std::unordered_set<size_t>& filter) {
-    // Pruning: not duplicate tensors
+    // Pruning: not duplicate tensors.
     auto hash_value = pa.primitive->Hash(true);
     if (not filter.count(hash_value)) {
         vec.push_back(pa);

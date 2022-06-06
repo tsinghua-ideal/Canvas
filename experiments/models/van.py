@@ -1,11 +1,10 @@
+import canvas
 import math
 import torch
 import torch.nn as nn
 from functools import partial
 
-from timm.models import register_model
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from timm.models.vision_transformer import _cfg
 
 
 class Mlp(nn.Module):
@@ -46,10 +45,10 @@ class Mlp(nn.Module):
 
 
 class Block(nn.Module):
-    def __init__(self, dim, mlp_ratio=4., drop=0.,drop_path=0., act_layer=nn.GELU):
+    def __init__(self, dim, mlp_ratio=4., drop=0., drop_path=0., act_layer=nn.GELU):
         super().__init__()
         self.norm1 = nn.BatchNorm2d(dim)
-        self.attn = Attention(dim)  # TODO: replace a kernel of Canvas.
+        self.attn = canvas.Placeholder(dim)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
         self.norm2 = nn.BatchNorm2d(dim)
@@ -87,7 +86,7 @@ class OverlapPatchEmbed(nn.Module):
     """ Image to Patch Embedding
     """
 
-    def __init__(self, img_size=224, patch_size=7, stride=4, in_chans=3, embed_dim=768):
+    def __init__(self, patch_size=7, stride=4, in_chans=3, embed_dim=768):
         super().__init__()
         patch_size = to_2tuple(patch_size)
         self.proj = nn.Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=stride,
@@ -120,7 +119,7 @@ class OverlapPatchEmbed(nn.Module):
 
 # noinspection PyDefaultArgument
 class VAN(nn.Module):
-    def __init__(self, img_size=224, in_chans=3, num_classes=1000, embed_dims=[64, 128, 256, 512],
+    def __init__(self, in_chans=3, num_classes=1000, embed_dims=[64, 128, 256, 512],
                  mlp_ratios=[4, 4, 4, 4], drop_rate=0., drop_path_rate=0., norm_layer=nn.LayerNorm,
                  depths=[3, 4, 6, 3], num_stages=4, flag=False):
         super().__init__()
@@ -133,8 +132,7 @@ class VAN(nn.Module):
         cur = 0
 
         for i in range(num_stages):
-            patch_embed = OverlapPatchEmbed(img_size=img_size if i == 0 else img_size // (2 ** (i + 1)),
-                                            patch_size=7 if i == 0 else 3,
+            patch_embed = OverlapPatchEmbed(patch_size=7 if i == 0 else 3,
                                             stride=4 if i == 0 else 2,
                                             in_chans=in_chans if i == 0 else embed_dims[i - 1],
                                             embed_dim=embed_dims[i])
@@ -178,7 +176,7 @@ class VAN(nn.Module):
     def get_classifier(self):
         return self.head
 
-    def reset_classifier(self, num_classes, global_pool=''):
+    def reset_classifier(self, num_classes):
         self.num_classes = num_classes
         self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
@@ -227,45 +225,37 @@ def _conv_filter(state_dict, patch_size=16):
     return out_dict
 
 
-@register_model
 def van_tiny(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[32, 64, 160, 256], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[3, 3, 5, 2],
         **kwargs)
-    model.default_cfg = _cfg()
     return model
 
 
-@register_model
 def van_small(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[2, 2, 4, 2],
         **kwargs)
-    model.default_cfg = _cfg()
     return model
 
 
-@register_model
 def van_base(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[3, 3, 12, 3],
         **kwargs)
-    model.default_cfg = _cfg()
     return model
 
 
-@register_model
 def van_large(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[3, 5, 27, 3],
         **kwargs)
-    model.default_cfg = _cfg()
     return model

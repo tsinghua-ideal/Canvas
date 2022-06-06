@@ -121,7 +121,8 @@ setup(
     ext_modules=[CMakeExtension('cpp_canvas')],
     cmdclass={'build_ext': CMakeBuild},
     zip_safe=False,
-    install_requires=['torch>=1.11.0', 'torchvision>=0.12.0'],
+    # TODO: may relax the version requirement.
+    install_requires=['torch>=1.11.0'],
     extras_require={'test': ['pytest>=6.0']},
     python_requires='>=3.6',
 )

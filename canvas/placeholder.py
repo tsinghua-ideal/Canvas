@@ -70,7 +70,7 @@ class Placeholder(nn.Module):
                 The calculation result of this module.
         """
 
-        assert self.conv is not None
+        assert self.kernel is not None
         if self.h == 0 or self.w == 0:
             self.h, self.w = x.size()[2], x.size()[3]
             assert self.h > 0 and self.w > 0

@@ -8,7 +8,7 @@ int Primitive::num_deconstruction = 0;
 size_t Primitive::Hash(bool ignore_outs) const {
     auto hash_value = HashStr(name);
     auto IterateVecHash = [&hash_value](const TensorArray& vec, bool commutative) {
-        bc::small_vector<size_t, kPreservedNumLinks> values;
+        std::vector<size_t> values;
         values.reserve(vec.size());
         for (const auto& t: vec)
             values.push_back(t->id); // Use `tensor->id` for topology filtering

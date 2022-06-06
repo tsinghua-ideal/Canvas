@@ -10,7 +10,7 @@
 #include "Canvas/Core/Solution.hpp"
 #include "Canvas/Core/Tensor.hpp"
 #include "Canvas/Utils/Common.hpp"
-#include "Canvas/Utils/Format.hpp"
+#include "Canvas/Utils/Indent.hpp"
 
 
 namespace canvas {
@@ -28,12 +28,6 @@ struct Code {
     [[nodiscard]] const std::string& ToString() const { return code; }
 
     [[nodiscard]] bool Empty() const { return code.empty(); }
-
-    void SaveIntoFile(const std::string& path) const {
-        std::fstream file(path, std::ios::out);
-        file << code << std::endl;
-        file.close();
-    }
 
     friend std::ostream& operator << (std::ostream& os, const Code& rhs) { return os << rhs.ToString(); }
 };

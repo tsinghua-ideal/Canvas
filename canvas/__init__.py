@@ -42,7 +42,7 @@ def sample(m: nn.Module,
            example_input: torch.Tensor = None,
            allow_dynamic: bool = True,
            force_irregular: bool = False,
-           add_relu_bn_after_fc: bool = True,
+           add_relu_bn_after_fc: bool = False,
            num_primitive_range: Tuple[int, int] = (3, 25),
            num_fc_range: Tuple[int, int] = (1, 8),
            timeout: int = 0):

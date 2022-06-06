@@ -4,7 +4,6 @@
 #include <memory>
 #include <utility>
 
-#include "Canvas/Core/Preferences.hpp"
 #include "Canvas/Core/Shape.hpp"
 #include "Canvas/Core/Tensor.hpp"
 #include "Canvas/Utils/Common.hpp"
@@ -18,20 +17,14 @@ struct Primitive;
 typedef std::shared_ptr<Primitive> PrimitiveSP;
 
 struct Tensor {
-    static constexpr int kPreservedNumLinks = 2;
-
-#ifdef CANVAS_ENABLE_BOOST_STYLE_SMALL_VECTOR
-    typedef bc::small_vector<PrimitiveSP, kPreservedNumLinks> PrimitiveArray;
-#else
     typedef std::vector<PrimitiveSP> PrimitiveArray;
-#endif
 
     int id = kInvalidIndex;
     Shape shape;
 
     static int num_deconstruction;
 
-    // Structures in graph (only after applying in graph, the links will be built)
+    // Structures in graph (only after applying in graph, the links will be built).
     PrimitiveSP producer;
     PrimitiveArray consumers;
 

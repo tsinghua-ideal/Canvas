@@ -40,17 +40,6 @@ static std::string TorchStyleShape(const Shape& shape) {
     return ss.str();
 }
 
-/// Translate into PyTorch-style shape, skip if the variable inside is empty.
-static std::string TorchStyleShapeWithoutHW(const Shape& shape) {
-    bool displayed = false;
-    std::stringstream ss;
-    for (int i = 0; i < Shape::kShapeMaxDim; ++ i)
-        if (i != DimPos::PH and i != DimPos::PW)
-            if (not shape.dims[i].Empty())
-                ss << (displayed ? ", " : "") << TorchStyleVariable(shape.dims[i]), displayed = true;
-    return ss.str();
-}
-
 static constexpr const char* TorchStyleActivationFunctionName(ActivationType type) {
     switch (type) {
         case GeLU: return "F.gelu";
@@ -159,7 +148,7 @@ void PyTorchNCHWRecorder::GenCopyShapeCode() {
 }
 
 void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
-    // Create variables' mapping
+    // Create variables' mapping.
     for (const auto& t: p->ins)
         assert(var_map.Count(t));
     for (const auto& t: p->outs) {
@@ -167,7 +156,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
         var_map[t] = "t_" + std::to_string(var_map.TensorSize());
     }
 
-    // Handled different operators
+    // Handled different operators.
     auto primitive_var = (var_map[p] = "p_" + std::to_string(var_map.PrimitiveSize()));
     gen->Write() << "# " << p->name << ": " << primitive_var << std::endl;
 
@@ -209,10 +198,6 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
             gen->Write() << "self." << primitive_var << "_relu"
                          << " = nn.ReLU(inplace=True)"
                          << std::endl;
-    } else if (DynamicCast<InputPrimitive>(p)) {
-        gen->Write() << "self." << primitive_var
-                     << " = nn.AvgPool2d(self.s, self.s) if self.s > 1 else nn.Identity()"
-                     << std::endl;
     } else if (DynamicCast<NormPrimitive>(p)) {
         auto& in_shape = p->ins[0]->shape;
         gen->Write() << "self." << primitive_var
@@ -245,7 +230,8 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                          << ")"
                          << std::endl;
         }
-    } else if (DynamicCast<ActivationPrimitive>(p) or
+    } else if (DynamicCast<InputPrimitive>(p) or
+            DynamicCast<ActivationPrimitive>(p) or
             DynamicCast<BroadcastPrimitive>(p) or
             DynamicCast<ChannelShufflePrimitive>(p) or
             DynamicCast<ElementWisePrimitive>(p) or
@@ -424,29 +410,16 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
     } else if (auto input = DynamicCast<InputPrimitive>(p)) {
         // The input `x` must be in the shape of [N, C, H, W]
         gen->Write() << var_map[input->outs[0]]
-                     << " = self." << primitive_var << "(x)"
+                     << " = x"
                      << std::endl;
-        gen->Write() << "self.n, self.h, self.w = "
-                     << var_map[input->outs[0]] << ".size(0), "
-                     << var_map[input->outs[0]] << ".size(-2), "
-                     << var_map[input->outs[0]] << ".size(-1)"
+        gen->Write() << "self.n = "
+                     << var_map[input->outs[0]] << ".size(0)"
                      << std::endl;
-
-        gen->Write() << "if self.ic >= self.oc:" << std::endl;
-        gen->BeginScope();
-        gen->Write() << var_map[input->outs[0]]
-                     << " = " << var_map[input->outs[0]]
-                     << ".view(self.n, self.a, self.c, self.h, self.w)"
+        gen->Write() << "assert "
+                     << "(self.n, self.c, self.h, self.w)"
+                     << " == "
+                     << "tuple(" << var_map[input->outs[0]] << ".size())"
                      << std::endl;
-        gen->EndScope();
-
-        gen->Write() << "else:" << std::endl;
-        gen->BeginScope();
-        gen->Write() << var_map[input->outs[0]]
-                     << " = " << var_map[input->outs[0]]
-                     << ".unsqueeze(1).repeat(1, self.a, 1, 1, 1)"
-                     << std::endl;
-        gen->EndScope();
     } else if (auto norm = DynamicCast<NormPrimitive>(p)) {
         PyTorchNCHWRecorder recorder(gen, var_map, norm->ins[0], norm->outs[0], true);
         gen->Write() << var_map[norm->outs[0]]
@@ -455,19 +428,10 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << std::endl;
         recorder.GenCopyShapeCode();
     } else if (auto output = DynamicCast<OutputPrimitive>(p)) {
-        // Reshape and return the output variable
-        // Not need to sum and get average
-        gen->Write() << "if self.ic <= self.oc:" << std::endl;
-        gen->BeginScope();
+        // Reshape and return the output variable.
         gen->Write() << "return "
                      << var_map[output->ins[0]]
-                     << ".view(self.n, self.oc, self.h, self.w)"
-                     << std::endl;
-        gen->EndScope();
-        // Gather to get average
-        gen->Write() << "return "
-                     << var_map[output->ins[0]]
-                     << ".view(self.n, self.a, self.c, self.h, self.w).mean(dim=1)"
+                     << ".view(self.n, self.c, self.h, self.w)"
                      << std::endl;
     } else if (auto pool = DynamicCast<PoolPrimitive>(p)) {
         PyTorchNCHWRecorder recorder(gen, var_map, pool->ins[0], pool->outs[0], false);

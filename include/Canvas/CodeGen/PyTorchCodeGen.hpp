@@ -8,7 +8,7 @@
 #include "Canvas/Core/Primitive.hpp"
 #include "Canvas/Primitives/Factory.hpp"
 #include "Canvas/Utils/Common.hpp"
-#include "Canvas/Utils/Format.hpp"
+#include "Canvas/Utils/Indent.hpp"
 
 
 namespace canvas {
@@ -48,10 +48,6 @@ public:
     explicit PyTorchCodeGen(): CodeGen("PyTorch") {}
 
     Code GenImpl(const Solution& solution, std::string name) override;
-
-    [[nodiscard]] static PrimitiveGenOptions SupportedOptions() {
-        return PrimitiveGenOptions::Unlimited();
-    }
 };
 
 class CanNotApplyPyTorchCodeGen: public ExceptionWithInfo {

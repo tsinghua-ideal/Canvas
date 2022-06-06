@@ -4,7 +4,7 @@
 #include "Canvas/Primitives/Input.hpp"
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Utils/Common.hpp"
-#include "Canvas/Utils/Format.hpp"
+#include "Canvas/Utils/Indent.hpp"
 
 
 namespace canvas {
@@ -127,14 +127,6 @@ TensorSP Graph::Out() const {
     return out;
 }
 
-Graph::TensorArray Graph::Outs() const {
-    TensorArray outs;
-    for (const auto& t: tensors)
-        if (t->consumers.empty())
-            outs.push_back(t);
-    return outs;
-}
-
 int Graph::Width() const {
     int n = 0;
     for (const auto& t: tensors)
@@ -142,7 +134,7 @@ int Graph::Width() const {
     return n;
 }
 
-size_t Graph::CalculateSubgraphHash(const TensorSP& t, SizeTArray& cache) {
+size_t Graph::CalculateSubgraphHash(const TensorSP& t, SizeTArray& cache) { // NOLINT(misc-no-recursion)
     assert(t);
     if (cache[t->id])
         return cache[t->id];

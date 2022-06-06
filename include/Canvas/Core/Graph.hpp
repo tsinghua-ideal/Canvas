@@ -10,7 +10,6 @@
 
 #include "Canvas/Core/NetSpecs.hpp"
 #include "Canvas/Core/Primitive.hpp"
-#include "Canvas/Core/Preferences.hpp"
 #include "Canvas/Core/Tensor.hpp"
 #include "Canvas/Primitives/Input.hpp"
 
@@ -23,26 +22,18 @@ namespace br = boost::range;
 struct Graph;
 typedef std::shared_ptr<Graph> GraphSP;
 
-/// Kernel graph
+/// Kernel graph.
 struct Graph {
-    static constexpr int kPreservedNumStructures = 8;
-
-#ifdef CANVAS_ENABLE_BOOST_STYLE_SMALL_VECTOR
-    typedef bc::small_vector<TensorSP, kPreservedNumStructures> TensorArray;
-    typedef bc::small_vector<PrimitiveSP, kPreservedNumStructures> PrimitiveArray;
-    typedef bc::small_vector<size_t, kPreservedNumStructures> SizeTArray;
-#else
     typedef std::vector<TensorSP> TensorArray;
     typedef std::vector<PrimitiveSP> PrimitiveArray;
     typedef std::vector<size_t> SizeTArray;
-#endif
 
-    /// Topology
+    /// Topology.
     TensorSP in;
     TensorArray tensors;
-    PrimitiveArray primitives; // This array must be in topological order
+    PrimitiveArray primitives; // This array must be in topological order.
 
-    /// Hash cache
+    /// Hash cache.
     bool hash_cached = false;
     size_t hash_value = 0;
 
@@ -76,13 +67,10 @@ struct Graph {
 
     [[nodiscard]] TensorSP In() const { return in; }
 
-    /// Return the only tensor with no consumers (null if not only)
+    /// Return the only tensor with no consumers (null if not only).
     [[nodiscard]] TensorSP Out() const;
 
-    /// Return tensors with no consumers
-    [[nodiscard]] TensorArray Outs() const;
-
-    /// Return the number of tensors of which the out degree is zero
+    /// Return the number of tensors of which the out degree is zero.
     [[nodiscard]] int Width() const;
 
     size_t Hash() { return hash_cached ? hash_value : CalculateHash(); }
@@ -93,7 +81,7 @@ struct Graph {
 
     void SolveDynamicVar(const VarSolution& s);
 
-    /// Apply a primitive in the current graph (later can not be applied in another graph)
+    /// Apply a primitive in the current graph (later can not be applied in another graph).
     void Apply(const PrimitiveSP& p);
 
     void Apply(const PrimitiveApply& pa);

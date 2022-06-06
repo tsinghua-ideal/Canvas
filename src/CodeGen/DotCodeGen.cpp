@@ -9,7 +9,7 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
     Write() << "digraph OpGraph {" << std::endl;
     BeginScope();
 
-    // Title label
+    // Title label.
     if (name.empty())
         name = "OpGraph";
     Write() << "label = \"" << name << " [" << graph->Hash() << "]\"" << std::endl;
@@ -17,7 +17,7 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
     // Font name
     Write() << "fontname = \"Graphik\";" << std::endl;
 
-    // Tensor settings
+    // Tensor settings.
     Write() << "subgraph tensors {" << std::endl;
     BeginScope();
     Write() << "node [shape = circle, color = black, fontname = \"Graphik\"]" << std::endl;
@@ -29,7 +29,7 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
     EndScope();
     Write() << "}" << std::endl;
 
-    // Clusters (Producer op)
+    // Clusters (Producer op).
     for (const auto& t: graph->tensors) {
         assert(t->producer);
         Write() << "subgraph cluster_" << t->id << " {" << std::endl;
@@ -42,7 +42,7 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
         Write() << "}" << std::endl;
     }
 
-    // Links
+    // Links.
     for (const auto& t: graph->tensors) {
         for (const auto& p: t->consumers) {
             for (const auto& out_t: p->outs) {
@@ -51,7 +51,7 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
         }
     }
 
-    // End digraph
+    // End digraph.
     EndScope();
     Write() << "}" << std::endl;
     Write() << std::endl;

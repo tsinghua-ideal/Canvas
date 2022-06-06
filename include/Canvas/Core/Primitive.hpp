@@ -5,7 +5,6 @@
 #include <utility>
 #include <vector>
 
-#include "Canvas/Core/Preferences.hpp"
 #include "Canvas/Core/Tensor.hpp"
 #include "Canvas/Utils/Common.hpp"
 
@@ -16,13 +15,7 @@ namespace bc = boost::container;
 namespace br = boost::range;
 
 struct Primitive {
-    static constexpr int kPreservedNumLinks = 2;
-
-#ifdef CANVAS_ENABLE_BOOST_STYLE_SMALL_VECTOR
-    typedef bc::small_vector<TensorSP, kPreservedNumLinks> TensorArray;
-#else
     typedef std::vector<TensorSP> TensorArray;
-#endif
 
     static int num_deconstruction;
 

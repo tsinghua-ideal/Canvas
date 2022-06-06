@@ -17,7 +17,7 @@ namespace ba = boost::adaptors;
 Solution TryRandomSample(const NetSpecsSP& net_specs,
                          bool allow_dynamic, bool force_irregular, bool add_relu_bn_after_fc,
                          const Range<int>& np_range, const Range<int>& fc_range) {
-    // Random graph settings
+    // Random graph settings.
     int n_primitives = np_range.Random();
     int max_width = mw_range.Random();
     int expected_fc_count = std::min(fc_range.Random(), n_primitives);
@@ -28,16 +28,16 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
     IC(n_primitives, max_width, expected_fc_count);
 #endif
 
-    // Take actions
+    // Take actions.
     GraphSP graph = std::make_shared<Graph>();
     bool irregular_apply = false;
     for (int i = 0; i < n_primitives; ++ i) {
         int width = graph->Width();
 
-        // Determine whether we should reduce the width every step later
+        // Determine whether we should reduce the width every step later.
         int n_steps_remaining = n_primitives - i;
         int n_steps_to_single_out = width - 1;
-        // width > n_steps_remaining + 1
+        // width > n_steps_remaining + 1.
         if (n_steps_to_single_out > n_steps_remaining) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
             static int can_not_reduce_to_single_out = 0;
@@ -112,10 +112,10 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
             IC(can_not_solve_dyn_var ++);
 #endif
             return {};
-        } // Failed if other exceptions
+        } // Failed if other exceptions.
     }
 
-    // Pruning: irregular apply
+    // Pruning: irregular apply.
     if (force_irregular and not irregular_apply) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
         static int can_not_satisfy_irregular = 0;
@@ -137,7 +137,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
     }
 #endif
 
-    // FC constraints
+    // FC constraints.
     if (not fc_range.Contains(graph->PrimitiveCount<FCPrimitive>())) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
         static int can_not_satisfy_fc_count = 0;
@@ -146,7 +146,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
         return {};
     }
 
-    // Pruning: channel shuffle must cooperate with grouping
+    // Pruning: channel shuffle must cooperate with grouping.
     if (graph->PrimitiveCount<ChannelShufflePrimitive>() > 0 and graph->PrimitiveCount<GroupPrimitive>() == 0) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
         static int can_not_cooperate_channel_group = 0;
@@ -155,7 +155,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
         return {};
     }
 
-    // Pruning: must have neighbor's information
+    // Pruning: must have neighbor's information.
     int n_neighbor_h = 0, n_neighbor_w = 0;
     for (const auto& p: graph->primitives) {
         if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {

@@ -9,7 +9,7 @@ struct Indent {
     int level, num_spaces;
 
     explicit Indent(int num_spaces=4):
-        level(0), num_spaces(num_spaces) {}
+            level(0), num_spaces(num_spaces) {}
 
     friend std::ostream& operator << (std::ostream& os, const Indent& indent) {
         for (int i = 0; i < indent.level * indent.num_spaces; ++ i)

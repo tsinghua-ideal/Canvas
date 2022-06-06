@@ -59,7 +59,7 @@ void Variable::SolveDynamicVar(const VarSolution& solution) {
     }
 }
 
-void Variable::RecursiveGetFactors(int i, Variable &current, std::vector<Variable>& collections,
+void Variable::RecursiveGetFactors(int i, Variable &current, std::vector<Variable>& collections, // NOLINT(misc-no-recursion)
                                    bool except_hw, int extra_g_factor, int extra_cg_factor) const {
     if (i == kStaticVarCount + kDynamicVarCount) {
         collections.push_back(current);

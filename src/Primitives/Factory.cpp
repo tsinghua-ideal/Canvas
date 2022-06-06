@@ -1,5 +1,4 @@
 #include "Canvas/Core/Graph.hpp"
-#include "Canvas/Core/Preferences.hpp"
 #include "Canvas/Primitives/Factory.hpp"
 #include "Canvas/Utils/Common.hpp"
 
@@ -203,7 +202,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                                            std::vector<PrimitiveApply>& primitives,
                                            std::unordered_set<size_t>& filter,
                                            bool allow_dynamic_variables) {
-    // Currently none.
+    // Currently, none.
 }
 
 void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
@@ -218,7 +217,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // Dot: no new variables.
     TryMakeAndPush<DotPrimitive>(primitives, filter, t);
 
-    // FC: The channel could be a new variable
+    // FC: The channel could be a new variable.
     if (allow_dynamic_variables) {
         if (t->shape.G().IsStatic()) { // Could not have dynamic variables in G.
             if (next_index_opt.has_value())
@@ -269,7 +268,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     if (DynamicCast<ChannelShufflePrimitive>(t->producer) == nullptr)
         TryMakeAndPush<ChannelShufflePrimitive>(primitives, filter, t);
 
-    // Fold: no new variables
+    // Fold: no new variables.
     for (const auto& type: {FoldH, FoldW, FoldHW})
         for (const auto& arith_type: {FoldAvg, FoldMax})
             TryMakeAndPush<FoldPrimitive>(primitives, filter, t, type, arith_type);
