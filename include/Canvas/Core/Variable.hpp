@@ -88,6 +88,7 @@ struct Variable {
     }
 
     [[nodiscard]] bool SatisfyAssumption() const {
+        assert(numeric_numerator > 0 and numeric_denominator > 0);
         return Denominator().IsStatic() and Numerator().DynamicVarCount() <= 1;
     }
 
@@ -115,16 +116,6 @@ struct Variable {
         }
         assert(index != kInvalidIndex);
         return index;
-    }
-
-    [[nodiscard]] bool IsIrregular(bool empty_irregular=true) const {
-        if (*this == StaticVar(VC))
-            return false;
-        if (not empty_irregular and Empty())
-            return false;
-        if (DynamicVarCount() >= 1 and StaticFactor().Empty())
-            return false;
-        return true;
     }
 
     /// Solve dynamic variable `i` with `x`.

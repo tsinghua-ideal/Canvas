@@ -34,9 +34,6 @@ struct PrimitiveGenOptions {
     // Optimize FC.
     bool optimize_fc = false;
 
-    // Force irregular applies.
-    bool force_irregular = false;
-
     // Broadcast.
     bool b_add = false, b_mul = false, b_sub = false;
 
@@ -66,7 +63,6 @@ struct PrimitiveGenOptions {
         if (enable_all) {
             assert(not only_fc);
             allow_dynamic_variables = true;
-            force_irregular = false;
             optimize_fc = false;
             b_add = b_mul = b_sub = true;
             dot = fc = true;
@@ -83,7 +79,6 @@ struct PrimitiveGenOptions {
         }
         if (only_fc) {
             allow_dynamic_variables = true;
-            force_irregular = false;
             optimize_fc = false;
             fc = true;
         }
@@ -91,7 +86,7 @@ struct PrimitiveGenOptions {
 
     static PrimitiveGenOptions Recommended() {
         auto options = PrimitiveGenOptions(true, 1, false);
-        options.allow_dynamic_variables = true, options.force_irregular = false, options.optimize_fc = false;
+        options.allow_dynamic_variables = true, options.optimize_fc = false;
         return options;
     }
 
@@ -116,8 +111,7 @@ struct PrimitiveGenOptions {
         PrimitiveGenOptions options = PrimitiveGenOptions::Unlimited();
 #define CANVAS_AND_OPT(name) options.name = lhs.name and rhs.name
 #define CANVAS_OR_OPT(name) options.name = lhs.name or rhs.name
-        CANVAS_AND_OPT(allow_dynamic_variables);
-        CANVAS_OR_OPT(force_irregular), CANVAS_OR_OPT(optimize_fc);
+        CANVAS_AND_OPT(allow_dynamic_variables), CANVAS_OR_OPT(optimize_fc);
         CANVAS_AND_OPT(b_add), CANVAS_AND_OPT(b_mul), CANVAS_AND_OPT(b_sub);
         CANVAS_AND_OPT(dot), CANVAS_AND_OPT(fc);
         CANVAS_AND_OPT(dropout), CANVAS_AND_OPT(norm);

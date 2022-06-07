@@ -41,7 +41,6 @@ def seed(value: int):
 def sample(m: nn.Module,
            example_input: torch.Tensor = None,
            allow_dynamic: bool = True,
-           force_irregular: bool = False,
            add_relu_bn_after_fc: bool = False,
            num_primitive_range: Tuple[int, int] = (3, 25),
            num_fc_range: Tuple[int, int] = (1, 8),
@@ -63,9 +62,6 @@ def sample(m: nn.Module,
             different shapes, you must not set it into `None`.
         allow_dynamic: bool
             Whether allow dynamic variables to occur in the search space.
-        force_irregular: bool
-            Whether force the sampled kernel to be in an irregular pattern,
-            which could not be covered by traditional NAS methods.
         add_relu_bn_after_fc: bool
             Whether add `nn.ReLU` and `nn.BatchNorm2d` primitive after every FC
             primitive. It may lead to a worse performance but worth for
@@ -97,8 +93,6 @@ def sample(m: nn.Module,
     # Check option types.
     if type(allow_dynamic) != bool:
         raise ValueError('The variable `allow_dynamic` should be a bool.')
-    if type(force_irregular) != bool:
-        raise ValueError('The variable `force_irregular` should be a bool.')
     if type(add_relu_bn_after_fc) != bool:
         raise ValueError('The variable `add_relu_bn_after_fc` should be a bool.')
 
@@ -125,8 +119,7 @@ def sample(m: nn.Module,
     kernel_specs = [cpp_canvas.KernelSpecs(ker.c, ker.h, ker.w) for ker in kernels]
     # noinspection PyArgumentList
     pack = cpp_canvas.sample(kernel_specs,
-                             allow_dynamic, force_irregular,
-                             add_relu_bn_after_fc,
+                             allow_dynamic, add_relu_bn_after_fc,
                              num_primitive_range[0], num_primitive_range[1],
                              num_fc_range[0], num_fc_range[1],
                              timeout)

@@ -15,7 +15,7 @@ namespace canvas {
 namespace ba = boost::adaptors;
 
 Solution TryRandomSample(const NetSpecsSP& net_specs,
-                         bool allow_dynamic, bool force_irregular, bool add_relu_bn_after_fc,
+                         bool allow_dynamic, bool add_relu_bn_after_fc,
                          const Range<int>& np_range, const Range<int>& fc_range) {
     // Random graph settings.
     int n_primitives = np_range.Random();
@@ -30,7 +30,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
 
     // Take actions.
     GraphSP graph = std::make_shared<Graph>();
-    bool irregular_apply = false;
     for (int i = 0; i < n_primitives; ++ i) {
         int width = graph->Width();
 
@@ -97,12 +96,8 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
 #endif
         try {
             graph->Apply(apply);
-            if (apply.solution) {
+            if (apply.solution)
                 auto substitution = apply.solution.value().substitution;
-                irregular_apply |= substitution.IsIrregular(false);
-            }
-            for (const auto& t: apply.primitive->outs)
-                irregular_apply |= t->shape.H().Empty() or t->shape.W().Empty();
         } catch (const CanNotSolveDynamicVar& ex) {
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
             IC(ex);
@@ -113,15 +108,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
 #endif
             return {};
         } // Failed if other exceptions.
-    }
-
-    // Pruning: irregular apply.
-    if (force_irregular and not irregular_apply) {
-#ifdef CANVAS_DEBUG_FAILED_COUNT
-        static int can_not_satisfy_irregular = 0;
-        IC(can_not_satisfy_irregular ++);
-#endif
-        return {};
     }
 
 #ifdef CANVAS_FORCE_RESET_DEBUG
@@ -232,14 +218,14 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
 }
 
 Solution RandomSample(const NetSpecsSP& net_specs,
-                      bool allow_dynamic, bool force_irregular, bool add_relu_bn_after_fc,
+                      bool allow_dynamic, bool add_relu_bn_after_fc,
                       const Range<int>& np_range, const Range<int>& fc_range, canvas_timeval_t timeout) {
     auto start_time_point = std::chrono::system_clock::now();
     int times = 0;
     while (true) {
         ++ times;
         auto solution = TryRandomSample(net_specs,
-                                        allow_dynamic, force_irregular, add_relu_bn_after_fc,
+                                        allow_dynamic, add_relu_bn_after_fc,
                                         np_range, fc_range);
         if (not solution.Empty())
             return solution;

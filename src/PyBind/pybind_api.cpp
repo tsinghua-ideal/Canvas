@@ -33,7 +33,6 @@ PYBIND11_MODULE(cpp_canvas, m) {
     m.def("sample",
           [](const std::vector<canvas::KernelSpecs>& kernels,
              bool allow_dynamic,
-             bool force_irregular,
              bool add_relu_bn_after_fc,
              int np_min, int np_max,
              int fc_min, int fc_max,
@@ -41,7 +40,6 @@ PYBIND11_MODULE(cpp_canvas, m) {
               auto net_specs = std::make_shared<canvas::NetSpecs>(kernels);
               auto solution = canvas::RandomSample(net_specs,
                                                    allow_dynamic,
-                                                   force_irregular,
                                                    add_relu_bn_after_fc,
                                                    canvas::Range(np_min, np_max),
                                                    canvas::Range(fc_min, fc_max),
