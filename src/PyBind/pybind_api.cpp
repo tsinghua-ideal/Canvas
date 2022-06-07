@@ -39,8 +39,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
              int timeout) -> canvas::KernelPack {
               auto net_specs = std::make_shared<canvas::NetSpecs>(kernels);
               auto solution = canvas::RandomSample(net_specs,
-                                                   allow_dynamic,
-                                                   add_relu_bn_after_fc,
+                                                   allow_dynamic, add_relu_bn_after_fc,
                                                    canvas::Range(np_min, np_max),
                                                    canvas::Range(fc_min, fc_max),
                                                    std::chrono::seconds(timeout));

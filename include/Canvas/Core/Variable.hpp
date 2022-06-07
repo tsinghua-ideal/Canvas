@@ -92,6 +92,11 @@ struct Variable {
         return Denominator().IsStatic() and Numerator().DynamicVarCount() <= 1;
     }
 
+    [[nodiscard]] bool IsNumber() const {
+        return std::all_of(static_power, static_power + kStaticVarCount,
+                           [](uint8_t x) -> bool { return x == 0; });
+    }
+
     [[nodiscard]] bool IsStatic() const {
         return std::all_of(dynamic_power, dynamic_power + kDynamicVarCount,
                            [](uint8_t x) -> bool { return x == 0; });
@@ -132,14 +137,25 @@ struct Variable {
         return reciprocal;
     }
 
-    [[nodiscard]] Variable StaticFactor() const {
+    [[nodiscard]] Variable NumberFactor() const {
+        Variable factor;
+        factor.numeric_numerator = numeric_numerator;
+        factor.numeric_denominator = numeric_denominator;
+        return factor;
+    }
+
+    [[nodiscard]] Variable StaticVarFactor() const {
         Variable factor;
         for (int i = 0; i < kStaticVarCount; ++ i)
             factor.static_power[i] = static_power[i];
         return factor;
     }
 
-    [[nodiscard]] Variable DynamicFactor() const {
+    [[nodiscard]] Variable StaticFactor() const {
+        return NumberFactor() * StaticVarFactor();
+    }
+
+    [[nodiscard]] Variable DynamicVarFactor() const {
         Variable factor;
         for (int i = 0; i < kDynamicVarCount; ++ i)
             factor.dynamic_power[i] = dynamic_power[i];
@@ -152,6 +168,7 @@ struct Variable {
             numerator.static_power[i] = std::max(static_power[i], 0);
         for (int i = 0; i < kDynamicVarCount; ++ i)
             numerator.dynamic_power[i] = std::max(dynamic_power[i], 0);
+        numerator.numeric_numerator = numeric_numerator;
         return numerator;
     }
 
@@ -161,16 +178,12 @@ struct Variable {
             denominator.static_power[i] = std::abs(std::min(static_power[i], 0));
         for (int i = 0; i < kDynamicVarCount; ++ i)
             denominator.dynamic_power[i] = std::abs(std::min(dynamic_power[i], 0));
+        denominator.numeric_denominator = numeric_denominator;
         return denominator;
     }
 
-    /// Judge whether a variable is static and an integer.
-    [[nodiscard]] bool IsStaticInteger() const;
-
-    [[nodiscard]] bool MaybeInteger() const {
-        // With dynamic variables in the numerator, we can always eliminate the denominator.
-        return IsDynamic() or IsStaticInteger();
-    }
+    /// Return whether maybe an integer for early pruning.
+    [[nodiscard]] bool MaybeInteger() const;
 
     [[nodiscard]] bool Empty() const {
         auto func = [](uint8_t x) -> bool { return x == 0; };

@@ -21,14 +21,17 @@ TEST(Core, Variable) {
     std::stringstream ss_y;
     ss_y << y;
     ASSERT_EQ(ss_y.str(), "5/4");
+    ASSERT_FALSE(y.MaybeInteger());
 
     std::stringstream ss_z;
     ss_z << z;
     ASSERT_EQ(ss_z.str(), "C*x_0*x_4*5/4/G");
+    ASSERT_TRUE(z.MaybeInteger());
 
     std::stringstream ss_ax;
     ss_ax << a * x;
     ASSERT_EQ(ss_ax.str(), "C*H*W*x_0*x_2*x_4");
+    ASSERT_TRUE((a * x).MaybeInteger());
 }
 
 TEST(Core, DynamicVariable) {

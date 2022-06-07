@@ -8,11 +8,15 @@ namespace canvas {
 static_assert(Variable::kStaticVarCount == 4);
 const char* Variable::var_info[kStaticVarCount] = {"G", "C", "H", "W"};
 
-bool Variable::IsStaticInteger() const {
-    // Without dynamic variables.
+bool Variable::MaybeInteger() const {
+    // With dynamic variables in the numerator, we can always eliminate the denominator.
     for (const auto& var: dynamic_power)
         if (var != 0)
-            return false;
+            return true;
+
+    // Pure number.
+    if (IsNumber())
+        return numeric_numerator % numeric_denominator == 0;
 
     // Divide by C, H or W.
     for (int i = 0; i < kStaticVarCount; ++ i) {
