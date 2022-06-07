@@ -165,9 +165,9 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
         auto& out_shape = p->outs[0]->shape;
         gen->Write() << "self." << primitive_var
                      << " = nn.Conv2d("
-                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW()) // Input channels
+                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW()) // Input channels.
                      << ", "
-                     << TorchStyleVariable(out_shape.GCKK()) // Output channels
+                     << TorchStyleVariable(out_shape.GCKK()) // Output channels.
                      << ", 1, padding=0"
                      << ", groups=" << TorchStyleVariable(in_shape.GCKK())
                      << ", bias=False)"
@@ -181,9 +181,9 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
         auto& out_shape = p->outs[0]->shape;
         gen->Write() << "self." << primitive_var
                      << " = nn.Conv2d("
-                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW()) // Input channels
+                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW()) // Input channels.
                      << ", "
-                     << TorchStyleVariable(out_shape.GCKK()) // Output channels
+                     << TorchStyleVariable(out_shape.GCKK()) // Output channels.
                      << ", 1, padding=0"
                      << ", groups=" << TorchStyleVariable(in_shape.G())
                      << ", bias=False)"
@@ -252,7 +252,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
     for (const auto& t: br::join(p->ins, p->outs))
         assert(var_map.Count(t));
 
-    // Handle different operators
+    // Handle different operators.
     assert(var_map.Count(p));
     auto primitive_var = var_map[p];
     gen->Write() << "# " << p->name << ": " << primitive_var << std::endl;
@@ -264,14 +264,14 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << "(" << var_map[activation->ins[0]] << ")"
                      << std::endl;
     } else if (auto broadcast = DynamicCast<BroadcastPrimitive>(p)) {
-        if (broadcast->aligned) { // Not really broadcasting
+        if (broadcast->aligned) { // Not really broadcasting.
             gen->Write() << var_map[broadcast->outs[0]]
                          << " = "
                          << var_map[broadcast->ins[0]]
                          << " " << broadcast->sign << " "
                          << var_map[broadcast->ins[1]]
                          << std::endl;
-        } else { // Broadcasting
+        } else { // Broadcasting.
             gen->Write() << var_map[broadcast->outs[0]] << "_f"
                          << " = " << var_map[broadcast->ins[0]]
                          << ".view(self.n, "
@@ -365,7 +365,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << ")"
                      << std::endl;
     } else if (auto fold = DynamicCast<FoldPrimitive>(p)) {
-        // Shape must be [..., KH?, KW?, H?, W?]
+        // Shape must be [..., KH?, KW?, H?, W?].
         int n_hw = 0;
         n_hw += static_cast<int>(not fold->ins[0]->shape.H().Empty());
         n_hw += static_cast<int>(not fold->ins[0]->shape.W().Empty());
@@ -383,7 +383,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
             kh_index += 1;
             reference = var_map[fold->outs[0]];
         }
-        // Reduce KH
+        // Reduce KH.
         if (fold->type == FoldH or fold->type == FoldHW) {
             assert(kh_index <= -1);
             gen->Write() << var_map[fold->outs[0]]
@@ -408,7 +408,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << std::endl;
         }
     } else if (auto input = DynamicCast<InputPrimitive>(p)) {
-        // The input `x` must be in the shape of [N, C, H, W]
+        // The input `x` must be in the shape of [N, C, H, W].
         gen->Write() << var_map[input->outs[0]]
                      << " = x"
                      << std::endl;
@@ -491,10 +491,10 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << var_map[transpose->ins[0]] << ", "
                      << var_map[transpose->outs[0]] << "_nd - 1, "
                      << var_map[transpose->outs[0]] << "_nd - 2)"
-                     << ".contiguous()" // Deep copy to change the memory layout
+                     << ".contiguous()" // Deep copy to change the memory layout.
                      << std::endl;
     } else if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {
-        // PyTorch's `Unfold` only support [N, C, ...] format (C may be empty, 1)
+        // PyTorch's `Unfold` only support [N, C, ...] format (C may be empty, 1).
         PyTorchNCHWRecorder recorder(gen, var_map, unfold->ins[0], unfold->outs[0], false);
         gen->Write() << var_map[unfold->outs[0]]
                      << " = F.unfold("
@@ -536,7 +536,7 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         auto net_specs = solution.specs;
         auto graph = solution.graph;
 
-        // Rename if with an empty name
+        // Rename if with an empty name.
         if (name.empty())
             name = "Kernel_" + std::to_string(solution.Hash());
 
@@ -548,7 +548,7 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         Write() << "import torch.nn.functional as F" << std::endl;
         Write() << std::endl << std::endl;
 
-        // Class definition and configurations
+        // Class definition and configurations.
         Write() << "class " << name << "(nn.Module):" << std::endl;
         BeginScope();
         Write() << "def __init__(self, c: int, h: int, w: int):" << std::endl;
@@ -567,32 +567,32 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         Write() << std::endl;
 #endif
 
-        // Define kernels
+        // Define kernels.
         Write() << "# Kernels" << std::endl;
 
-        // Create variable map
+        // Create variable map.
         VarMap var_map;
 
-        // Travel the graph with the `InitTranslator`
+        // Travel the graph with the `InitTranslator`.
         PyTorchInitTranslator init_translator(var_map);
         Travel(graph, init_translator);
 
-        // End the `__init__` scope
+        // End the `__init__` scope.
         EndScope();
         Write() << std::endl;
 
-        // Write the `forward` function
+        // Write the `forward` function.
         Write() << "def forward(self, x: torch.Tensor):" << std::endl;
         BeginScope();
 
-        // Travel the graph the `ForwardTranslator`
+        // Travel the graph the `ForwardTranslator`.
         PyTorchForwardTranslator forward_translator(var_map);
         Travel(graph, forward_translator);
 
-        // End the `forward` scope
+        // End the `forward` scope.
         EndScope();
 
-        // End the class scope
+        // End the class scope.
         EndScope();
         Write() << std::endl;
 

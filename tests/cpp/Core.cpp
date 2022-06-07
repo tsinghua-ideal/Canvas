@@ -80,14 +80,14 @@ TEST(Core, GraphCopy) {
         auto in = graph->in;
         graph->Apply(std::make_shared<UnfoldPrimitive>(in));
 
-        // Copy
+        // Copy.
         {
             auto copy = std::make_shared<Graph>(*graph);
         }
         ASSERT_EQ(prev_num_tensor_deconstruction + 2, Tensor::num_deconstruction);
         ASSERT_EQ(prev_num_primitive_deconstruction + 2, Primitive::num_deconstruction);
 
-        // Copy and apply
+        // Copy and apply.
         {
             auto unfold_2 = std::make_shared<UnfoldPrimitive>(in);
 #pragma clang diagnostic push

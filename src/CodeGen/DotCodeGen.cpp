@@ -14,7 +14,7 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
         name = "OpGraph";
     Write() << "label = \"" << name << " [" << graph->Hash() << "]\"" << std::endl;
 
-    // Font name
+    // Font name.
     Write() << "fontname = \"Graphik\";" << std::endl;
 
     // Tensor settings.

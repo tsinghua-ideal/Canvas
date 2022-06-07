@@ -62,15 +62,15 @@ struct Variable {
         friend std::ostream& operator << (std::ostream& os, const DynamicFills& fills);
     };
 
-    /// Variable position indices
+    /// Variable position indices.
     enum StaticVarPos {
-        VG = 0,     // Groups
-        VC = 1,     // Channels
-        VKH = 2,    // Kernel height
-        VKW = 3,    // Kernel width
-        VH = 4,     // Height
-        VW = 5,     // Width
-        VDG = 6,    // Divided by groups (not really exists)
+        VG = 0,     // Groups.
+        VC = 1,     // Channels.
+        VKH = 2,    // Kernel height.
+        VKW = 3,    // Kernel width.
+        VH = 4,     // Height.
+        VW = 5,     // Width.
+        VDG = 6,    // Divided by groups (not really exists).
     };
 
     static const char* var_info[kStaticVarCount];

@@ -11,7 +11,7 @@ size_t Primitive::Hash(bool ignore_outs) const {
         std::vector<size_t> values;
         values.reserve(vec.size());
         for (const auto& t: vec)
-            values.push_back(t->id); // Use `tensor->id` for topology filtering
+            values.push_back(t->id); // Use `tensor->id` for topology filtering.
         if (commutative)
             std::sort(values.begin(), values.end());
         for (const auto& v: values)

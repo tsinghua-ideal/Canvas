@@ -119,7 +119,7 @@ TensorSP Graph::Out() const {
     TensorSP out = nullptr;
     for (const auto& t: tensors) {
         if (t->consumers.empty()) {
-            if (out) // Only allow one output
+            if (out) // Only allow one output.
                 return nullptr;
             out = t;
         }
@@ -139,22 +139,22 @@ size_t Graph::CalculateSubgraphHash(const TensorSP& t, SizeTArray& cache) { // N
     if (cache[t->id])
         return cache[t->id];
 
-    // Get all Hash of the consumer primitives
+    // Get all Hash of the consumer primitives.
     SizeTArray consumers_hash;
     consumers_hash.reserve(t->consumers.size());
     for (const auto& p: t->consumers) {
-        // Type Hash of the primitive
+        // Type Hash of the primitive.
         size_t p_hash = HashStr(p->name);
-        // Tensors must be in some order (guaranteed by the primitive implement)
+        // Tensors must be in some order (guaranteed by the primitive implement).
         for (const auto& out_t: p->outs)
             p_hash = IterateHash(p_hash, CalculateSubgraphHash(out_t, cache));
         consumers_hash.push_back(p_hash);
     }
 
-    // Sort them by Hash to discover isomorphism
+    // Sort them by Hash to discover isomorphism.
     std::sort(consumers_hash.begin(), consumers_hash.end());
 
-    // Calculate this subgraph, use shape Hash to discover isomorphism
+    // Calculate this subgraph, use shape Hash to discover isomorphism.
     size_t subgraph_hash = t->shape.Hash();
     for (const auto& h: consumers_hash)
         subgraph_hash = IterateHash(subgraph_hash, h);
@@ -162,7 +162,7 @@ size_t Graph::CalculateSubgraphHash(const TensorSP& t, SizeTArray& cache) { // N
 }
 
 size_t Graph::CalculateHash() {
-    // For a very small possibility, the hash value does not equal to zero
+    // For a very small possibility, the hash value does not equal to zero.
     SizeTArray cache(tensors.size(), 0);
     hash_cached = true;
     return hash_value = CalculateSubgraphHash(in, cache);
@@ -189,7 +189,7 @@ void Graph::Apply(const PrimitiveApply& pa) {
 }
 
 void Graph::ApplyOutput() {
-    // Apply output primitive
+    // Apply output primitive.
     auto out = Out();
     assert(out and DynamicCast<OutputPrimitive>(out->producer) == nullptr);
     Apply(std::make_shared<OutputPrimitive>(out));

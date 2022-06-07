@@ -14,8 +14,6 @@ struct Solution {
 
     Solution() = default;
 
-    Solution(GraphSP graph): graph(std::move(graph)) { assert(this->graph); } // NOLINT(google-explicit-constructor)
-
     Solution(NetSpecsSP specs, GraphSP graph):
             specs(std::move(specs)), graph(std::move(graph)) {
         assert(this->specs and this->graph);

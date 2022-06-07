@@ -102,11 +102,11 @@ std::string Variable::Format(const char** info, const std::string& mul, const st
     bool has_numerator = HasNumerator();
     bool has_denominator = HasDenominator();
 
-    // Empty variable
+    // Empty variable.
     if (not has_numerator and not has_denominator)
         return "1";
 
-    // Print numerator
+    // Print numerator.
     if (has_numerator) {
         bool displayed = false;
         for (int i = 0; i < Variable::kStaticVarCount; ++ i) {
@@ -125,7 +125,7 @@ std::string Variable::Format(const char** info, const std::string& mul, const st
         ss << "1";
     }
 
-    // Print denominator
+    // Print denominator.
     for (int i = 0; i < Variable::kStaticVarCount; ++ i)
         for (int j = 0; j < -static_power[i]; ++ j)
             ss << div << info[i];

@@ -27,7 +27,7 @@ std::vector<Variable> BroadcastPrimitive::IntermediateVariables() const {
 static void GetBroadcastMatches(const std::vector<Variable>& lhs_all, const std::vector<Variable>& rhs_all,
                                 std::vector<Variable>& prefix, std::vector<Variable>& suffix,
                                 Variable& lhs_pi, Variable& rhs_pi, Variable& multiplier) {
-    // Some special cases: [C, KH, KH, H, W] & [C, KH, H, W], [KW, H, W] & [KW, KH, KW, H, W]
+    // Some special cases: [C, KH, KH, H, W] & [C, KH, H, W], [KW, H, W] & [KW, KH, KW, H, W].
     suffix = CommonSuffix(lhs_all, rhs_all);
     assert(suffix.size() <= lhs_all.size() and suffix.size() <= rhs_all.size());
     auto lhs_cut_suffix = CutVector(lhs_all, 0, lhs_all.size() - suffix.size());
@@ -69,7 +69,7 @@ void BroadcastPrimitive::InferShapes(const TensorSP& lhs, const TensorSP& rhs) {
         if (not lhs_pi.MaybeInteger() or not multiplier.MaybeInteger() or not multiplier.SatisfyAssumption())
             throw CanNotApplyPrimitive(name);
     } else {
-        // Element-wise multiplication is commutative
+        // Element-wise multiplication is commutative.
         aligned = true, input_commutative = true;
     }
 }
@@ -104,20 +104,20 @@ BroadcastPrimitive::GetAllPossibleMatches(const TensorSP& lhs, const TensorSP& r
     if (not lhs_pi.MaybeInteger() or not multiplier.MaybeInteger())
         return {};
 
-    // Only if exactly one dynamic variable occurs in the denominator, a variable solution will be constructed
+    // Only if exactly one dynamic variable occurs in the denominator, a variable solution will be constructed.
     auto m_denominator = multiplier.Denominator();
     auto dynamic_var_count = m_denominator.DynamicVarCount();
     assert(dynamic_var_count <= 1);
     if (dynamic_var_count == 0) {
-        // No new solution
+        // No new solution.
         return {PrimitiveApply(std::make_shared<BroadcastPrimitive>(lhs, rhs, type, false,
                                                                     lhs_pi, rhs_pi, multiplier, prefix, suffix))};
     } else {
         int var_index = m_denominator.GetOnlyDynamicVar();
-        // The power of the dynamic variable could not be less than -1
+        // The power of the dynamic variable could not be less than -1.
         assert(m_denominator.dynamic_power[var_index] == 1);
         auto numerator = multiplier.Numerator();
-        // Get all factors, then restrict `lhs_pi`, `rhs_pi` and `multiplier` to be integer
+        // Get all factors, then restrict `lhs_pi`, `rhs_pi` and `multiplier` to be integer.
         auto all_factors = numerator.GetAllFactors();
         RandomShuffle(all_factors);
         std::vector<PrimitiveApply> collections;
@@ -128,7 +128,7 @@ BroadcastPrimitive::GetAllPossibleMatches(const TensorSP& lhs, const TensorSP& r
             replaced_rhs_pi.SolveDynamicVar(s);
             replaced_multiplier.SolveDynamicVar(s);
             if (replaced_lhs_pi.MaybeInteger() and replaced_rhs_pi.MaybeInteger() and replaced_multiplier.MaybeInteger()) {
-                // NOTE: Notice that the dynamic variables in `prefix` and `suffix` should also be processed later
+                // NOTE: Notice that the dynamic variables in `prefix` and `suffix` should also be processed later.
                 collections.emplace_back(std::make_shared<BroadcastPrimitive>(lhs, rhs, type, false,
                                                                               replaced_lhs_pi, replaced_rhs_pi,
                                                                               replaced_multiplier, prefix, suffix),
