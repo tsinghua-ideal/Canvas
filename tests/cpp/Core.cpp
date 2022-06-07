@@ -9,12 +9,22 @@
 using namespace canvas;
 
 TEST(Core, Variable) {
-    Variable x({StaticVar::VC, StaticVar::VDG}, {0, 4});
-    Variable a({StaticVar::VG, StaticVar::VH, StaticVar::VW}, {2});
+    auto x = Variable::Compose({StaticVarPos::VC, StaticVarPos::VDG}, 1, 1, {0, 4});
+    auto y = Variable::Number(10, 8);
+    auto z = x * y;
+    auto a = Variable::Compose({StaticVarPos::VG, StaticVarPos::VH, StaticVarPos::VW}, 1, 1, {2});
 
     std::stringstream ss_x;
     ss_x << x;
     ASSERT_EQ(ss_x.str(), "C*x_0*x_4/G");
+
+    std::stringstream ss_y;
+    ss_y << y;
+    ASSERT_EQ(ss_y.str(), "5/4");
+
+    std::stringstream ss_z;
+    ss_z << z;
+    ASSERT_EQ(ss_z.str(), "C*x_0*x_4*5/4/G");
 
     std::stringstream ss_ax;
     ss_ax << a * x;
@@ -22,8 +32,8 @@ TEST(Core, Variable) {
 }
 
 TEST(Core, DynamicVariable) {
-    Variable a({StaticVar::VC, StaticVar::VDG}, {0, 1, 1, 4});
-    Variable x1({StaticVar::VC});
+    auto a = Variable::Compose({StaticVarPos::VC, StaticVarPos::VDG}, 1, 1, {0, 1, 1, 4});
+    auto x1 = Variable::StaticVar(StaticVarPos::VC);
 
     a.SolveDynamicVar({1, x1});
     std::stringstream ss;
@@ -32,12 +42,12 @@ TEST(Core, DynamicVariable) {
 }
 
 TEST(Core, VariableFactors) {
-    Variable x({StaticVar::VC, StaticVar::VC, StaticVar::VG}, {0, 2, 2});
+    auto x = Variable::Compose({StaticVarPos::VC, StaticVarPos::VC, StaticVarPos::VG}, 1, 1, {0, 2, 2});
     std::cout << "All factors of " << x << ":" << std::endl;
     for (const auto& factor: x.GetAllFactors())
         std::cout << " > Factor: " << factor << std::endl;
 
-    Variable y({StaticVar::VC, StaticVar::VG});
+    auto y = Variable::Compose({StaticVarPos::VC, StaticVarPos::VG});
     std::cout << "All factors of " << y << ":" << std::endl;
     for (const auto& factor: y.GetAllFactors())
         std::cout << " > Factor: " << factor << std::endl;
@@ -45,7 +55,7 @@ TEST(Core, VariableFactors) {
 
 TEST(Core, Shape) {
     Shape s;
-    s.C() = StaticVar::VC, s.H() = StaticVar::VH, s.W() = StaticVar::VW;
+    s.C() = StaticVarPos::VC, s.H() = StaticVarPos::VH, s.W() = StaticVarPos::VW;
     std::stringstream ss;
     ss << s;
     ASSERT_EQ(ss.str(), "[C, H, W]");

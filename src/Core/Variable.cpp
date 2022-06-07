@@ -8,28 +8,6 @@ namespace canvas {
 static_assert(Variable::kStaticVarCount == 4);
 const char* Variable::var_info[kStaticVarCount] = {"G", "C", "H", "W"};
 
-Variable::Variable(const std::initializer_list<StaticVarPos>& dims, const std::initializer_list<int>& vars) {
-    Reset();
-    for (const auto& dim: dims) {
-        if (dim == VDG)
-            static_power[StaticVarPos::VG] -= 1;
-        else
-            static_power[dim] += 1;
-    }
-    for (const auto& var: vars) {
-        assert(var < kDynamicVarCount);
-        dynamic_power[var] += 1;
-    }
-}
-
-std::ostream& operator <<(std::ostream& os, const Variable::DynamicFills& fills) {
-    assert(Variable::kDynamicVarCount > 0);
-    os << "DynamicFills[" << fills.x[0];
-    for (int i = 1; i < Variable::kDynamicVarCount; ++ i)
-        os << ", " << fills.x[i];
-    return os << "]";
-}
-
 bool Variable::IsStaticInteger() const {
     // Without dynamic variables.
     for (const auto& var: dynamic_power)
@@ -98,34 +76,31 @@ std::vector<Variable> Variable::GetAllFactors(bool except_hw) const {
 
 std::string Variable::Format(const char** info, const std::string& mul, const std::string& div,
                              const std::string& x_prefix, const std::string& x_suffix) const {
+    assert(numeric_numerator > 0 and numeric_denominator > 0);
     std::stringstream ss;
-    bool has_numerator = HasNumerator();
-    bool has_denominator = HasDenominator();
 
-    // Empty variable.
-    if (not has_numerator and not has_denominator)
-        return "1";
-
-    // Print numerator.
-    if (has_numerator) {
-        bool displayed = false;
-        for (int i = 0; i < Variable::kStaticVarCount; ++ i) {
-            if (static_power[i] > 0) {
-                for (int j = 0; j < static_power[i]; ++ j)
-                    ss << (displayed ? mul : "") << info[i], displayed = true;
-            }
+    // Print variable numerator.
+    bool displayed = false;
+    for (int i = 0; i < Variable::kStaticVarCount; ++ i) {
+        if (static_power[i] > 0) {
+            for (int j = 0; j < static_power[i]; ++ j)
+                ss << (displayed ? mul : "") << info[i], displayed = true;
         }
-        for (int i = 0; i < Variable::kDynamicVarCount; ++ i) {
-            if (dynamic_power[i] > 0) {
-                for (int j = 0; j < dynamic_power[i]; ++ j)
-                    ss << (displayed ? mul : "") << x_prefix << i << x_suffix, displayed = true;
-            }
-        }
-    } else {
-        ss << "1";
     }
+    for (int i = 0; i < Variable::kDynamicVarCount; ++ i) {
+        if (dynamic_power[i] > 0) {
+            for (int j = 0; j < dynamic_power[i]; ++ j)
+                ss << (displayed ? mul : "") << x_prefix << i << x_suffix, displayed = true;
+        }
+    }
+    if (not displayed)
+        ss << numeric_numerator;
+    else if (numeric_numerator != 1)
+        ss << mul << numeric_numerator;
 
     // Print denominator.
+    if (numeric_denominator != 1)
+        ss << div << numeric_denominator;
     for (int i = 0; i < Variable::kStaticVarCount; ++ i)
         for (int j = 0; j < -static_power[i]; ++ j)
             ss << div << info[i];

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -21,47 +22,6 @@ struct Variable {
     static constexpr int kStaticVarCount = 4;
     static constexpr int kDynamicVarCount = 8;
 
-    struct DynamicFills {
-        size_t x[kDynamicVarCount] = {0};
-
-        explicit DynamicFills(size_t x0=1, size_t x1=1, size_t x2=1, size_t x3=1,
-                              size_t x4=1, size_t x5=1, size_t x6=1, size_t x7=1) {
-            x[0] = x0, x[1] = x1, x[2] = x2, x[3] = x3;
-            x[4] = x4, x[5] = x5, x[6] = x6, x[7] = x7;
-        }
-
-        DynamicFills(const DynamicFills& rhs) { std::memcpy(x, rhs.x, sizeof(x)); }
-
-        [[nodiscard]] std::vector<size_t> ToVector() const {
-            return {x, x + kDynamicVarCount};
-        }
-
-        void Double() {
-            for (auto& v: x)
-                v *= 2;
-        }
-
-        [[nodiscard]] size_t Hash() const {
-            size_t hash = 0;
-            for (const auto& v: x)
-                hash = IterateHash(hash, v);
-            return hash;
-        }
-
-        [[nodiscard]] bool operator == (const DynamicFills& rhs) const {
-            for (int i = 0; i < kDynamicVarCount; ++ i)
-                if (x[i] != rhs.x[i])
-                    return false;
-            return true;
-        }
-
-        [[nodiscard]] bool operator != (const DynamicFills& rhs) const {
-            return not (*this == rhs);
-        }
-
-        friend std::ostream& operator << (std::ostream& os, const DynamicFills& fills);
-    };
-
     /// Variable position indices.
     enum StaticVarPos {
         VG = 0,     // Groups.
@@ -80,26 +40,52 @@ struct Variable {
 
     Variable(const Variable& rhs) = default;
 
-    explicit Variable(int numeric_numerator, int numeric_denominator = 1):
-            numeric_numerator(numeric_numerator), numeric_denominator(numeric_denominator) {}
-
-    explicit Variable(const StaticVarPos& dim) { static_power[dim] = 1; }
-
-    Variable(const std::initializer_list<StaticVarPos>& dims,
-             const std::initializer_list<int>& vars={});
-
-    [[nodiscard]] static Variable Static(const StaticVarPos& dim) {
-        return Variable(dim);
+    [[nodiscard]] static Variable Number(int numeric_numerator=1, int numeric_denominator=1) {
+        assert(numeric_numerator > 0 and numeric_denominator > 0);
+        int gcd = std::gcd(numeric_numerator, numeric_denominator);
+        Variable var;
+        var.numeric_numerator = numeric_numerator / gcd;
+        var.numeric_denominator = numeric_denominator / gcd;
+        return var;
     }
 
-    [[nodiscard]] static Variable Dynamic(int i) {
+    [[nodiscard]] static Variable StaticVar(const StaticVarPos& dim) {
+        Variable var;
+        var.static_power[dim] = 1;
+        return var;
+    }
+
+    [[nodiscard]] static Variable DynamicVar(int i) {
         assert(0 <= i and i < kDynamicVarCount);
         Variable var;
         var.dynamic_power[i] = 1;
         return var;
     }
 
-    void Reset() { std::memset(this, 0, sizeof(Variable)); }
+    [[nodiscard]] static Variable Compose(const std::initializer_list<StaticVarPos>& dims,
+                                          int numeric_numerator=1, int numeric_denominator=1,
+                                          const std::initializer_list<int>& dyn_vars={}) {
+        Variable var;
+        for (const auto& dim: dims) {
+            if (dim == VDG)
+                var.static_power[StaticVarPos::VG] -= 1;
+            else
+                var.static_power[dim] += 1;
+        }
+        for (const auto& dyn_var: dyn_vars) {
+            assert(dyn_var < kDynamicVarCount);
+            var.dynamic_power[dyn_var] += 1;
+        }
+        int gcd = std::gcd(numeric_numerator, numeric_denominator);
+        var.numeric_numerator = numeric_numerator / gcd;
+        var.numeric_denominator = numeric_denominator / gcd;
+        return var;
+    }
+
+    void Reset() {
+        std::memset(this, 0, sizeof(Variable));
+        numeric_numerator = numeric_denominator = 1;
+    }
 
     [[nodiscard]] bool SatisfyAssumption() const {
         return Denominator().IsStatic() and Numerator().DynamicVarCount() <= 1;
@@ -132,7 +118,7 @@ struct Variable {
     }
 
     [[nodiscard]] bool IsIrregular(bool empty_irregular=true) const {
-        if (*this == Static(VC))
+        if (*this == StaticVar(VC))
             return false;
         if (not empty_irregular and Empty())
             return false;
@@ -144,20 +130,14 @@ struct Variable {
     /// Solve dynamic variable `i` with `x`.
     void SolveDynamicVar(const VarSolution &s);
 
-    [[nodiscard]] std::vector<int> UnsolvedIndices() {
-        std::vector<int> indices;
-        for (int i = 0; i < kDynamicVarCount; ++ i)
-            if (dynamic_power[i] != 0)
-                indices.push_back(i);
-        return indices;
-    }
-
     [[nodiscard]] Variable Reciprocal() const {
         Variable reciprocal;
         for (int i = 0; i < kStaticVarCount; ++ i)
             reciprocal.static_power[i] = -static_power[i];
         for (int i = 0; i < kDynamicVarCount; ++ i)
             reciprocal.dynamic_power[i] = -dynamic_power[i];
+        reciprocal.numeric_numerator = numeric_denominator;
+        reciprocal.numeric_denominator = numeric_numerator;
         return reciprocal;
     }
 
@@ -193,18 +173,6 @@ struct Variable {
         return denominator;
     }
 
-    [[nodiscard]] bool HasNumerator() const {
-        auto positive_check = [](int x) -> bool { return x > 0; };
-        return std::any_of(static_power, static_power + kStaticVarCount, positive_check) or
-               std::any_of(dynamic_power, dynamic_power + kDynamicVarCount, positive_check);
-    }
-
-    [[nodiscard]] bool HasDenominator() const {
-        auto negative_check = [](int x) -> bool { return x < 0; };
-        return std::any_of(static_power, static_power + kStaticVarCount, negative_check) or
-               std::any_of(dynamic_power, dynamic_power + kDynamicVarCount, negative_check);
-    }
-
     /// Judge whether a variable is static and an integer.
     [[nodiscard]] bool IsStaticInteger() const;
 
@@ -215,7 +183,8 @@ struct Variable {
 
     [[nodiscard]] bool Empty() const {
         auto func = [](uint8_t x) -> bool { return x == 0; };
-        return std::all_of(static_power, static_power + kStaticVarCount, func) and
+        return numeric_numerator == 1 and numeric_denominator == 1 and
+               std::all_of(static_power, static_power + kStaticVarCount, func) and
                std::all_of(dynamic_power, dynamic_power + kDynamicVarCount, func);
     }
 
@@ -232,7 +201,7 @@ struct Variable {
         for (int i = 0; i < kDynamicVarCount; ++ i)
             if (dynamic_power[i] != rhs.dynamic_power[i])
                 return false;
-        return true;
+        return numeric_numerator == rhs.numeric_numerator and numeric_denominator == rhs.numeric_denominator;
     }
 
     [[nodiscard]] bool operator != (const Variable& rhs) const {
@@ -245,6 +214,11 @@ struct Variable {
             pi.static_power[i] = static_power[i] + rhs.static_power[i];
         for (int i = 0; i < kDynamicVarCount; ++ i)
             pi.dynamic_power[i] = dynamic_power[i] + rhs.dynamic_power[i];
+        pi.numeric_numerator = numeric_numerator * rhs.numeric_numerator;
+        pi.numeric_denominator = numeric_denominator * rhs.numeric_denominator;
+        int gcd = std::gcd(pi.numeric_numerator, pi.numeric_denominator);
+        pi.numeric_numerator /= gcd;
+        pi.numeric_denominator /= gcd;
         return pi;
     }
 
@@ -254,7 +228,7 @@ struct Variable {
     }
 
     [[nodiscard]] Variable operator * (const StaticVarPos& rhs) const {
-        return *this * Variable(rhs);
+        return *this * Variable::StaticVar(rhs);
     }
 
     Variable& operator *= (const StaticVarPos& rhs) {
@@ -272,7 +246,7 @@ struct Variable {
     }
 
     Variable operator / (const StaticVarPos& rhs) const {
-        return *this / Variable(rhs);
+        return *this / Variable::StaticVar(rhs);
     }
 
     Variable& operator /= (const StaticVarPos& rhs) {
@@ -281,11 +255,11 @@ struct Variable {
     }
 
     friend Variable operator * (const StaticVarPos& lhs, const StaticVarPos &rhs) {
-        return Variable(lhs) * Variable(rhs);
+        return Variable::StaticVar(lhs) * Variable::StaticVar(rhs);
     }
 
     friend Variable operator / (const StaticVarPos& lhs, const StaticVarPos &rhs) {
-        return Variable(lhs) / Variable(rhs);
+        return Variable::StaticVar(lhs) / Variable::StaticVar(rhs);
     }
 
     [[nodiscard]] size_t Hash() const {
@@ -317,7 +291,7 @@ struct VarSolution {
     VarSolution(int index, const Variable& substitution): index(index), substitution(substitution) {}
 };
 
-using StaticVar = Variable::StaticVarPos;
+using StaticVarPos = Variable::StaticVarPos;
 
 class CanNotSolveDynamicVar: public ExceptionWithInfo {
 public:

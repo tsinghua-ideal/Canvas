@@ -213,7 +213,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     if (allow_dynamic_variables) {
         if (t->shape.G().IsStatic()) { // Could not have dynamic variables in G.
             if (next_index_opt.has_value())
-                TryMakeAndPush<FCPrimitive>(primitives, filter, t, Variable::Dynamic(next_index_opt.value()));
+                TryMakeAndPush<FCPrimitive>(primitives, filter, t, Variable::DynamicVar(next_index_opt.value()));
             else
                 TryMakeAndPush<FCPrimitive>(primitives, filter, t); // By default, we retain the channel number and fold spatial information.
         }

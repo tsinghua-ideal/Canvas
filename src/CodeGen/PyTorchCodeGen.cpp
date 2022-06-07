@@ -304,8 +304,8 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << " = "
                      << recorder.reference
                      << ".view(self.n, "
-                     << TorchStyleVariable(Variable(StaticVar::VG)) << ", "
-                     << TorchStyleVariable(in_shape.GCKK() / StaticVar::VG) << ", "
+                     << TorchStyleVariable(Variable::StaticVar(StaticVarPos::VG)) << ", "
+                     << TorchStyleVariable(in_shape.GCKK() / StaticVarPos::VG) << ", "
                      << TorchStyleVariable(in_shape.H()) << ", "
                      << TorchStyleVariable(in_shape.W()) << ")"
                      << std::endl;

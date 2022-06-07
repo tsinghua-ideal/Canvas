@@ -74,7 +74,7 @@ struct Shape {
 
     [[nodiscard]] static Shape StandardCHW() {
         Shape s;
-        s.C() = StaticVar::VC, s.H() = StaticVar::VH, s.W() = StaticVar::VW;
+        s.C() = StaticVarPos::VC, s.H() = StaticVarPos::VH, s.W() = StaticVarPos::VW;
         return s;
     }
 
@@ -99,7 +99,7 @@ struct Shape {
     }
 
     [[nodiscard]] bool CouldBeReshapeToCHW() const {
-        return Pi() == Variable({StaticVar::VC, StaticVar::VH, StaticVar::VW});
+        return Pi() == Variable::Compose({StaticVarPos::VC, StaticVarPos::VH, StaticVarPos::VW});
     }
 
     [[nodiscard]] bool SatisfyAssumption() const {

@@ -132,7 +132,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
         graph->Apply(group);
         auto unfold = std::make_shared<UnfoldPrimitive>(group->outs[0]);
         graph->Apply(unfold);
-        auto fc = std::make_shared<FCPrimitive>(unfold->outs[0], Variable(StaticVar::VC));
+        auto fc = std::make_shared<FCPrimitive>(unfold->outs[0], Variable(StaticVarPos::VC));
         graph->Apply(fc);
     }
 #endif
@@ -193,12 +193,12 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
 #endif
             return {};
         }
-        assert(out->shape.H() == Variable(StaticVar::VH));
-        assert(out->shape.W() == Variable(StaticVar::VW));
+        assert(out->shape.H() == Variable::StaticVar(StaticVarPos::VH));
+        assert(out->shape.W() == Variable::StaticVar(StaticVarPos::VW));
         auto channel = out->shape.GCKK();
         assert(channel.DynamicVarCount() == 1); // Only C channel could have unsolved variables.
         assert(channel.SatisfyAssumption());
-        auto v = Variable(StaticVar::VC) / channel.StaticFactor();
+        auto v = Variable::StaticVar(StaticVarPos::VC) / channel.StaticFactor();
         assert(v.IsStatic());
         try {
             graph->SolveDynamicVar(VarSolution(channel.GetOnlyDynamicVar(), v));

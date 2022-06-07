@@ -72,8 +72,8 @@ void Graph::LegalityCheck() const {
         // KH, KW, H, W.
         assert(shape.KH().IsStaticInteger());
         assert(shape.KW().IsStaticInteger());
-        assert(shape.H() == Variable(StaticVar::VH) or shape.H().Empty());
-        assert(shape.W() == Variable(StaticVar::VW) or shape.W().Empty());
+        assert(shape.H() == Variable::StaticVar(StaticVarPos::VH) or shape.H().Empty());
+        assert(shape.W() == Variable::StaticVar(StaticVarPos::VW) or shape.W().Empty());
     }
 }
 

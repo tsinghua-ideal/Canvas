@@ -7,7 +7,7 @@ FCPrimitive::FCPrimitive(const TensorSP& t):
         Primitive("FC", {t}) {
     auto& s = t->shape;
     Shape new_shape;
-    new_shape.C() = StaticVar::VC;
+    new_shape.C() = StaticVarPos::VC;
     new_shape.H() = s.H(), new_shape.W() = s.W();
     outs.push_back(std::make_shared<Tensor>(new_shape));
 }
