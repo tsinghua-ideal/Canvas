@@ -23,6 +23,12 @@ struct Variable {
     static constexpr int kDynamicVarCount = 8;
     static constexpr int kFactorThreshold = 1000;
 
+    struct VarSpecs {
+        int g, c, h, w;
+
+        VarSpecs(int g, int c, int h, int w): g(g), c(c), h(h), w(w) {}
+    };
+
     /// Variable position indices.
     enum StaticVarPos {
         VG = 0,     // Groups.
@@ -40,6 +46,8 @@ struct Variable {
     Variable() = default;
 
     Variable(const Variable& rhs) = default;
+
+    [[nodiscard]] int FillToInteger(const VarSpecs& specs) const;
 
     [[nodiscard]] static Variable Number(int numeric_numerator=1, int numeric_denominator=1) {
         assert(numeric_numerator > 0 and numeric_denominator > 0);
@@ -65,23 +73,7 @@ struct Variable {
 
     [[nodiscard]] static Variable Compose(const std::initializer_list<StaticVarPos>& dims,
                                           int numeric_numerator=1, int numeric_denominator=1,
-                                          const std::initializer_list<int>& dyn_vars={}) {
-        Variable var;
-        for (const auto& dim: dims) {
-            if (dim == VDG)
-                var.static_power[StaticVarPos::VG] -= 1;
-            else
-                var.static_power[dim] += 1;
-        }
-        for (const auto& dyn_var: dyn_vars) {
-            assert(dyn_var < kDynamicVarCount);
-            var.dynamic_power[dyn_var] += 1;
-        }
-        int gcd = std::gcd(numeric_numerator, numeric_denominator);
-        var.numeric_numerator = numeric_numerator / gcd;
-        var.numeric_denominator = numeric_denominator / gcd;
-        return var;
-    }
+                                          const std::initializer_list<int>& dyn_vars={});
 
     void Reset() {
         std::memset(this, 0, sizeof(Variable));

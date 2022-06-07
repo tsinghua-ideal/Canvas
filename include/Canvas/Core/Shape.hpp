@@ -22,26 +22,26 @@ struct Shape {
         PW = 5,     // Width.
     };
 
-    Variable dims[kShapeMaxDim] = {};
+    struct ShapeSpecs {
+        int dims[kShapeMaxDim] = {};
 
-    struct StaticShape {
-        size_t dims[kShapeMaxDim] = {};
+        [[nodiscard]] int& G() { return dims[DimPos::PG]; }
+        [[nodiscard]] int& C() { return dims[DimPos::PC]; }
+        [[nodiscard]] int& KH() { return dims[DimPos::PKH]; }
+        [[nodiscard]] int& KW() { return dims[DimPos::PKW]; }
+        [[nodiscard]] int& H() { return dims[DimPos::PH]; }
+        [[nodiscard]] int& W() { return dims[DimPos::PW]; }
 
-        [[nodiscard]] size_t& G() { return dims[DimPos::PG]; }
-        [[nodiscard]] size_t& C() { return dims[DimPos::PC]; }
-        [[nodiscard]] size_t& KH() { return dims[DimPos::PKH]; }
-        [[nodiscard]] size_t& KW() { return dims[DimPos::PKW]; }
-        [[nodiscard]] size_t& H() { return dims[DimPos::PH]; }
-        [[nodiscard]] size_t& W() { return dims[DimPos::PW]; }
-
-        [[nodiscard]] size_t Pi() const {
-            size_t pi = 1;
+        [[nodiscard]] int Pi() const {
+            int pi = 1;
             for (const auto& dim: dims)
                 pi *= dim;
             assert(pi > 0);
             return pi;
         }
     };
+
+    Variable dims[kShapeMaxDim] = {};
 
     Shape() = default;
 
@@ -56,6 +56,16 @@ struct Shape {
 
     [[nodiscard]] Variable& Get(const DimPos& i) { return dims[i]; }
     [[nodiscard]] Variable& Get(const int& i) { return dims[i]; }
+
+    [[nodiscard]] ShapeSpecs FillToStaticShape(const Variable::VarSpecs& specs) {
+        ShapeSpecs static_shape;
+        for (int i = 0; i < kShapeMaxDim; ++ i) {
+            int static_value = dims[i].FillToInteger(specs);
+            assert(static_value > 0);
+            static_shape.dims[i] = static_value;
+        }
+        return static_shape;
+    }
 
     [[nodiscard]] int GetRelativePos(const DimPos& i, bool backward=false) {
         int count = 0;
@@ -148,9 +158,6 @@ struct Shape {
 
     friend std::ostream& operator << (std::ostream& os, const Shape& rhs);
 };
-
-using DimPos = Shape::DimPos;
-using StaticShape = Shape::StaticShape;
 
 } // namespace canvas
 

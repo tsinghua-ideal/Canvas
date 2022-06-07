@@ -9,6 +9,42 @@ namespace canvas {
 static_assert(Variable::kStaticVarCount == 4);
 const char* Variable::var_info[kStaticVarCount] = {"G", "C", "H", "W"};
 
+Variable Variable::Compose(const std::initializer_list<StaticVarPos>& dims,
+                           int numeric_numerator, int numeric_denominator,
+                           const std::initializer_list<int>& dyn_vars) {
+    Variable var;
+    for (const auto& dim: dims) {
+        if (dim == VDG)
+            var.static_power[StaticVarPos::VG] -= 1;
+        else
+            var.static_power[dim] += 1;
+    }
+    for (const auto& dyn_var: dyn_vars) {
+        assert(dyn_var < kDynamicVarCount);
+        var.dynamic_power[dyn_var] += 1;
+    }
+    int gcd = std::gcd(numeric_numerator, numeric_denominator);
+    var.numeric_numerator = numeric_numerator / gcd;
+    var.numeric_denominator = numeric_denominator / gcd;
+    return var;
+}
+
+int Variable::FillToInteger(const Variable::VarSpecs& specs) const {
+    assert(IsStatic());
+    auto Product = [=](bool positive) -> int {
+        int result = positive ? numeric_numerator : numeric_denominator;
+        result *= (static_power[VG] >= 0) == positive ? Power(specs.g, std::abs(static_power[VG])) : 1;
+        result *= (static_power[VC] >= 0) == positive ? Power(specs.c, std::abs(static_power[VC])) : 1;
+        result *= (static_power[VH] >= 0) == positive ? Power(specs.h, std::abs(static_power[VH])) : 1;
+        result *= (static_power[VW] >= 0) == positive ? Power(specs.w, std::abs(static_power[VW])) : 1;
+        return result;
+    };
+    int numerator = Product(true), denominator = Product(false);
+    if (denominator == 0 or numerator % denominator != 0)
+        return 0;
+    return numerator / denominator;
+}
+
 bool Variable::MaybeInteger() const {
     // With dynamic variables in the numerator, we can always eliminate the denominator.
     for (const auto& var: dynamic_power)
