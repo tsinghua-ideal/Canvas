@@ -45,7 +45,7 @@ TEST(Core, DynamicVariable) {
 }
 
 TEST(Core, VariableFactors) {
-    auto x = Variable::Compose({StaticVarPos::VC, StaticVarPos::VC, StaticVarPos::VG}, 1, 1, {0, 2, 2});
+    auto x = Variable::Compose({StaticVarPos::VC, StaticVarPos::VC, StaticVarPos::VG}, 4, 5, {0, 2, 2});
     std::cout << "All factors of " << x << ":" << std::endl;
     for (const auto& factor: x.GetAllFactors())
         std::cout << " > Factor: " << factor << std::endl;

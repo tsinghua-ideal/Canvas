@@ -1,3 +1,4 @@
+#include <functional>
 #include <sstream>
 
 #include "Canvas/Core/Variable.hpp"
@@ -40,41 +41,76 @@ void Variable::SolveDynamicVar(const VarSolution& solution) {
     }
 }
 
-void Variable::RecursiveGetFactors(int i, Variable &current, std::vector<Variable>& collections, // NOLINT(misc-no-recursion)
-                                   bool except_hw, int extra_g_factor, int extra_cg_factor) const {
-    if (i == kStaticVarCount + kDynamicVarCount) {
-        collections.push_back(current);
-        collections.back().static_power[StaticVarPos::VG] += extra_g_factor;
-        collections.back().static_power[StaticVarPos::VC] += extra_cg_factor;
-        collections.back().static_power[StaticVarPos::VG] -= extra_cg_factor;
-        return;
-    }
-    if (i < kStaticVarCount) {
-        int power_limit = static_power[i];
-        if (except_hw and (i == StaticVarPos::VH or i == StaticVarPos::VW))
-            power_limit = 0;
-        for (int k = 0; k <= power_limit; ++ k) {
-            current.static_power[i] = k;
-            int max_extra_g_or_cg_factor = 0;
-            if (i == StaticVarPos::VC)
-                max_extra_g_or_cg_factor = static_power[i] - k;
-            for (int j = 0; j <= max_extra_g_or_cg_factor; ++ j)
-                RecursiveGetFactors(i + 1, current, collections, except_hw, extra_g_factor + j, extra_cg_factor);
-            for (int j = 0; j <= max_extra_g_or_cg_factor; ++ j)
-                RecursiveGetFactors(i + 1, current, collections, except_hw, extra_g_factor, extra_cg_factor + j);
-        }
-    } else {
-        for (int k = 0; k <= dynamic_power[i - kStaticVarCount]; ++ k) {
-            current.dynamic_power[i - kStaticVarCount] = k;
-            RecursiveGetFactors(i + 1, current, collections, except_hw, extra_g_factor, extra_cg_factor);
-        }
-    }
-}
+std::vector<Variable> Variable::GetAllFactors() const {
+    std::vector<std::pair<Variable, int>> primes;
+    auto PushPrime = [&primes](Variable var, int power) {
+        if (power == 0)
+            return;
+        if (power < 0)
+            var = var.Reciprocal(), power = -power;
+        primes.emplace_back(std::make_pair(var, power));
+    };
 
-std::vector<Variable> Variable::GetAllFactors(bool except_hw) const {
-    Variable current;
+    // Push prime of numbers into vector.
+    auto DecomposeNumber = [&](int x, bool is_numerator) {
+        for (int i = 2; i <= x; ++ i) {
+            int count = 0;
+            while (x % i == 0)
+                x /= i, ++ count;
+            if (not is_numerator)
+                count = -count;
+            PushPrime(Variable::Number(i), count);
+        }
+    };
+
+    // Push prime of variables into vector.
+    auto DecomposeStaticVariable = [&](int pos) {
+        if (static_power[pos] == 0)
+            return;
+        if (pos == StaticVarPos::VC) {
+            PushPrime(Variable::StaticVar(StaticVarPos::VG), static_power[pos]);
+            PushPrime(Variable::Compose({StaticVarPos::VC, StaticVarPos::VDG}), static_power[pos]);
+        } else {
+            PushPrime(Variable::StaticVar(StaticVarPos(pos)), static_power[pos]);
+        }
+    };
+
+    // Collect them into the prime vector.
+    DecomposeNumber(numeric_numerator, true);
+    DecomposeNumber(numeric_denominator, false);
+    for (int i = 0; i < kStaticVarCount; ++ i)
+        DecomposeStaticVariable(i);
+    for (int i = 0; i < kDynamicVarCount; ++ i) {
+        assert(dynamic_power[i] >= 0);
+        PushPrime(Variable::DynamicVar(i), dynamic_power[i]);
+    }
+
+    // Check possible size.
+    size_t total_candidates = 1;
+    for (const auto& p: primes)
+        total_candidates *= p.second + 1;
+    if (total_candidates > kFactorThreshold) {
+        std::stringstream ss;
+        ss << "~" << total_candidates << " factors found for variable " << *this;
+        Warning(ss.str());
+    }
+
+    // Enumerate all possible combination of primes.
     std::vector<Variable> collections;
-    RecursiveGetFactors(0, current, collections, except_hw);
+    std::function<void(int, Variable)> EnumerateAll;
+    EnumerateAll = [&](int pos, Variable pi) {
+        if (pos == primes.size()) {
+            collections.push_back(pi);
+            return;
+        }
+        for (int i = 0; i <= primes[pos].second; ++ i) {
+            EnumerateAll(pos + 1, pi);
+            pi = pi * primes[pos].first;
+        }
+    };
+    EnumerateAll(0, Variable());
+
+    // Return.
     return UniqueByHash(collections);
 }
 

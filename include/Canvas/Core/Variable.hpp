@@ -21,6 +21,7 @@ struct VarSolution;
 struct Variable {
     static constexpr int kStaticVarCount = 4;
     static constexpr int kDynamicVarCount = 8;
+    static constexpr int kFactorThreshold = 1000;
 
     /// Variable position indices.
     enum StaticVarPos {
@@ -267,7 +268,8 @@ struct Variable {
     }
 
     [[nodiscard]] size_t Hash() const {
-        size_t value = 0;
+        size_t value = numeric_numerator;
+        value = IterateHash(value, numeric_denominator);
         for (const auto& power: static_power)
             value = IterateHash(value, power);
         for (const auto& power: dynamic_power)
@@ -275,10 +277,7 @@ struct Variable {
         return value;
     }
 
-    void RecursiveGetFactors(int i, Variable &current, std::vector<Variable>& collections,
-                             bool except_hw, int extra_g_factor=0, int extra_cg_factor=0) const;
-
-    [[nodiscard]] std::vector<Variable> GetAllFactors(bool except_hw=false) const;
+    [[nodiscard]] std::vector<Variable> GetAllFactors() const;
 
     std::string Format(const char* *info, const std::string& mul, const std::string& div,
                        const std::string& x_prefix="x_", const std::string& x_suffix="") const;
