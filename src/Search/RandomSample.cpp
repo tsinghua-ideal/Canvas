@@ -155,38 +155,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
         return {};
     }
 
-    // Pruning: must have neighbor's information.
-    int n_neighbor_h = 0, n_neighbor_w = 0;
-    for (const auto& p: graph->primitives) {
-        if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {
-            n_neighbor_h += (unfold->type == UnfoldH or unfold->type == UnfoldHW);
-            n_neighbor_w += (unfold->type == UnfoldW or unfold->type == UnfoldHW);
-        }
-        if (auto fold = DynamicCast<FoldPrimitive>(p)) {
-            n_neighbor_h += (fold->type == FoldH or fold->type == FoldHW);
-            n_neighbor_w += (fold->type == FoldW or fold->type == FoldHW);
-        }
-        if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
-            n_neighbor_h += (shift->type == ShiftH or shift->type == ShiftHW);
-            n_neighbor_w += (shift->type == ShiftW or shift->type == ShiftHW);
-        }
-        if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
-            n_neighbor_h += (softmax->type == SoftmaxH or softmax->type == SoftmaxHW);
-            n_neighbor_w += (softmax->type == SoftmaxW or softmax->type == SoftmaxHW);
-        }
-        if (auto pool = DynamicCast<PoolPrimitive>(p)) {
-            n_neighbor_h += (pool->type == PoolH or pool->type == PoolHW);
-            n_neighbor_w += (pool->type == PoolW or pool->type == PoolHW);
-        }
-    }
-    if (not (n_neighbor_h > 0 and n_neighbor_w > 0)) {
-#ifdef CANVAS_DEBUG_FAILED_COUNT
-        static int can_not_satisfy_neighbor = 0;
-        IC(can_not_satisfy_neighbor ++);
-#endif
-        return {};
-    }
-
     // For debug (filter primitives).
     // if (graph->PrimitiveCount<ReorderPrimitive>() == 0)
     //     return {};

@@ -18,7 +18,7 @@ struct Variable;
 struct VarSolution;
 
 struct Variable {
-    static constexpr int kStaticVarCount = 6;
+    static constexpr int kStaticVarCount = 4;
     static constexpr int kDynamicVarCount = 8;
 
     struct DynamicFills {
@@ -66,27 +66,31 @@ struct Variable {
     enum StaticVarPos {
         VG = 0,     // Groups.
         VC = 1,     // Channels.
-        VKH = 2,    // Kernel height.
-        VKW = 3,    // Kernel width.
-        VH = 4,     // Height.
-        VW = 5,     // Width.
-        VDG = 6,    // Divided by groups (not really exists).
+        VH = 2,     // Height.
+        VW = 3,     // Width.
+        VDG = 4,    // Divided by groups (not really exists).
     };
 
     static const char* var_info[kStaticVarCount];
 
+    int numeric_numerator = 1, numeric_denominator = 1;
     int static_power[kStaticVarCount] = {0}, dynamic_power[kDynamicVarCount] = {0};
 
     Variable() = default;
 
     Variable(const Variable& rhs) = default;
 
+    explicit Variable(int numeric_numerator, int numeric_denominator = 1):
+            numeric_numerator(numeric_numerator), numeric_denominator(numeric_denominator) {}
+
     explicit Variable(const StaticVarPos& dim) { static_power[dim] = 1; }
 
     Variable(const std::initializer_list<StaticVarPos>& dims,
              const std::initializer_list<int>& vars={});
 
-    [[nodiscard]] static Variable Static(const StaticVarPos& dim) { return Variable(dim); }
+    [[nodiscard]] static Variable Static(const StaticVarPos& dim) {
+        return Variable(dim);
+    }
 
     [[nodiscard]] static Variable Dynamic(int i) {
         assert(0 <= i and i < kDynamicVarCount);
@@ -201,7 +205,7 @@ struct Variable {
                std::any_of(dynamic_power, dynamic_power + kDynamicVarCount, negative_check);
     }
 
-    /// Judge whether a variable is static and an integer: * or, *C*/G, or *C*/R.
+    /// Judge whether a variable is static and an integer.
     [[nodiscard]] bool IsStaticInteger() const;
 
     [[nodiscard]] bool MaybeInteger() const {

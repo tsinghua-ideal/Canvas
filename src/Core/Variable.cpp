@@ -5,8 +5,8 @@
 
 namespace canvas {
 
-static_assert(Variable::kStaticVarCount == 6);
-const char* Variable::var_info[kStaticVarCount] = {"G", "C", "KH", "KW", "H", "W"};
+static_assert(Variable::kStaticVarCount == 4);
+const char* Variable::var_info[kStaticVarCount] = {"G", "C", "H", "W"};
 
 Variable::Variable(const std::initializer_list<StaticVarPos>& dims, const std::initializer_list<int>& vars) {
     Reset();
@@ -36,7 +36,7 @@ bool Variable::IsStaticInteger() const {
         if (var != 0)
             return false;
 
-    // Divide by C, KH, KW, H or W.
+    // Divide by C, H or W.
     for (int i = 0; i < kStaticVarCount; ++ i) {
         if (i != StaticVarPos::VG and static_power[i] < 0)
             return false;

@@ -76,14 +76,6 @@ bool PrimitiveGenOptions::Adapt(const PrimitiveApply& apply) const {
         if (not fold_max and fold->arith_type == FoldMax)
             return false;
     }
-    if (auto unfold = DynamicCast<UnfoldPrimitive>(apply.primitive)) {
-        if (not unfold_h and unfold->type == UnfoldH)
-            return false;
-        if (not unfold_w and unfold->type == UnfoldW)
-            return false;
-        if (not unfold_hw and unfold->type == UnfoldHW)
-            return false;
-    }
     if (auto group = DynamicCast<GroupPrimitive>(apply.primitive)) {
         if (not group_by_factor and group->type == GroupByFactor)
             return false;
@@ -272,15 +264,6 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     for (const auto& type: {FoldH, FoldW, FoldHW})
         for (const auto& arith_type: {FoldAvg, FoldMax})
             TryMakeAndPush<FoldPrimitive>(primitives, filter, t, type, arith_type);
-
-    // Unfold: no new variables, pruning: can not separately unfold.
-    for (const auto& type: {UnfoldH, UnfoldW, UnfoldHW}) {
-        if (auto last_unfold = DynamicCast<UnfoldPrimitive>(t->producer))
-            if ((last_unfold->type == UnfoldH and type == UnfoldW) or
-                 (last_unfold->type == UnfoldW and type == UnfoldH))
-                continue;
-        TryMakeAndPush<UnfoldPrimitive>(primitives, filter, t, type);
-    }
 
     // Group: no new variables.
     for (const auto& type: {GroupByFactor, GroupAllChannels})

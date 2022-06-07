@@ -17,9 +17,9 @@ static std::string TorchStyleVariable(const Variable& var) {
         ss << "Find a variable which does not satisfy the requirement: " << var;
         throw CanNotApplyPyTorchCodeGen(ss.str());
     }
-    static_assert(Variable::kStaticVarCount == 6);
+    static_assert(Variable::kStaticVarCount == 4);
     static const char* info[Variable::kStaticVarCount] =
-            {"self.g", "self.c", "self.k", "self.k", "self.h", "self.w"};
+            {"self.g", "self.c", "self.h", "self.w"};
     assert(var.IsStatic());
     return var.Format(info, " * ", " // ", "None[", "]");
 }
@@ -239,8 +239,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
             DynamicCast<GroupPrimitive>(p) or
             DynamicCast<OutputPrimitive>(p) or
             DynamicCast<PoolPrimitive>(p) or
-            DynamicCast<TransposePrimitive>(p) or
-            DynamicCast<UnfoldPrimitive>(p)) {
+            DynamicCast<TransposePrimitive>(p)) {
         gen->Write() << "pass" << std::endl;
     } else {
         CriticalError("Unknown or unimplemented primitive " +
@@ -492,25 +491,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << var_map[transpose->outs[0]] << "_nd - 1, "
                      << var_map[transpose->outs[0]] << "_nd - 2)"
                      << ".contiguous()" // Deep copy to change the memory layout.
-                     << std::endl;
-    } else if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {
-        // PyTorch's `Unfold` only support [N, C, ...] format (C may be empty, 1).
-        PyTorchNCHWRecorder recorder(gen, var_map, unfold->ins[0], unfold->outs[0], false);
-        gen->Write() << var_map[unfold->outs[0]]
-                     << " = F.unfold("
-                     << recorder.reference << ", ("
-                     << ((unfold->type == UnfoldH or unfold->type == UnfoldHW) ? "self.k" : "1") << ", "
-                     << ((unfold->type == UnfoldW or unfold->type == UnfoldHW) ? "self.k" : "1")
-                     << "), padding=("
-                     << ((unfold->type == UnfoldH or unfold->type == UnfoldHW) ? "self.p" : "0") << ", "
-                     << ((unfold->type == UnfoldW or unfold->type == UnfoldHW) ? "self.p" : "0")
-                     << "))"
-                     << std::endl;
-        gen->Write() << var_map[unfold->outs[0]]
-                     << " = " << var_map[unfold->outs[0]]
-                     << ".view(self.n, "
-                     << TorchStyleShape(unfold->outs[0]->shape)
-                     << ")"
                      << std::endl;
     } else {
         CriticalError("Unknown or unimplemented primitive " +

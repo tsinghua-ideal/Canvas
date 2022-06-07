@@ -32,7 +32,6 @@ TEST(Primitives, BroadcastDynamicMatching) {
     lhs_shape.G() = StaticVar::VG, lhs_shape.C() = Variable::Dynamic(2) / StaticVar::VG;
     lhs_shape.H() = StaticVar::VH, lhs_shape.W() = StaticVar::VW;
     rhs_shape.G() = StaticVar::VG, rhs_shape.C() = StaticVar::VC / StaticVar::VG;
-    rhs_shape.KH() = StaticVar::VKH, rhs_shape.KW() = StaticVar::VKW;
     rhs_shape.H() = StaticVar::VH, rhs_shape.W() = StaticVar::VW;
     auto lhs = std::make_shared<Tensor>(lhs_shape), rhs = std::make_shared<Tensor>(rhs_shape);
     auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, BMul);
@@ -62,8 +61,8 @@ TEST(Primitives, BroadcastDynamicMatchingHW) {
 
 TEST(Primitives, BroadcastSpecialCases) {
     Shape s1, s2;
-    s1.C() = StaticVar::VC, s1.KH() = StaticVar::VKH, s1.KW() = StaticVar::VKH, s1.H() = StaticVar::VH, s1.W() = StaticVar::VW;
-    s2.C() = StaticVar::VC, s2.KH() = StaticVar::VKH, s2.H() = StaticVar::VH, s2.W() = StaticVar::VW;
+    s1.C() = StaticVar::VC, s1.H() = StaticVar::VH, s1.W() = StaticVar::VW;
+    s2.C() = StaticVar::VC, s2.H() = StaticVar::VH, s2.W() = StaticVar::VW;
     auto t1 = std::make_shared<Tensor>(s1), t2 = std::make_shared<Tensor>(s2);
     auto b_add = std::make_shared<BroadcastPrimitive>(t2, t1, BroadcastType::BAdd);
     std::cout << *b_add << std::endl;
