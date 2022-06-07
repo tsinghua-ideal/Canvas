@@ -6,7 +6,7 @@
 namespace canvas {
 
 static_assert(Variable::kStaticVarCount == 6);
-const char* Variable::var_info[kStaticVarCount] = {"A", "C", "KH", "KW", "H", "W"};
+const char* Variable::var_info[kStaticVarCount] = {"G", "C", "KH", "KW", "H", "W"};
 
 Variable::Variable(const std::initializer_list<StaticVarPos>& dims, const std::initializer_list<int>& vars) {
     Reset();
@@ -36,15 +36,14 @@ bool Variable::IsStaticInteger() const {
         if (var != 0)
             return false;
 
-    // Divide by C, KH, KW, H or W
+    // Divide by C, KH, KW, H or W.
     for (int i = 0; i < kStaticVarCount; ++ i) {
         if (i != StaticVarPos::VG and static_power[i] < 0)
             return false;
     }
 
     // Each G eliminates one C.
-    return static_power[StaticVarPos::VC] +
-           std::min(static_power[StaticVarPos::VG], 0) >= 0;
+    return static_power[StaticVarPos::VC] + static_power[StaticVarPos::VG] >= 0;
 }
 
 void Variable::SolveDynamicVar(const VarSolution& solution) {

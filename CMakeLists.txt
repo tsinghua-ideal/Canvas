@@ -38,3 +38,4 @@ include_directories(include)
 
 # Sub-directories
 add_subdirectory(src)
+add_subdirectory(tests)
