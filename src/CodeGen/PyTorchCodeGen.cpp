@@ -559,7 +559,6 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         Write() << "super(" << name << ", self).__init__()" << std::endl;
         Write() << "self.c, self.h, self.w = c, h, w" << std::endl;
         // TODO: support flexible shapes.
-        Write() << "self.k, self.p = 3, 1" << std::endl;
         Write() << "self.g, self.r = 1, 1" << std::endl;
         Write() << std::endl;
 

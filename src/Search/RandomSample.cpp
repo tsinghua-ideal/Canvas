@@ -64,7 +64,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
         auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, allow_dynamic);
 
         // Filter for no reasonable grouping number.
-        assert(net_specs->c_gcd > 0);
         if (net_specs->c_gcd == 1)
             applies = PrimitiveFactory::FilterPrimitiveApplies(applies, PrimitiveGenOptions::NoFactorGrouping());
 

@@ -118,10 +118,30 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
 
 TEST(Search, RandomSampleAPI) {
     // Create network specifications.
-    // TODO: test empty kernels.
     std::vector<KernelSpecs> kernels;
     kernels.emplace_back(256, 32, 32);
     auto net_specs = std::make_shared<NetSpecs>(kernels);
+
+    // Random and generate code.
+    for (int i = 0; i < 5; ++ i) {
+        auto solution = RandomSample(net_specs, true, false,
+                                     Range<int>(5, 20), Range<int>(2, 5),
+                                     std::chrono::seconds(20));
+        std::cout << ConsoleUtils::blue
+                  << "# Sample kernel " << i + 1 << ": "
+                  << ConsoleUtils::reset << std::endl;
+        auto torch_code = PyTorchCodeGen().Gen(solution);
+        auto graphviz_code = DotCodeGen().Gen(solution);
+        std::cout << torch_code << std::endl;
+        std::cout << graphviz_code << std::endl;
+        std::cout << std::endl;
+    }
+}
+
+TEST(Search, EmptyRandomSampleAPI) {
+    // Test empty kernels.
+    // Create network specifications.
+    auto net_specs = std::make_shared<NetSpecs>(std::vector<KernelSpecs>());
 
     // Random and generate code.
     for (int i = 0; i < 5; ++ i) {

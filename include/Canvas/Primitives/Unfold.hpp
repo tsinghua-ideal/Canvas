@@ -11,14 +11,15 @@ enum UnfoldType {
     UnfoldHW
 };
 
-// TODO: refactor this name.
-static constexpr const char* UnfoldTypeToName(UnfoldType type) {
+static std::string UnfoldTypeToName(UnfoldType type, int k, int d) {
+    std::string name;
     switch (type) {
-        case UnfoldH: return "UnfoldH";
-        case UnfoldW: return "UnfoldW";
-        case UnfoldHW: return "UnfoldHW";
+        case UnfoldH: name = "UnfoldH"; break;
+        case UnfoldW: name = "UnfoldW"; break;
+        case UnfoldHW: name = "UnfoldHW"; break;
+        default: Unreachable();
     }
-    return "";
+    return name + "_k" + std::to_string(k) + "_d" + std::to_string(d);
 }
 
 struct UnfoldPrimitive: Primitive {
