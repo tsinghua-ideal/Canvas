@@ -45,16 +45,15 @@ struct Variable {
 
     Variable() = default;
 
-    Variable(const Variable& rhs) = default;
+    Variable(int numeric_numerator, int numeric_denominator):
+            numeric_numerator(numeric_numerator), numeric_denominator(numeric_denominator) {}
 
-    [[nodiscard]] int FillToInteger(const VarSpecs& specs) const;
+    Variable(const Variable& rhs) = default;
 
     [[nodiscard]] static Variable Number(int numeric_numerator=1, int numeric_denominator=1) {
         assert(numeric_numerator > 0 and numeric_denominator > 0);
-        int gcd = std::gcd(numeric_numerator, numeric_denominator);
-        Variable var;
-        var.numeric_numerator = numeric_numerator / gcd;
-        var.numeric_denominator = numeric_denominator / gcd;
+        Variable var(numeric_numerator, numeric_denominator);
+        var.Simplify();
         return var;
     }
 
@@ -80,6 +79,13 @@ struct Variable {
         numeric_numerator = numeric_denominator = 1;
     }
 
+    [[nodiscard]] int FillToInteger(const VarSpecs& specs) const;
+
+    void Simplify() {
+        int gcd = std::gcd(numeric_numerator, numeric_denominator);
+        numeric_numerator /= gcd, numeric_denominator /= gcd;
+    }
+
     [[nodiscard]] bool SatisfyAssumption() const {
         assert(numeric_numerator > 0 and numeric_denominator > 0);
         return Denominator().IsStatic() and Numerator().DynamicVarCount() <= 1;
@@ -95,40 +101,14 @@ struct Variable {
                            [](uint8_t x) -> bool { return x == 0; });
     }
 
-    [[nodiscard]] bool IsDynamic() const { return not IsStatic(); }
+    [[nodiscard]] int DynamicVarCount() const;
 
-    [[nodiscard]] int DynamicVarCount() const {
-        int count = 0;
-        for (const auto& var: dynamic_power)
-            count += (var != 0);
-        return count;
-    }
-
-    [[nodiscard]] int GetOnlyDynamicVar() const {
-        int index = kInvalidIndex;
-        for (int i = 0; i < kDynamicVarCount; ++ i) {
-            if (dynamic_power[i]) {
-                assert(index == kInvalidIndex);
-                index = i;
-            }
-        }
-        assert(index != kInvalidIndex);
-        return index;
-    }
+    [[nodiscard]] int GetOnlyDynamicVar() const;
 
     /// Solve dynamic variable `i` with `x`.
     void SolveDynamicVar(const VarSolution &s);
 
-    [[nodiscard]] Variable Reciprocal() const {
-        Variable reciprocal;
-        for (int i = 0; i < kStaticVarCount; ++ i)
-            reciprocal.static_power[i] = -static_power[i];
-        for (int i = 0; i < kDynamicVarCount; ++ i)
-            reciprocal.dynamic_power[i] = -dynamic_power[i];
-        reciprocal.numeric_numerator = numeric_denominator;
-        reciprocal.numeric_denominator = numeric_numerator;
-        return reciprocal;
-    }
+    [[nodiscard]] Variable Reciprocal() const;
 
     [[nodiscard]] Variable NumberFactor() const {
         Variable factor;
@@ -148,32 +128,9 @@ struct Variable {
         return NumberFactor() * StaticVarFactor();
     }
 
-    [[nodiscard]] Variable DynamicVarFactor() const {
-        Variable factor;
-        for (int i = 0; i < kDynamicVarCount; ++ i)
-            factor.dynamic_power[i] = dynamic_power[i];
-        return factor;
-    }
+    [[nodiscard]] Variable Numerator() const;
 
-    [[nodiscard]] Variable Numerator() const {
-        Variable numerator;
-        for (int i = 0; i < kStaticVarCount; ++ i)
-            numerator.static_power[i] = std::max(static_power[i], 0);
-        for (int i = 0; i < kDynamicVarCount; ++ i)
-            numerator.dynamic_power[i] = std::max(dynamic_power[i], 0);
-        numerator.numeric_numerator = numeric_numerator;
-        return numerator;
-    }
-
-    [[nodiscard]] Variable Denominator() const {
-        Variable denominator;
-        for (int i = 0; i < kStaticVarCount; ++ i)
-            denominator.static_power[i] = std::abs(std::min(static_power[i], 0));
-        for (int i = 0; i < kDynamicVarCount; ++ i)
-            denominator.dynamic_power[i] = std::abs(std::min(dynamic_power[i], 0));
-        denominator.numeric_denominator = numeric_denominator;
-        return denominator;
-    }
+    [[nodiscard]] Variable Denominator() const;
 
     /// Return whether maybe an integer for early pruning.
     [[nodiscard]] bool MaybeInteger() const;
@@ -191,33 +148,13 @@ struct Variable {
         return *this;
     }
 
-    [[nodiscard]] bool operator == (const Variable& rhs) const {
-        for (int i = 0; i < kStaticVarCount; ++ i)
-            if (static_power[i] != rhs.static_power[i])
-                return false;
-        for (int i = 0; i < kDynamicVarCount; ++ i)
-            if (dynamic_power[i] != rhs.dynamic_power[i])
-                return false;
-        return numeric_numerator == rhs.numeric_numerator and numeric_denominator == rhs.numeric_denominator;
-    }
+    [[nodiscard]] bool operator == (const Variable& rhs) const;
 
     [[nodiscard]] bool operator != (const Variable& rhs) const {
         return not (*this == rhs);
     }
 
-    [[nodiscard]] Variable operator * (const Variable& rhs) const {
-        Variable pi;
-        for (int i = 0; i < kStaticVarCount; ++ i)
-            pi.static_power[i] = static_power[i] + rhs.static_power[i];
-        for (int i = 0; i < kDynamicVarCount; ++ i)
-            pi.dynamic_power[i] = dynamic_power[i] + rhs.dynamic_power[i];
-        pi.numeric_numerator = numeric_numerator * rhs.numeric_numerator;
-        pi.numeric_denominator = numeric_denominator * rhs.numeric_denominator;
-        int gcd = std::gcd(pi.numeric_numerator, pi.numeric_denominator);
-        pi.numeric_numerator /= gcd;
-        pi.numeric_denominator /= gcd;
-        return pi;
-    }
+    [[nodiscard]] Variable operator * (const Variable& rhs) const;
 
     Variable& operator *= (const Variable& rhs) {
         *this = *this * rhs;
@@ -259,15 +196,7 @@ struct Variable {
         return Variable::StaticVar(lhs) / Variable::StaticVar(rhs);
     }
 
-    [[nodiscard]] size_t Hash() const {
-        size_t value = numeric_numerator;
-        value = IterateHash(value, numeric_denominator);
-        for (const auto& power: static_power)
-            value = IterateHash(value, power);
-        for (const auto& power: dynamic_power)
-            value = IterateHash(value, power);
-        return value;
-    }
+    [[nodiscard]] size_t Hash() const;
 
     [[nodiscard]] std::vector<Variable> GetAllFactors() const;
 

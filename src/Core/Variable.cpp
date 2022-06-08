@@ -23,9 +23,7 @@ Variable Variable::Compose(const std::initializer_list<StaticVarPos>& dims,
         assert(dyn_var < kDynamicVarCount);
         var.dynamic_power[dyn_var] += 1;
     }
-    int gcd = std::gcd(numeric_numerator, numeric_denominator);
-    var.numeric_numerator = numeric_numerator / gcd;
-    var.numeric_denominator = numeric_denominator / gcd;
+    var.Simplify();
     return var;
 }
 
@@ -80,11 +78,91 @@ void Variable::SolveDynamicVar(const VarSolution& solution) {
             numeric_numerator *= Power(substitution.numeric_denominator, -dynamic_power[index]);
             numeric_denominator *= Power(substitution.numeric_numerator, -dynamic_power[index]);
         }
-        // TODO: extract as a function.
-        int gcd = std::gcd(numeric_numerator, numeric_denominator);
-        numeric_numerator /= gcd, numeric_denominator /= gcd;
+        Simplify();
         dynamic_power[index] = 0;
     }
+}
+
+Variable Variable::operator * (const Variable& rhs) const {
+    Variable pi;
+    for (int i = 0; i < kStaticVarCount; ++ i)
+        pi.static_power[i] = static_power[i] + rhs.static_power[i];
+    for (int i = 0; i < kDynamicVarCount; ++ i)
+        pi.dynamic_power[i] = dynamic_power[i] + rhs.dynamic_power[i];
+    pi.numeric_numerator = numeric_numerator * rhs.numeric_numerator;
+    pi.numeric_denominator = numeric_denominator * rhs.numeric_denominator;
+    pi.Simplify();
+    return pi;
+}
+
+Variable Variable::Reciprocal() const {
+    Variable reciprocal;
+    for (int i = 0; i < kStaticVarCount; ++ i)
+        reciprocal.static_power[i] = -static_power[i];
+    for (int i = 0; i < kDynamicVarCount; ++ i)
+        reciprocal.dynamic_power[i] = -dynamic_power[i];
+    reciprocal.numeric_numerator = numeric_denominator;
+    reciprocal.numeric_denominator = numeric_numerator;
+    return reciprocal;
+}
+
+int Variable::GetOnlyDynamicVar() const {
+    int index = kInvalidIndex;
+    for (int i = 0; i < kDynamicVarCount; ++ i) {
+        if (dynamic_power[i]) {
+            assert(index == kInvalidIndex);
+            index = i;
+        }
+    }
+    assert(index != kInvalidIndex);
+    return index;
+}
+
+int Variable::DynamicVarCount() const {
+    int count = 0;
+    for (const auto& var: dynamic_power)
+        count += (var != 0);
+    return count;
+}
+
+Variable Variable::Numerator() const {
+    Variable numerator;
+    for (int i = 0; i < kStaticVarCount; ++ i)
+        numerator.static_power[i] = std::max(static_power[i], 0);
+    for (int i = 0; i < kDynamicVarCount; ++ i)
+        numerator.dynamic_power[i] = std::max(dynamic_power[i], 0);
+    numerator.numeric_numerator = numeric_numerator;
+    return numerator;
+}
+
+Variable Variable::Denominator() const {
+    Variable denominator;
+    for (int i = 0; i < kStaticVarCount; ++ i)
+        denominator.static_power[i] = std::abs(std::min(static_power[i], 0));
+    for (int i = 0; i < kDynamicVarCount; ++ i)
+        denominator.dynamic_power[i] = std::abs(std::min(dynamic_power[i], 0));
+    denominator.numeric_denominator = numeric_denominator;
+    return denominator;
+}
+
+bool Variable::operator == (const Variable& rhs) const {
+    for (int i = 0; i < kStaticVarCount; ++ i)
+        if (static_power[i] != rhs.static_power[i])
+            return false;
+    for (int i = 0; i < kDynamicVarCount; ++ i)
+        if (dynamic_power[i] != rhs.dynamic_power[i])
+            return false;
+    return numeric_numerator == rhs.numeric_numerator and numeric_denominator == rhs.numeric_denominator;
+}
+
+size_t Variable::Hash() const {
+    size_t value = numeric_numerator;
+    value = IterateHash(value, numeric_denominator);
+    for (const auto& power: static_power)
+        value = IterateHash(value, power);
+    for (const auto& power: dynamic_power)
+        value = IterateHash(value, power);
+    return value;
 }
 
 std::vector<Variable> Variable::GetAllFactors() const {
