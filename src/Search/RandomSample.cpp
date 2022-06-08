@@ -215,12 +215,18 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
     if (graph->DynamicVarCount() > 0)
         return {};
 
+    // Sample a grouping factor.
+    std::vector<int> available_g_factors;
+    for (int i = 0; i <= kMaxGroupFactor; ++ i)
+        if (net_specs->c_gcd % (1 << i) == 0)
+            available_g_factors.push_back(i);
+    auto global_specs = GlobalSpecs(1 << RandomChoose(available_g_factors));
+
     // The final check, fill the solution with concise values.
-    // TODO: g factor sampling.
     for (const auto& kernel: net_specs->kernel_specs)
-        if (not graph->AlgebraCheck({1, kernel.c, kernel.h, kernel.w}))
+        if (not graph->AlgebraCheck(Merge(global_specs, kernel)))
             return {};
-    return {net_specs, graph};
+    return {net_specs, graph, global_specs};
 }
 
 Solution RandomSample(const NetSpecsSP& net_specs,

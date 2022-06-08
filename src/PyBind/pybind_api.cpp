@@ -29,7 +29,6 @@ PYBIND11_MODULE(cpp_canvas, m) {
             .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code);
 
     // The `canvas.sample` function, sampling a kernel from the search space.
-    // TODO: wrap the sample options into a class.
     m.def("sample",
           [](const std::vector<canvas::KernelSpecs>& kernels,
              bool allow_dynamic,

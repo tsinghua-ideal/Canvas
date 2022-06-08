@@ -4,6 +4,8 @@
 
 namespace canvas {
 
+static int kMaxGroupFactor = 10;
+
 static const Range<int> mw_range = {1, 8}; // NOLINT(cert-err58-cpp)
 
 Solution TryRandomSample(const NetSpecsSP& net_specs,

@@ -13,6 +13,19 @@
 
 namespace canvas {
 
+/// Global settings for a kernel design.
+struct GlobalSpecs {
+    int g;
+
+    explicit GlobalSpecs(int g=1): g(g) {}
+
+    GlobalSpecs(const GlobalSpecs& specs) = default;
+
+    [[nodiscard]] size_t Hash() const {
+        return g;
+    }
+};
+
 /// Specifications for a single kernel.
 struct KernelSpecs {
     int c, h, w;
@@ -56,5 +69,9 @@ public:
 };
 
 typedef std::shared_ptr<NetSpecs> NetSpecsSP;
+
+static Variable::VarSpecs Merge(const GlobalSpecs& global_specs, const KernelSpecs& kernel_specs) {
+    return {global_specs.g, kernel_specs.c, kernel_specs.h, kernel_specs.w};
+}
 
 } // namespace canvas

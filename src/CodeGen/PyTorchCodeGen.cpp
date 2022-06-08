@@ -5,7 +5,6 @@
 #include "Canvas/Primitives/Factory.hpp"
 
 // #define CANVAS_DEBUG_PYTORCH_CODEGEN_PRINT_SHAPES_IN_PYTHON
-// #define CANVAS_DEBUG_PYTORCH_CODEGEN_PRINT_SPECS_IN_PYTHON
 
 
 namespace canvas {
@@ -206,10 +205,11 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << ")"
                      << std::endl;
     } else if (DynamicCast<ShiftPrimitive>(p)) {
+        // TODO: change to a random number of shift.
         gen->Write() << "self." << primitive_var << "_sh"
-                     << " = random.randint(-self.p, self.p)" << std::endl;
+                     << " = random.randint(-1, 1)" << std::endl;
         gen->Write() << "self." << primitive_var << "_sw"
-                     << " = random.randint(-self.p, self.p)" << std::endl;
+                     << " = random.randint(-1, 1)" << std::endl;
     } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
         if (softmax->type == SoftmaxHW) {
             gen->Write() << "self." << primitive_var
@@ -535,7 +535,8 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
 
 Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
     try {
-        auto net_specs = solution.specs;
+        auto global_specs = solution.global_specs;
+        auto net_specs = solution.net_specs;
         auto graph = solution.graph;
 
         // Rename if with an empty name.
@@ -557,16 +558,9 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         BeginScope();
         Write() << "# Configurations" << std::endl;
         Write() << "super(" << name << ", self).__init__()" << std::endl;
+        Write() << "self.g = " << global_specs.g << std::endl;
         Write() << "self.c, self.h, self.w = c, h, w" << std::endl;
-        // TODO: support flexible shapes.
-        Write() << "self.g, self.r = 1, 1" << std::endl;
         Write() << std::endl;
-
-#ifdef CANVAS_DEBUG_PYTORCH_CODEGEN_PRINT_SPECS_IN_PYTHON
-        Write() << "# Print specs" << std::endl;
-        Write() << "print(self.x)" << std::endl;
-        Write() << std::endl;
-#endif
 
         // Define kernels.
         Write() << "# Kernels" << std::endl;

@@ -9,20 +9,22 @@
 namespace canvas {
 
 struct Solution {
-    NetSpecsSP specs = nullptr;
+    NetSpecsSP net_specs = nullptr;
     GraphSP graph = nullptr;
+    GlobalSpecs global_specs;
 
     Solution() = default;
 
-    Solution(NetSpecsSP specs, GraphSP graph):
-            specs(std::move(specs)), graph(std::move(graph)) {
-        assert(this->specs and this->graph);
+    Solution(NetSpecsSP specs, GraphSP graph, GlobalSpecs global_specs=GlobalSpecs()):
+            net_specs(std::move(specs)), graph(std::move(graph)), global_specs(global_specs) {
+        assert(this->net_specs and this->graph);
     }
 
     [[nodiscard]] bool Empty() const { return graph == nullptr; }
 
     [[nodiscard]] size_t Hash() const {
-        size_t hash = specs ? specs->Hash() : 0;
+        size_t hash = net_specs ? net_specs->Hash() : 0;
+        hash = IterateHash(hash, global_specs.Hash());
         hash = IterateHash(hash, graph->Hash());
         return hash;
     }
