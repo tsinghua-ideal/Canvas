@@ -94,9 +94,7 @@ TEST(Search, RandomSampleAPI) {
 
     // Random and generate code.
     for (int i = 0; i < 5; ++ i) {
-        auto solution = RandomSample(net_specs,
-                                     false, Range<int>(5, 20), Range<int>(2, 5),
-                                     std::chrono::seconds(20));
+        auto solution = RandomSample(net_specs);
         std::cout << ConsoleUtils::blue
                   << "# Sample kernel " << i + 1 << ": "
                   << ConsoleUtils::reset << std::endl;
@@ -115,9 +113,7 @@ TEST(Search, EmptyRandomSampleAPI) {
 
     // Random and generate code.
     for (int i = 0; i < 5; ++ i) {
-        auto solution = RandomSample(net_specs,
-                                     false, Range<int>(5, 20), Range<int>(2, 5),
-                                     std::chrono::seconds(20));
+        auto solution = RandomSample(net_specs);
         std::cout << ConsoleUtils::blue
                   << "# Sample kernel " << i + 1 << ": "
                   << ConsoleUtils::reset << std::endl;

@@ -13,13 +13,11 @@ namespace canvas {
 
 namespace ba = boost::adaptors;
 
-Solution TryRandomSample(const NetSpecsSP& net_specs,
-                         bool add_relu_bn_after_fc,
-                         const Range<int>& np_range, const Range<int>& fc_range) {
+Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& options) {
     // Random graph settings.
-    int n_primitives = np_range.Random();
-    int max_width = mw_range.Random();
-    int expected_fc_count = std::min(fc_range.Random(), n_primitives);
+    int n_primitives = options.np_range.Random();
+    int max_width = options.mw_range.Random();
+    int expected_fc_count = std::min(options.fc_range.Random(), n_primitives);
     assert(expected_fc_count > 0 and expected_fc_count <= n_primitives);
     double fc_sample_possibility = static_cast<double>(expected_fc_count) / n_primitives;
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
@@ -53,8 +51,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
         bool could_not_expand_width = (width == max_width) or (width > n_steps_remaining - 1);
 
         // Random a primitive according to the filters.
-        PrimitiveFilter filter;
-        filter.add_relu_bn_after_fc = add_relu_bn_after_fc;
+        PrimitiveFilter filter(options.allowed_filter, options.forbidden_filter, options.add_relu_bn_after_fc);
 
         // Hash filters.
         for (const auto& p: graph->primitives)
@@ -116,7 +113,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
     }
 
     // FC constraints.
-    if (not fc_range.Contains(graph->PrimitiveCount<FCPrimitive>())) {
+    if (not options.fc_range.Contains(graph->PrimitiveCount<FCPrimitive>())) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
         static int can_not_satisfy_fc_count = 0;
         IC(can_not_satisfy_fc_count ++);
@@ -189,7 +186,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
 
     // Sample a grouping factor.
     std::vector<int> available_g_factors;
-    for (int i = 0; i <= kMaxGroupFactor; ++ i)
+    for (int i = 0; i <= SampleOptions::kMaxGroupFactor; ++ i)
         if (net_specs->c_gcd % (1 << i) == 0)
             available_g_factors.push_back(i);
     auto global_specs = GlobalSpecs(1 << RandomChoose(available_g_factors));
@@ -201,21 +198,17 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
     return {net_specs, graph, global_specs};
 }
 
-Solution RandomSample(const NetSpecsSP& net_specs,
-                      bool add_relu_bn_after_fc,
-                      const Range<int>& np_range, const Range<int>& fc_range, canvas_timeval_t timeout) {
+Solution RandomSample(const NetSpecsSP& net_specs, const SampleOptions& options) {
     auto start_time_point = std::chrono::system_clock::now();
     int times = 0;
     while (true) {
         ++ times;
-        auto solution = TryRandomSample(net_specs,
-                                        add_relu_bn_after_fc,
-                                        np_range, fc_range);
+        auto solution = TryRandomSample(net_specs, options);
         if (not solution.Empty())
             return solution;
 
         auto current_time_point = std::chrono::system_clock::now();
-        if (timeout != std::chrono::seconds(0) and current_time_point - start_time_point > timeout)
+        if (options.timeout != std::chrono::seconds(0) and current_time_point - start_time_point > options.timeout)
             break;
     }
     return {};

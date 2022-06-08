@@ -28,19 +28,16 @@ PYBIND11_MODULE(cpp_canvas, m) {
             .def_readwrite("torch_code", &canvas::KernelPack::torch_code)
             .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code);
 
+    // The sample options.
+    pybind11::class_<canvas::SampleOptions>(m, "SampleOptions")
+            .def(pybind11::init<std::string, std::string, bool, int, int, int, int, int, int, int>());
+
     // The `canvas.sample` function, sampling a kernel from the search space.
     m.def("sample",
           [](const std::vector<canvas::KernelSpecs>& kernels,
-             bool add_relu_bn_after_fc,
-             int np_min, int np_max,
-             int fc_min, int fc_max,
-             int timeout) -> canvas::KernelPack {
+             const canvas::SampleOptions& options) -> canvas::KernelPack {
               auto net_specs = std::make_shared<canvas::NetSpecs>(kernels);
-              auto solution = canvas::RandomSample(net_specs,
-                                                   add_relu_bn_after_fc,
-                                                   canvas::Range(np_min, np_max),
-                                                   canvas::Range(fc_min, fc_max),
-                                                   std::chrono::seconds(timeout));
+              auto solution = canvas::RandomSample(net_specs, options);
               auto torch_code = canvas::PyTorchCodeGen().Gen(solution);
               auto graphviz_code = canvas::DotCodeGen().Gen(solution);
               return {torch_code.ToString(), graphviz_code.ToString()};
