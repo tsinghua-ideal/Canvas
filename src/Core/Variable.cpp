@@ -73,6 +73,17 @@ void Variable::SolveDynamicVar(const VarSolution& solution) {
             static_power[k] += dynamic_power[index] * substitution.static_power[k];
         for (int k = 0; k < kDynamicVarCount; ++ k)
             dynamic_power[k] += dynamic_power[index] * substitution.dynamic_power[k];
+        // TODO: check this condition: assert(dynamic_power[index] > 0).
+        if (dynamic_power[index] > 0) {
+            numeric_numerator *= Power(substitution.numeric_numerator, dynamic_power[index]);
+            numeric_denominator *= Power(substitution.numeric_denominator, dynamic_power[index]);
+        } else {
+            numeric_numerator *= Power(substitution.numeric_denominator, -dynamic_power[index]);
+            numeric_denominator *= Power(substitution.numeric_numerator, -dynamic_power[index]);
+        }
+        // TODO: extract as a function.
+        int gcd = std::gcd(numeric_numerator, numeric_denominator);
+        numeric_numerator /= gcd, numeric_denominator /= gcd;
         dynamic_power[index] = 0;
     }
 }

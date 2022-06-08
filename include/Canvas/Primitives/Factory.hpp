@@ -19,6 +19,7 @@
 #include "Canvas/Primitives/Shift.hpp"
 #include "Canvas/Primitives/Softmax.hpp"
 #include "Canvas/Primitives/Transpose.hpp"
+#include "Canvas/Primitives/Unfold.hpp"
 #include "Canvas/Utils/Common.hpp"
 
 
@@ -50,6 +51,7 @@ struct PrimitiveGenOptions {
     bool channel_shuffle = false;
     bool fold_h = false, fold_w = false, fold_hw = false;
     bool fold_avg = false, fold_max = false;
+    bool unfold_h = false, unfold_w = false, unfold_hw = false;
     bool group_all = false, group_by_factor = false;
     bool pool_h = false, pool_w = false, pool_hw = false;
     bool shift_h = false, shift_w = false, shift_hw = false;
@@ -72,6 +74,7 @@ struct PrimitiveGenOptions {
             channel_shuffle = true;
             fold_h = fold_w = fold_hw = true;
             fold_avg = fold_max = true;
+            unfold_h = unfold_w = unfold_hw = true;
             group_all = group_by_factor = true;
             pool_h = pool_w = pool_hw = true;
             shift_h = shift_w = shift_hw = true;
@@ -121,6 +124,7 @@ struct PrimitiveGenOptions {
         CANVAS_AND_OPT(channel_shuffle);
         CANVAS_AND_OPT(fold_h), CANVAS_AND_OPT(fold_w), CANVAS_AND_OPT(fold_hw);
         CANVAS_AND_OPT(fold_avg), CANVAS_AND_OPT(fold_max);
+        CANVAS_AND_OPT(unfold_h), CANVAS_AND_OPT(unfold_w), CANVAS_AND_OPT(unfold_hw);
         CANVAS_AND_OPT(group_by_factor), CANVAS_AND_OPT(group_all);
         CANVAS_AND_OPT(pool_h), CANVAS_AND_OPT(pool_w), CANVAS_AND_OPT(pool_hw);
         CANVAS_AND_OPT(shift_h), CANVAS_AND_OPT(shift_w), CANVAS_AND_OPT(shift_hw);

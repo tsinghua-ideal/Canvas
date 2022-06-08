@@ -1,8 +1,11 @@
 #include <gtest/gtest.h>
 
+#include "Canvas/CodeGen/DotCodeGen.hpp"
+#include "Canvas/CodeGen/PyTorchCodeGen.hpp"
 #include "Canvas/Core/Graph.hpp"
 #include "Canvas/Core/Variable.hpp"
 #include "Canvas/Primitives/Factory.hpp"
+#include "Canvas/Search/RandomSample.hpp"
 
 // #define CANVAS_DEBUG_SEARCH_TEST_PRINT_ALL_ACTIONS
 
@@ -110,6 +113,29 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
             std::cout << graph->Hash() << std::endl;
             break;
         } catch (const CanNotSolveDynamicVar& _) {}
+    }
+}
+
+TEST(Search, RandomSampleAPI) {
+    // Create network specifications.
+    // TODO: test empty kernels.
+    std::vector<KernelSpecs> kernels;
+    kernels.emplace_back(256, 32, 32);
+    auto net_specs = std::make_shared<NetSpecs>(kernels);
+
+    // Random and generate code.
+    for (int i = 0; i < 100; ++ i) {
+        auto solution = RandomSample(net_specs, true, false,
+                                     Range<int>(5, 20), Range<int>(2, 5),
+                                     std::chrono::seconds(20));
+        std::cout << ConsoleUtils::blue
+                  << "# Sample kernel " << i + 1 << ": "
+                  << ConsoleUtils::reset << std::endl;
+        auto torch_code = PyTorchCodeGen().Gen(solution);
+        auto graphviz_code = DotCodeGen().Gen(solution);
+        std::cout << torch_code << std::endl;
+        std::cout << graphviz_code << std::endl;
+        std::cout << std::endl;
     }
 }
 
