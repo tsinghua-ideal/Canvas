@@ -124,7 +124,7 @@ TEST(Search, RandomSampleAPI) {
     auto net_specs = std::make_shared<NetSpecs>(kernels);
 
     // Random and generate code.
-    for (int i = 0; i < 100; ++ i) {
+    for (int i = 0; i < 5; ++ i) {
         auto solution = RandomSample(net_specs, true, false,
                                      Range<int>(5, 20), Range<int>(2, 5),
                                      std::chrono::seconds(20));

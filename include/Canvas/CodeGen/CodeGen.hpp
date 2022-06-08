@@ -5,7 +5,7 @@
 #include <sstream>
 
 #include "Canvas/Core/Graph.hpp"
-#include "Canvas/Core/NetSpecs.hpp"
+#include "Canvas/Core/Specs.hpp"
 #include "Canvas/Core/Primitive.hpp"
 #include "Canvas/Core/Solution.hpp"
 #include "Canvas/Core/Tensor.hpp"

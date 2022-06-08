@@ -4,7 +4,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "Canvas/Core/NetSpecs.hpp"
+#include "Canvas/Core/Specs.hpp"
 #include "Canvas/CodeGen/DotCodeGen.hpp"
 #include "Canvas/CodeGen/PyTorchCodeGen.hpp"
 #include "Canvas/PyBind/KernelPack.hpp"
@@ -18,7 +18,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
 
     // The kernel specification class.
     pybind11::class_<canvas::KernelSpecs>(m, "KernelSpecs")
-            .def(pybind11::init<size_t, size_t, size_t>())
+            .def(pybind11::init<int, int, int>())
             .def_readwrite("c", &canvas::KernelSpecs::c)
             .def_readwrite("h", &canvas::KernelSpecs::h)
             .def_readwrite("w", &canvas::KernelSpecs::w);

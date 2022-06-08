@@ -8,7 +8,7 @@
 #include <optional>
 #include <sstream>
 
-#include "Canvas/Core/NetSpecs.hpp"
+#include "Canvas/Core/Specs.hpp"
 #include "Canvas/Core/Primitive.hpp"
 #include "Canvas/Core/Tensor.hpp"
 #include "Canvas/Primitives/Input.hpp"
@@ -46,6 +46,8 @@ struct Graph {
     Graph(const Graph& rhs);
 
     ~Graph();
+
+    [[nodiscard]] bool AlgebraCheck(const Variable::VarSpecs& specs) const;
 
     void LegalityCheck() const;
 

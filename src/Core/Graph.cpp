@@ -47,6 +47,30 @@ Graph::~Graph() {
     }
 }
 
+bool Graph::AlgebraCheck(const Variable::VarSpecs& specs) const {
+    // Get all parameters.
+    int g = specs.g, c = specs.c, h = specs.h, w = specs.w;
+    assert(g > 0 and c > 0 and h > 0 and w > 0);
+    assert(c % g == 0);
+
+    // No dynamic variables in the graph, so that we could fill all shapes concisely.
+    assert(DynamicVarCount() == 0);
+
+    // Run variable substitutions.
+    for (const auto& t: tensors) {
+        auto shape = t->shape.FillToStaticShape(specs);
+        if (not shape.IsValid())
+            return false;
+    }
+
+    // Check intermediate variables.
+    for (const auto& p: primitives)
+        for (const auto& var: p->IntermediateVariables())
+            if (var.FillToInteger(specs) == 0)
+                return false;
+    return true;
+}
+
 void Graph::LegalityCheck() const {
     // Topology checks.
     std::set<TensorSP> t_set(tensors.begin(), tensors.end());

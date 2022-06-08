@@ -20,6 +20,13 @@ void CodeGen::Travel(const GraphSP& graph, const std::function<void(CodeGen*, Pr
 
 void CodeGen::CommonChecks(const Solution& solution) {
     auto graph = solution.graph;
+    auto net_specs = solution.specs;
+
+    // Algebra checks.
+    // TODO: fix g sampling.
+    for (const auto& kernel: net_specs->kernel_specs)
+        if (not graph->AlgebraCheck({1, kernel.c, kernel.h, kernel.w}))
+            CriticalError("Unable to generate code for a graph with illegal shapes");
 
     // Graph should be topologically finished.
     if (not graph->IsTopologicalFinished())

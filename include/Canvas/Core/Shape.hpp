@@ -39,6 +39,10 @@ struct Shape {
             assert(pi > 0);
             return pi;
         }
+
+        [[nodiscard]] bool IsValid() const {
+            return std::all_of(dims, dims + kShapeMaxDim, [](int x) -> bool { return x > 0; });
+        }
     };
 
     Variable dims[kShapeMaxDim] = {};
@@ -59,11 +63,8 @@ struct Shape {
 
     [[nodiscard]] ShapeSpecs FillToStaticShape(const Variable::VarSpecs& specs) {
         ShapeSpecs static_shape;
-        for (int i = 0; i < kShapeMaxDim; ++ i) {
-            int static_value = dims[i].FillToInteger(specs);
-            assert(static_value > 0);
-            static_shape.dims[i] = static_value;
-        }
+        for (int i = 0; i < kShapeMaxDim; ++ i)
+            static_shape.dims[i] = dims[i].FillToInteger(specs);
         return static_shape;
     }
 

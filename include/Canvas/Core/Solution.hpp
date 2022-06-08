@@ -3,7 +3,7 @@
 #include <utility>
 
 #include "Canvas/Core/Graph.hpp"
-#include "Canvas/Core/NetSpecs.hpp"
+#include "Canvas/Core/Specs.hpp"
 
 
 namespace canvas {

@@ -211,9 +211,16 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
     assert(graph->Width() == 1);
     assert(out->shape.CouldBeReshapeToCHW());
     graph->ApplyOutput();
+
     // TODO: rewrite with new strategies.
     if (graph->DynamicVarCount() > 0)
         return {};
+
+    // The final check, fill the solution with concise values.
+    // TODO: g factor sampling.
+    for (const auto& kernel: net_specs->kernel_specs)
+        if (not graph->AlgebraCheck({1, kernel.c, kernel.h, kernel.w}))
+            return {};
     return {net_specs, graph};
 }
 
