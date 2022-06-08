@@ -31,14 +31,13 @@ PYBIND11_MODULE(cpp_canvas, m) {
     // The `canvas.sample` function, sampling a kernel from the search space.
     m.def("sample",
           [](const std::vector<canvas::KernelSpecs>& kernels,
-             bool allow_dynamic,
              bool add_relu_bn_after_fc,
              int np_min, int np_max,
              int fc_min, int fc_max,
              int timeout) -> canvas::KernelPack {
               auto net_specs = std::make_shared<canvas::NetSpecs>(kernels);
               auto solution = canvas::RandomSample(net_specs,
-                                                   allow_dynamic, add_relu_bn_after_fc,
+                                                   add_relu_bn_after_fc,
                                                    canvas::Range(np_min, np_max),
                                                    canvas::Range(fc_min, fc_max),
                                                    std::chrono::seconds(timeout));

@@ -7,7 +7,6 @@
 // #define CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
 // #define CANVAS_DEBUG_FAILED_COUNT
 // #define CANVAS_DEBUG_PRINT_STATISTICS
-// #define CANVAS_FORCE_RESET_DEBUG
 
 
 namespace canvas {
@@ -15,7 +14,7 @@ namespace canvas {
 namespace ba = boost::adaptors;
 
 Solution TryRandomSample(const NetSpecsSP& net_specs,
-                         bool allow_dynamic, bool add_relu_bn_after_fc,
+                         bool add_relu_bn_after_fc,
                          const Range<int>& np_range, const Range<int>& fc_range) {
     // Random graph settings.
     int n_primitives = np_range.Random();
@@ -53,25 +52,39 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
         //  which is equivalent to width > n_steps_remaining - 1.
         bool could_not_expand_width = (width == max_width) or (width > n_steps_remaining - 1);
 
-        // Random a primitive according to `must_reduce_width` and `could_not_expand_width`.
-        std::vector<PrimitiveGenOptions> or_options;
-        if (must_reduce_width) // Stricter constraints
-            or_options.push_back(PrimitiveGenOptions::ReduceWidth());
+        // Random a primitive according to the filters.
+        PrimitiveFilter filter;
+        filter.add_relu_bn_after_fc = add_relu_bn_after_fc;
+
+        // Hash filters.
+        for (const auto& p: graph->primitives)
+            filter.hash_filter.insert(p->Hash(true));
+
+        // Width filters.
+        if (must_reduce_width)
+            filter.max_delta_width = -1;
         else if (could_not_expand_width)
-            or_options.push_back(PrimitiveGenOptions::NotExpanding());
+            filter.max_delta_width = 0;
 
-        // Random an action and apply.
-        auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, allow_dynamic);
-
-        // Filter for no reasonable grouping number.
+        // Grouping number filters.
         if (net_specs->c_gcd == 1)
-            applies = PrimitiveFactory::FilterPrimitiveApplies(applies, PrimitiveGenOptions::NoFactorGrouping());
+            filter.forbidden_filter.emplace_back(GroupTypeToName(GroupByFactor));
 
-        // Filter for topology pruning.
-        if (not or_options.empty())
-            applies = PrimitiveFactory::FilterPrimitiveApplies(applies, or_options);
+        // Must be output next step.
         if (n_steps_remaining == 1)
-            applies = PrimitiveFactory::FilterPrimitiveAppliesForOutput(applies);
+            filter.output_filter = true;
+
+        // FC selectivity filter.
+        if (MakeChoice(fc_sample_possibility))
+            filter.allowed_filter = {"fc"};
+        else
+            filter.forbidden_filter.emplace_back("fc");
+
+        // Get all available applies.
+        auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, filter);
+
+        // Rescale possibilities.
+        applies = PrimitiveFactory::RescalePossibilities(applies);
 
         if (applies.empty()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
@@ -81,14 +94,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
             return {};
         }
 
-        auto fc_applies = PrimitiveFactory::FilterPrimitiveApplies(applies, PrimitiveGenOptions::FC());
-        if (not fc_applies.empty() and MakeChoice(fc_sample_possibility))
-            applies = fc_applies;
-        else
-            applies = PrimitiveFactory::RescalePossibilities(applies, true);
-        if (applies.empty())
-            return {};
-
+        // Random choose and apply.
         auto apply = RandomChoose(applies);
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
         IC(width, n_steps_remaining, must_reduce_width, could_not_expand_width, apply);
@@ -108,19 +114,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
             return {};
         } // Failed if other exceptions.
     }
-
-#ifdef CANVAS_FORCE_RESET_DEBUG
-    // Debug (reset to depth-wise convolution)
-    {
-        graph = std::make_shared<Graph>();
-        auto group = std::make_shared<GroupPrimitive>(graph->in, GroupAllChannels);
-        graph->Apply(group);
-        auto unfold = std::make_shared<UnfoldPrimitive>(group->outs[0]);
-        graph->Apply(unfold);
-        auto fc = std::make_shared<FCPrimitive>(unfold->outs[0], Variable(StaticVarPos::VC));
-        graph->Apply(fc);
-    }
-#endif
 
     // FC constraints.
     if (not fc_range.Contains(graph->PrimitiveCount<FCPrimitive>())) {
@@ -143,27 +136,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
     // For debug (filter primitives).
     // if (graph->PrimitiveCount<ReorderPrimitive>() == 0)
     //     return {};
-
-    // Add BatchNorm and ReLU after FC (connected to the output).
-    if (add_relu_bn_after_fc) {
-        std::set<TensorSP> has_fc_later;
-        for (const auto& p: ba::reverse(graph->primitives)) {
-            bool any_successor = std::any_of(p->outs.begin(), p->outs.end(), [has_fc_later](const auto& t) -> bool {
-                return has_fc_later.count(t);
-            });
-            if (auto fc = DynamicCast<FCPrimitive>(p)) {
-                if (any_successor) {
-                    auto out_shape = fc->outs.front()->shape;
-                    fc->with_norm = not out_shape.H().Empty() or not out_shape.W().Empty();
-                    fc->with_relu = true;
-                }
-                has_fc_later.insert(fc->ins.front());
-            } else if (any_successor) {
-                for (const auto& t: p->ins)
-                    has_fc_later.insert(t);
-            }
-        }
-    }
 
 #ifdef CANVAS_DEBUG_PRINT_STATISTICS
     static int n_total_sampled = 0, n_out_with_variable = 0;
@@ -230,14 +202,14 @@ Solution TryRandomSample(const NetSpecsSP& net_specs,
 }
 
 Solution RandomSample(const NetSpecsSP& net_specs,
-                      bool allow_dynamic, bool add_relu_bn_after_fc,
+                      bool add_relu_bn_after_fc,
                       const Range<int>& np_range, const Range<int>& fc_range, canvas_timeval_t timeout) {
     auto start_time_point = std::chrono::system_clock::now();
     int times = 0;
     while (true) {
         ++ times;
         auto solution = TryRandomSample(net_specs,
-                                        allow_dynamic, add_relu_bn_after_fc,
+                                        add_relu_bn_after_fc,
                                         np_range, fc_range);
         if (not solution.Empty())
             return solution;

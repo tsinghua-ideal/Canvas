@@ -159,19 +159,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
     auto primitive_var = (var_map[p] = "p_" + std::to_string(var_map.PrimitiveSize()));
     gen->Write() << "# " << p->name << ": " << primitive_var << std::endl;
 
-    if (DynamicCast<DotPrimitive>(p)) {
-        auto& in_shape = p->ins[0]->shape;
-        auto& out_shape = p->outs[0]->shape;
-        gen->Write() << "self." << primitive_var
-                     << " = nn.Conv2d("
-                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW()) // Input channels.
-                     << ", "
-                     << TorchStyleVariable(out_shape.GCKK()) // Output channels.
-                     << ", 1, padding=0"
-                     << ", groups=" << TorchStyleVariable(in_shape.GCKK())
-                     << ", bias=False)"
-                     << std::endl;
-    } else if (DynamicCast<DropoutPrimitive>(p)) {
+    if (DynamicCast<DropoutPrimitive>(p)) {
         gen->Write() << "self." << primitive_var
                      << " = nn.Dropout(p=0.4)"
                      << std::endl;
@@ -316,18 +304,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << ".permute(0, 2, 1, 3, 4).contiguous()"
                      << std::endl;
         recorder.GenCopyShapeCode();
-    } else if (auto dot = DynamicCast<DotPrimitive>(p)) {
-        PyTorchNCHWRecorder recorder(gen, var_map, dot->ins[0], dot->outs[0], false);
-        gen->Write() << var_map[dot->outs[0]]
-                     << " = self." << primitive_var
-                     << "(" << recorder.reference << ")"
-                     << std::endl;
-        gen->Write() << var_map[dot->outs[0]]
-                     << " = " << var_map[dot->outs[0]]
-                     << ".view(self.n, "
-                     << TorchStyleShape(dot->outs[0]->shape)
-                     << ")"
-                     << std::endl;
     } else if (auto dropout = DynamicCast<DropoutPrimitive>(p)) {
         gen->Write() << var_map[dropout->outs[0]]
                      << " = self." << primitive_var

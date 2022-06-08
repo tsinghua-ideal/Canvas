@@ -22,9 +22,7 @@ class ExampleModel(nn.Module):
 
 def demo():
     net = ExampleModel()
-    pack = canvas.sample(net,
-                         example_input=torch.zeros(1, 3, 32, 32),
-                         allow_dynamic=True)
+    pack = canvas.sample(net, example_input=torch.zeros(1, 3, 32, 32))
     net = canvas.replace(net, pack)
     # Do something with your new net ...!
 

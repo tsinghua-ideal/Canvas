@@ -1,12 +1,13 @@
 #pragma once
 
+#include <boost/algorithm/string.hpp>
+#include <boost/algorithm/string/split.hpp>
 #include <vector>
 #include <unordered_set>
 
 #include "Canvas/Primitives/Activation.hpp"
 #include "Canvas/Primitives/Broadcast.hpp"
 #include "Canvas/Primitives/ChannelShuffle.hpp"
-#include "Canvas/Primitives/Dot.hpp"
 #include "Canvas/Primitives/Dropout.hpp"
 #include "Canvas/Primitives/ElementWise.hpp"
 #include "Canvas/Primitives/FC.hpp"
@@ -28,174 +29,73 @@ namespace canvas {
 struct Graph;
 typedef std::shared_ptr<Graph> GraphSP;
 
-struct PrimitiveGenOptions {
-    // Dynamic variables.
-    bool allow_dynamic_variables = true;
+struct PrimitiveFilter {
+    /// Must be output.
+    bool output_filter = false;
 
-    // Optimize FC.
-    bool optimize_fc = false;
+    /// Hash filters.
+    std::unordered_set<size_t> hash_filter;
 
-    // Broadcast.
-    bool b_add = false, b_mul = false, b_sub = false;
-
-    // With parameters.
-    bool dot = false, fc = false;
-
-    // Arithmetic operators.
-    bool dropout = false, norm = false;
-    bool gelu = false, relu = false, sigmoid = false, tanh = false;
-    bool softmax_c = false, softmax_h = false, softmax_w = false, softmax_hw = false;
-    bool abs = false, exp = false, neg = false, sin = false;
-
-    // Spatial operators.
-    bool channel_shuffle = false;
-    bool fold_h = false, fold_w = false, fold_hw = false;
-    bool fold_avg = false, fold_max = false;
-    bool unfold_h = false, unfold_w = false, unfold_hw = false;
-    bool group_all = false, group_by_factor = false;
-    bool pool_h = false, pool_w = false, pool_hw = false;
-    bool shift_h = false, shift_w = false, shift_hw = false;
-    bool transpose = false;
+    /// Filters.
+    std::vector<std::string> allowed_filter, forbidden_filter;
 
     /// `max_delta_width` could be -1 (reducing width), 0 (retaining width), 1 (unlimited).
     int max_delta_width = 1;
 
-    PrimitiveGenOptions(bool enable_all, int max_delta_width, bool only_fc=false):
-            max_delta_width(max_delta_width) {
-        if (enable_all) {
-            assert(not only_fc);
-            allow_dynamic_variables = true;
-            optimize_fc = false;
-            b_add = b_mul = b_sub = true;
-            dot = fc = true;
-            dropout = norm = gelu = relu = sigmoid = tanh = true;
-            abs = exp = neg = sin = true;
-            softmax_c = softmax_h = softmax_w = softmax_hw = true;
-            channel_shuffle = true;
-            fold_h = fold_w = fold_hw = true;
-            fold_avg = fold_max = true;
-            unfold_h = unfold_w = unfold_hw = true;
-            group_all = group_by_factor = true;
-            pool_h = pool_w = pool_hw = true;
-            shift_h = shift_w = shift_hw = true;
-            transpose = true;
-        }
-        if (only_fc) {
-            allow_dynamic_variables = true;
-            optimize_fc = false;
-            fc = true;
-        }
+    // Optimize FC.
+    bool add_relu_bn_after_fc = false;
+
+    explicit PrimitiveFilter(const std::string& allowed_str="",
+                             const std::string& forbidden_str="",
+                             bool add_relu_bn_after_fc=false):
+            add_relu_bn_after_fc(add_relu_bn_after_fc) {
+        BuildFilters(allowed_str, forbidden_str);
     }
 
-    static PrimitiveGenOptions Recommended() {
-        auto options = PrimitiveGenOptions(true, 1, false);
-        options.allow_dynamic_variables = true, options.optimize_fc = false;
-        return options;
-    }
+    explicit PrimitiveFilter(int max_delta_width): max_delta_width(max_delta_width) {}
 
-    static PrimitiveGenOptions Unlimited() { return {true, 1}; }
+    void BuildFilters(const std::string& allowed_str="", const std::string& forbidden_str="");
 
-    static PrimitiveGenOptions NoFactorGrouping() {
-        auto options = Unlimited();
-        options.group_by_factor = false;
-        return options;
-    }
-
-    static PrimitiveGenOptions ReduceWidth() { return {true, -1}; }
-
-    static PrimitiveGenOptions NotExpanding() { return {true, 0}; }
-
-    static PrimitiveGenOptions FC(int max_delta_width=1) { return {false, max_delta_width, true}; }
-
-    [[nodiscard]] bool Adapt(const PrimitiveApply& apply) const;
-
-    // TODO: rewrite and recheck this function.
-    friend PrimitiveGenOptions operator and (const PrimitiveGenOptions& lhs, const PrimitiveGenOptions& rhs) {
-        PrimitiveGenOptions options = PrimitiveGenOptions::Unlimited();
-#define CANVAS_AND_OPT(name) options.name = lhs.name and rhs.name
-#define CANVAS_OR_OPT(name) options.name = lhs.name or rhs.name
-        CANVAS_AND_OPT(allow_dynamic_variables), CANVAS_OR_OPT(optimize_fc);
-        CANVAS_AND_OPT(b_add), CANVAS_AND_OPT(b_mul), CANVAS_AND_OPT(b_sub);
-        CANVAS_AND_OPT(dot), CANVAS_AND_OPT(fc);
-        CANVAS_AND_OPT(dropout), CANVAS_AND_OPT(norm);
-        CANVAS_AND_OPT(gelu), CANVAS_AND_OPT(relu), CANVAS_AND_OPT(sigmoid), CANVAS_AND_OPT(tanh);
-        CANVAS_AND_OPT(softmax_c), CANVAS_AND_OPT(softmax_h), CANVAS_AND_OPT(softmax_w), CANVAS_AND_OPT(softmax_hw);
-        CANVAS_AND_OPT(abs), CANVAS_AND_OPT(exp), CANVAS_AND_OPT(neg), CANVAS_AND_OPT(sin);
-        CANVAS_AND_OPT(channel_shuffle);
-        CANVAS_AND_OPT(fold_h), CANVAS_AND_OPT(fold_w), CANVAS_AND_OPT(fold_hw);
-        CANVAS_AND_OPT(fold_avg), CANVAS_AND_OPT(fold_max);
-        CANVAS_AND_OPT(unfold_h), CANVAS_AND_OPT(unfold_w), CANVAS_AND_OPT(unfold_hw);
-        CANVAS_AND_OPT(group_by_factor), CANVAS_AND_OPT(group_all);
-        CANVAS_AND_OPT(pool_h), CANVAS_AND_OPT(pool_w), CANVAS_AND_OPT(pool_hw);
-        CANVAS_AND_OPT(shift_h), CANVAS_AND_OPT(shift_w), CANVAS_AND_OPT(shift_hw);
-        CANVAS_AND_OPT(transpose);
-#undef CANVAS_AND_OPT
-        options.max_delta_width = std::min(lhs.max_delta_width, rhs.max_delta_width);
-        return options;
-    }
+    [[nodiscard]] bool Filter(const PrimitiveSP& p) const;
 };
 
 /// Register all primitive constructions here.
 struct PrimitiveFactory {
+    static std::vector<PrimitiveApply> RescalePossibilities(const std::vector<PrimitiveApply>& applies);
+
     /// Get all primitives for a graph.
     static std::vector<PrimitiveApply> GetPrimitiveApplies(const GraphSP& graph,
-                                                           bool allow_dynamic_variables=true,
-                                                           const std::set<TensorSP>& forbidden_successor={});
-
-    /// Filter primitive applies with conditions.
-    static std::vector<PrimitiveApply> FilterPrimitiveApplies(const std::vector<PrimitiveApply>& applies,
-                                                              const PrimitiveGenOptions& options);
-
-    /// Filter primitive applies with conditions
-    static std::vector<PrimitiveApply> FilterPrimitiveApplies(const std::vector<PrimitiveApply>& applies,
-                                                              const std::vector<PrimitiveGenOptions>& or_options);
-
-    /// Filter for output.
-    static std::vector<PrimitiveApply> FilterPrimitiveAppliesForOutput(const std::vector<PrimitiveApply>& applies);
-
-    /// Rescale with possibilities.
-    static std::vector<PrimitiveApply> RescalePossibilities(const std::vector<PrimitiveApply>& applies,
-                                                            bool remove_fc=false);
-
-    /// Get primitives without inputs.
-    static void GetPrimitiveApplies(const GraphSP &graph,
-                                    std::vector<PrimitiveApply>& primitives,
-                                    std::unordered_set<size_t>& filter,
-                                    bool allow_dynamic_variables=true);
+                                                           const PrimitiveFilter& filter=PrimitiveFilter());
 
     /// Get primitives with one input.
     static void GetPrimitiveApplies(const GraphSP &graph,
                                     std::vector<PrimitiveApply>& primitives,
                                     const TensorSP& t,
-                                    std::unordered_set<size_t>& filter,
-                                    bool allow_dynamic_variables=true);
+                                    const PrimitiveFilter& filter);
 
     /// Get primitives with two inputs.
     static void GetPrimitiveApplies(const GraphSP &graph,
                                     std::vector<PrimitiveApply>& primitives,
                                     const TensorSP& lhs,
                                     const TensorSP& rhs,
-                                    std::unordered_set<size_t>& filter,
-                                    bool allow_dynamic_variables=true);
+                                    const PrimitiveFilter& filter);
 };
 
-static void TryPush(const PrimitiveApply& pa, std::vector<PrimitiveApply>& vec,
-                    std::unordered_set<size_t>& filter) {
-    // Pruning: not duplicate tensors.
-    auto hash_value = pa.primitive->Hash(true);
-    if (not filter.count(hash_value)) {
+static void TryPush(const PrimitiveApply& pa,
+                    std::vector<PrimitiveApply>& vec,
+                    const PrimitiveFilter& filter) {
+    if (not filter.Filter(pa.primitive))
         vec.push_back(pa);
-        filter.insert(hash_value);
-    }
 }
 
 template <typename PrimitiveType, class ... Args>
 static void TryMakeAndPush(std::vector<PrimitiveApply>& vec,
-                           std::unordered_set<size_t>& filter,
+                           const PrimitiveFilter& filter,
                            Args&&... args) {
     try {
         auto p = std::make_shared<PrimitiveType>(args...);
-        TryPush(PrimitiveApply(p), vec, filter);
+        if (not filter.Filter(p))
+            vec.push_back(PrimitiveApply(p));
     } catch (CanNotApplyPrimitive& e) {}
 }
 

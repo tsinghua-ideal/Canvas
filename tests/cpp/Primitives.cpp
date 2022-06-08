@@ -14,8 +14,11 @@ TEST(Primitives, DuplicatePrimitiveChecking) {
     auto group = std::make_shared<GroupPrimitive>(graph->in);
     graph->Apply(group);
 
+    PrimitiveFilter filter;
+    filter.hash_filter.insert(group->Hash(true));
+
     int count = 0;
-    auto applies = PrimitiveFactory::GetPrimitiveApplies(graph);
+    auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, filter);
     for (const auto& apply: applies) {
         if (apply.primitive->ins[0] == graph->in) {
             if (auto p = DynamicCast<GroupPrimitive>(apply.primitive)) {

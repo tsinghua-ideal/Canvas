@@ -7,30 +7,15 @@
 #include "Canvas/Primitives/Factory.hpp"
 #include "Canvas/Search/RandomSample.hpp"
 
-// #define CANVAS_DEBUG_SEARCH_TEST_PRINT_ALL_ACTIONS
-
 
 using namespace canvas;
 
-GraphSP RandomGraph(int n_primitives, const std::vector<PrimitiveGenOptions>& or_options={}) {
+GraphSP RandomGraph(int n_primitives, const PrimitiveFilter& filter=PrimitiveFilter()) {
     auto TryToGenerate = [&]() -> GraphSP {
         auto graph = std::make_shared<Graph>();
         for (int i = 1; i <= n_primitives; ++ i) {
-            auto applies = PrimitiveFactory::GetPrimitiveApplies(graph);
+            auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, filter);
             std::cout << "Round " << i << ":" << std::endl;
-#ifdef CANVAS_DEBUG_SEARCH_TEST_PRINT_ALL_ACTIONS
-            std::cout << " * Before filtering:" << std::endl;
-            for (const auto& [p, s]: applies)
-                std::cout << "  > " << p->name << ": " << *p << std::endl;
-#endif
-            if (not or_options.empty()) {
-                applies = PrimitiveFactory::FilterPrimitiveApplies(applies, or_options);
-#ifdef CANVAS_DEBUG_SEARCH_TEST_PRINT_ALL_ACTIONS
-                std::cout << " * After filtering:" << std::endl;
-                for (const auto& [p, s]: applies)
-                    std::cout << "  > " << p->name << ": " << *p << std::endl;
-#endif
-            }
             auto apply = RandomChoose(applies);
             std::cout << " * Choose " << apply << std::endl;
             graph->Apply(apply);
@@ -58,25 +43,13 @@ TEST(Search, PrimitiveFactory) {
 
 TEST(Search, PrimitiveFactoryFixedSingleWidth) {
     int n_primitives = 10;
-    auto graph = RandomGraph(n_primitives, {
-        PrimitiveGenOptions::NotExpanding()
-    });
-    std::cout << graph->Hash() << std::endl;
-}
-
-TEST(Search, PrimitiveFactoryFixedSingleWidthOrFC) {
-    int n_primitives = 20;
-    auto graph = RandomGraph(n_primitives, {
-        PrimitiveGenOptions::NotExpanding(), PrimitiveGenOptions::FC()
-    });
+    auto graph = RandomGraph(n_primitives, PrimitiveFilter(0));
     std::cout << graph->Hash() << std::endl;
 }
 
 TEST(Search, PrimitiveFactoryOnlyFC) {
     int n_primitives = 10;
-    auto graph = RandomGraph(n_primitives, {
-        PrimitiveGenOptions::FC()
-    });
+    auto graph = RandomGraph(n_primitives, PrimitiveFilter("fc"));
     std::cout << graph->Hash() << std::endl;
 }
 
@@ -97,10 +70,7 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
             std::cout << "Reducing width to 1" << std::endl;
             int width = static_cast<int>(graph->Width());
             for (int i = 1; i < width; ++ i) {
-                auto applies = PrimitiveFactory::GetPrimitiveApplies(graph);
-                applies = PrimitiveFactory::FilterPrimitiveApplies(applies, {
-                        PrimitiveGenOptions::ReduceWidth()
-                });
+                auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, PrimitiveFilter(-1));
                 if (applies.empty())
                     break;
                 std::cout << " * Reduce kernel graph width by 1" << std::endl;
@@ -124,8 +94,8 @@ TEST(Search, RandomSampleAPI) {
 
     // Random and generate code.
     for (int i = 0; i < 5; ++ i) {
-        auto solution = RandomSample(net_specs, true, false,
-                                     Range<int>(5, 20), Range<int>(2, 5),
+        auto solution = RandomSample(net_specs,
+                                     false, Range<int>(5, 20), Range<int>(2, 5),
                                      std::chrono::seconds(20));
         std::cout << ConsoleUtils::blue
                   << "# Sample kernel " << i + 1 << ": "
@@ -145,8 +115,8 @@ TEST(Search, EmptyRandomSampleAPI) {
 
     // Random and generate code.
     for (int i = 0; i < 5; ++ i) {
-        auto solution = RandomSample(net_specs, true, false,
-                                     Range<int>(5, 20), Range<int>(2, 5),
+        auto solution = RandomSample(net_specs,
+                                     false, Range<int>(5, 20), Range<int>(2, 5),
                                      std::chrono::seconds(20));
         std::cout << ConsoleUtils::blue
                   << "# Sample kernel " << i + 1 << ": "

@@ -40,7 +40,6 @@ def seed(value: int):
 # TODO: fix options of FLOPs and params.
 def sample(m: nn.Module,
            example_input: torch.Tensor = None,
-           allow_dynamic: bool = True,
            add_relu_bn_after_fc: bool = False,
            num_primitive_range: Tuple[int, int] = (3, 25),
            num_fc_range: Tuple[int, int] = (1, 8),
@@ -60,8 +59,6 @@ def sample(m: nn.Module,
             An example input tensor, for static shape inference and
             analysis if set. For the first analysis or changing to
             different shapes, you must not set it into `None`.
-        allow_dynamic: bool
-            Whether allow dynamic variables to occur in the search space.
         add_relu_bn_after_fc: bool
             Whether add `nn.ReLU` and `nn.BatchNorm2d` primitive after every FC
             primitive. It may lead to a worse performance but worth for
@@ -91,8 +88,6 @@ def sample(m: nn.Module,
         raise ValueError('The input module `m` should be an instance of nn.Module.')
 
     # Check option types.
-    if type(allow_dynamic) != bool:
-        raise ValueError('The variable `allow_dynamic` should be a bool.')
     if type(add_relu_bn_after_fc) != bool:
         raise ValueError('The variable `add_relu_bn_after_fc` should be a bool.')
 
