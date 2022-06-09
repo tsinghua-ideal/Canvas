@@ -142,5 +142,4 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
     for kernel in kernels:
         kernel.reload(pack.module)
 
-    # TODO: add parameter initialization/reset.
     return m

@@ -165,7 +165,7 @@ size_t Graph::CalculateSubgraphHash(const TensorSP& t, SizeTArray& cache) { // N
     SizeTArray consumers_hash;
     consumers_hash.reserve(t->consumers.size());
     for (const auto& p: t->consumers) {
-        // Type Hash of the primitive.
+        // Type hash of the primitive.
         size_t p_hash = HashStr(p->name);
         // Tensors must be in some order (guaranteed by the primitive implement).
         for (const auto& out_t: p->outs)
