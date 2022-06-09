@@ -159,11 +159,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
     auto primitive_var = (var_map[p] = "p_" + std::to_string(var_map.PrimitiveSize()));
     gen->Write() << "# " << p->name << ": " << primitive_var << std::endl;
 
-    if (DynamicCast<DropoutPrimitive>(p)) {
-        gen->Write() << "self." << primitive_var
-                     << " = nn.Dropout(p=0.4)"
-                     << std::endl;
-    } else if (auto fc = DynamicCast<FCPrimitive>(p)) {
+    if (auto fc = DynamicCast<FCPrimitive>(p)) {
         auto& in_shape = p->ins[0]->shape;
         auto& out_shape = p->outs[0]->shape;
         gen->Write() << "self." << primitive_var
@@ -304,11 +300,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << ".permute(0, 2, 1, 3, 4).contiguous()"
                      << std::endl;
         recorder.GenCopyShapeCode();
-    } else if (auto dropout = DynamicCast<DropoutPrimitive>(p)) {
-        gen->Write() << var_map[dropout->outs[0]]
-                     << " = self." << primitive_var
-                     << "(" << var_map[dropout->ins[0]] << ")"
-                     << std::endl;
     } else if (auto element_wise = DynamicCast<ElementWisePrimitive>(p)) {
         gen->Write() << var_map[element_wise->outs[0]]
                      << " = "

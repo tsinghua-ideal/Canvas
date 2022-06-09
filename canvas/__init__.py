@@ -2,4 +2,4 @@
 from .kernel_pack import KernelPack
 from .placeholder import Placeholder, get_placeholders
 from .runtime import remove_cache, seed
-from .sample import sample, replace
+from .sample import empty_sample, sample, replace

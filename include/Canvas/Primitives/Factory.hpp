@@ -9,7 +9,6 @@
 #include "Canvas/Primitives/Activation.hpp"
 #include "Canvas/Primitives/Broadcast.hpp"
 #include "Canvas/Primitives/ChannelShuffle.hpp"
-#include "Canvas/Primitives/Dropout.hpp"
 #include "Canvas/Primitives/ElementWise.hpp"
 #include "Canvas/Primitives/FC.hpp"
 #include "Canvas/Primitives/Fold.hpp"

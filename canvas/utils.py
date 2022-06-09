@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from typing import Tuple
 
 
@@ -25,3 +26,12 @@ def float_range_check(r: Tuple[float, float],
     if not (min_value <= r[0] <= max_value and min_value <= r[1] <= max_value):
         return False
     return r[0] <= r[1]
+
+
+def is_type_range(r, type_cls):
+    if not isinstance(r, Iterable):
+        return False
+    for item in r:
+        if type(item) != type_cls:
+            return False
+    return True

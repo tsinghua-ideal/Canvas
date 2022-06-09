@@ -111,10 +111,6 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         TryMakeAndPush<ActivationPrimitive>(primitives, options, t, type);
     }
 
-    // Dropout: no new variables, pruning: input could not have been `Dropout`-ed.
-    if (DynamicCast<DropoutPrimitive>(t->producer) == nullptr)
-        TryMakeAndPush<DropoutPrimitive>(primitives, options, t);
-
     // Norm: no new variables, pruning: input could not have been already normalized.
     if (DynamicCast<InputPrimitive>(t->producer) == nullptr and DynamicCast<NormPrimitive>(t->producer) == nullptr)
         TryMakeAndPush<NormPrimitive>(primitives, options, t);
