@@ -51,34 +51,36 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         bool could_not_expand_width = (width == max_width) or (width > n_steps_remaining - 1);
 
         // Random a primitive according to the filters.
-        PrimitiveFilter filter(options.allowed_filter, options.forbidden_filter, options.add_relu_bn_after_fc);
+        PrimitiveOptions primitive_options(options.allowed_filter, options.forbidden_filter,
+                                           options.kernel_sizes, options.dilated_sizes,
+                                           options.add_relu_bn_after_fc);
 
         // Hash filters.
         for (const auto& p: graph->primitives)
-            filter.hash_filter.insert(p->Hash(true));
+            primitive_options.hash_filter.insert(p->Hash(true));
 
         // Width filters.
         if (must_reduce_width)
-            filter.max_delta_width = -1;
+            primitive_options.max_delta_width = -1;
         else if (could_not_expand_width)
-            filter.max_delta_width = 0;
+            primitive_options.max_delta_width = 0;
 
         // Grouping number filters.
         if (net_specs->c_gcd == 1)
-            filter.forbidden_filter.emplace_back(GroupTypeToName(GroupByFactor));
+            primitive_options.forbidden_filter.emplace_back(GroupTypeToName(GroupByFactor));
 
         // Must be output next step.
         if (n_steps_remaining == 1)
-            filter.output_filter = true;
+            primitive_options.output_filter = true;
 
         // FC selectivity filter.
         if (MakeChoice(fc_sample_possibility))
-            filter.allowed_filter = {"fc"};
+            primitive_options.allowed_filter = {"fc"};
         else
-            filter.forbidden_filter.emplace_back("fc");
+            primitive_options.forbidden_filter.emplace_back("fc");
 
         // Get all available applies.
-        auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, filter);
+        auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, primitive_options);
 
         // Rescale possibilities.
         applies = PrimitiveFactory::RescalePossibilities(applies);

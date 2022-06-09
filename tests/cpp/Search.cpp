@@ -10,7 +10,7 @@
 
 using namespace canvas;
 
-GraphSP RandomGraph(int n_primitives, const PrimitiveFilter& filter=PrimitiveFilter()) {
+GraphSP RandomGraph(int n_primitives, const PrimitiveOptions& filter=PrimitiveOptions()) {
     auto TryToGenerate = [&]() -> GraphSP {
         auto graph = std::make_shared<Graph>();
         for (int i = 1; i <= n_primitives; ++ i) {
@@ -43,13 +43,13 @@ TEST(Search, PrimitiveFactory) {
 
 TEST(Search, PrimitiveFactoryFixedSingleWidth) {
     int n_primitives = 10;
-    auto graph = RandomGraph(n_primitives, PrimitiveFilter(0));
+    auto graph = RandomGraph(n_primitives, PrimitiveOptions(0));
     std::cout << graph->Hash() << std::endl;
 }
 
 TEST(Search, PrimitiveFactoryOnlyFC) {
     int n_primitives = 10;
-    auto graph = RandomGraph(n_primitives, PrimitiveFilter("fc"));
+    auto graph = RandomGraph(n_primitives, PrimitiveOptions("fc"));
     std::cout << graph->Hash() << std::endl;
 }
 
@@ -70,7 +70,7 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
             std::cout << "Reducing width to 1" << std::endl;
             int width = static_cast<int>(graph->Width());
             for (int i = 1; i < width; ++ i) {
-                auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, PrimitiveFilter(-1));
+                auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, PrimitiveOptions(-1));
                 if (applies.empty())
                     break;
                 std::cout << " * Reduce kernel graph width by 1" << std::endl;

@@ -12,6 +12,8 @@ def sample(m: nn.Module,
            add_relu_bn_after_fc: bool = False,
            allowed_filter: str = '',
            forbidden_filter: str = '',
+           kernel_sizes: [int] = [3, 5, 7],
+           dilated_sizes: [int] = [1, 2, 3],
            num_primitive_range: Tuple[int, int] = (3, 25),
            num_max_width_range: Tuple[int, int] = (2, 8),
            num_fc_range: Tuple[int, int] = (1, 8),
@@ -35,6 +37,10 @@ def sample(m: nn.Module,
             The filter for allowed primitives, in a comma-seperated format.
         forbidden_filter: str
             The filter for forbidden primitives, in a comma-seperated format.
+        kernel_sizes: [int]
+            The candidates for kernel sizes.
+        dilated_sizes: [int]
+            The candidates for dilated sizes.
         add_relu_bn_after_fc: bool
             Whether add `nn.ReLU` and `nn.BatchNorm2d` primitive after every FC
             primitive. It may lead to a worse performance but worth for
@@ -94,6 +100,7 @@ def sample(m: nn.Module,
     # Sample a kernel design.
     kernel_specs = [cpp_canvas.KernelSpecs(ker.c, ker.h, ker.w) for ker in kernels]
     options = cpp_canvas.SampleOptions(allowed_filter, forbidden_filter,
+                                       kernel_sizes, dilated_sizes,
                                        add_relu_bn_after_fc,
                                        num_primitive_range[0], num_primitive_range[1],
                                        num_max_width_range[0], num_max_width_range[1],

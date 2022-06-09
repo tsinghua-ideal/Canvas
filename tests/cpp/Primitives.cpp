@@ -14,7 +14,7 @@ TEST(Primitives, DuplicatePrimitiveChecking) {
     auto group = std::make_shared<GroupPrimitive>(graph->in);
     graph->Apply(group);
 
-    PrimitiveFilter filter;
+    PrimitiveOptions filter;
     filter.hash_filter.insert(group->Hash(true));
 
     int count = 0;

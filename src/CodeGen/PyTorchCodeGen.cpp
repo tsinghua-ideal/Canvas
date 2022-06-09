@@ -479,6 +479,9 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << recorder.reference << ", ("
                      << ((unfold->type == UnfoldH or unfold->type == UnfoldHW) ? kernel_size : 1) << ", "
                      << ((unfold->type == UnfoldW or unfold->type == UnfoldHW) ? kernel_size : 1)
+                     << "), dilation=("
+                     << ((unfold->type == UnfoldH or unfold->type == UnfoldHW) ? dilation : 1) << ", "
+                     << ((unfold->type == UnfoldW or unfold->type == UnfoldHW) ? dilation : 1)
                      << "), padding=("
                      << ((unfold->type == UnfoldH or unfold->type == UnfoldHW) ? padding : 0) << ", "
                      << ((unfold->type == UnfoldW or unfold->type == UnfoldHW) ? padding : 0)
