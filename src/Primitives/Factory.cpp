@@ -166,8 +166,12 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         TryMakeAndPush<PoolPrimitive>(primitives, options, t, type);
 
     // Shift: no new variables.
-    for (const auto& type: {ShiftH, ShiftW, ShiftHW})
-        TryMakeAndPush<ShiftPrimitive>(primitives, options, t, type);
+    if (not options.shift_sizes.empty()) {
+        for (const auto& type: {ShiftH, ShiftW, ShiftHW}) {
+            int k = RandomChoose(options.shift_sizes);
+            TryMakeAndPush<ShiftPrimitive>(primitives, options, t, type, k);
+        }
+    }
 
     // Transpose: no new variables, pruning: input could not have been transposed.
     if (DynamicCast<TransposePrimitive>(t->producer) == nullptr)

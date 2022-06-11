@@ -30,8 +30,8 @@ struct Graph;
 typedef std::shared_ptr<Graph> GraphSP;
 
 struct PrimitiveOptions {
-    // Kernel/dilated sizes.
-    std::vector<int> kernel_sizes = {3, 5, 7}, dilated_sizes = {1, 2, 3};
+    // Kernel/dilated/shift sizes.
+    std::vector<int> kernel_sizes = {3, 5, 7}, dilated_sizes = {1, 2, 3}, shift_sizes = {1, 2, 3};
 
     /// Must be output.
     bool output_filter = false;
@@ -52,9 +52,11 @@ struct PrimitiveOptions {
                               const std::string& forbidden_str="",
                               std::vector<int> kernel_sizes={3, 5, 7},
                               std::vector<int> dilated_sizes={1, 2, 3},
+                              std::vector<int> shift_sizes={1, 2, 3},
                               bool add_relu_bn_after_fc=false):
             kernel_sizes(std::move(kernel_sizes)),
             dilated_sizes(std::move(dilated_sizes)),
+            shift_sizes(std::move(shift_sizes)),
             add_relu_bn_after_fc(add_relu_bn_after_fc) {
         BuildFilters(allowed_str, forbidden_str);
     }

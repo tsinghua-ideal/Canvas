@@ -19,7 +19,7 @@ static std::string UnfoldTypeToName(UnfoldType type, int k, int d) {
         case UnfoldHW: name = "UnfoldHW"; break;
         default: Unreachable();
     }
-    return name + "_k" + std::to_string(k) + "_d" + std::to_string(d);
+    return name + "_K" + std::to_string(k) + "_D" + std::to_string(d);
 }
 
 struct UnfoldPrimitive: Primitive {

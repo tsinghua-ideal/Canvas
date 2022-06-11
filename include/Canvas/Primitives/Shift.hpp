@@ -11,19 +11,22 @@ enum ShiftType {
     ShiftHW
 };
 
-static constexpr const char* ShiftTypeToName(ShiftType type) {
+static std::string ShiftTypeToName(ShiftType type, int k) {
+    std::string name;
     switch (type) {
-        case ShiftH: return "ShiftH";
-        case ShiftW: return "ShiftW";
-        case ShiftHW: return "ShiftHW";
+        case ShiftH: name = "ShiftH"; break;
+        case ShiftW: name = "ShiftW"; break;
+        case ShiftHW: name = "ShiftHW"; break;
+        default: Unreachable();
     }
-    return "";
+    return name + "_K" + std::to_string(k);
 }
 
 struct ShiftPrimitive: Primitive {
     ShiftType type;
+    int k;
 
-    explicit ShiftPrimitive(const TensorSP& t, ShiftType type);
+    explicit ShiftPrimitive(const TensorSP& t, ShiftType type, int k=1);
 
     CanvasPrimitiveCopyTemplate(ShiftPrimitive);
 };

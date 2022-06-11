@@ -11,6 +11,7 @@ def build_sample_options(allowed_filter: str = '',
                          add_relu_bn_after_fc: bool = False,
                          kernel_sizes: [int] = (3, 5, 7),
                          dilated_sizes: [int] = (1, 2, 3),
+                         shift_sizes: [int] = (1, 2, 3),
                          num_primitive_range: Tuple[int, int] = (3, 25),
                          num_max_width_range: Tuple[int, int] = (2, 8),
                          num_fc_range: Tuple[int, int] = (1, 8),
@@ -26,6 +27,8 @@ def build_sample_options(allowed_filter: str = '',
         raise ValueError('`kernel_sizes` should be a tuple of int.')
     if not utils.is_type_range(dilated_sizes, int):
         raise ValueError('`dilated_sizes` should be a tuple of int.')
+    if not utils.is_type_range(shift_sizes, int):
+        raise ValueError('`shift_sizes` should be a tuple of int.')
     if not utils.int_range_check(num_primitive_range):
         raise ValueError('Tuple `num_primitive_range` should be a tuple of'
                          'two positive ints [L, R], where L <= R.')
@@ -40,7 +43,7 @@ def build_sample_options(allowed_filter: str = '',
                          'greater than zero.')
     # Build options.
     return cpp_canvas.SampleOptions(allowed_filter, forbidden_filter,
-                                    kernel_sizes, dilated_sizes,
+                                    kernel_sizes, dilated_sizes, shift_sizes,
                                     add_relu_bn_after_fc,
                                     num_primitive_range[0], num_primitive_range[1],
                                     num_max_width_range[0], num_max_width_range[1],
@@ -53,6 +56,7 @@ def empty_sample(allowed_filter: str = '',
                  add_relu_bn_after_fc: bool = False,
                  kernel_sizes: [int] = (3, 5, 7),
                  dilated_sizes: [int] = (1, 2, 3),
+                 shift_sizes: [int] = (1, 2, 3),
                  num_primitive_range: Tuple[int, int] = (3, 25),
                  num_max_width_range: Tuple[int, int] = (2, 8),
                  num_fc_range: Tuple[int, int] = (1, 8),
@@ -73,6 +77,8 @@ def empty_sample(allowed_filter: str = '',
             The candidates for kernel sizes.
         dilated_sizes: [int]
             The candidates for dilated sizes.
+        shift_sizes: [int]
+            The candidates for shifting sizes.
         num_primitive_range: Tuple[int, int]
             The range limitation of the primitive count.
         num_max_width_range: Tuple[int, int]
@@ -96,7 +102,7 @@ def empty_sample(allowed_filter: str = '',
     # Sample a kernel design.
     options = build_sample_options(allowed_filter, forbidden_filter,
                                    add_relu_bn_after_fc,
-                                   kernel_sizes, dilated_sizes,
+                                   kernel_sizes, dilated_sizes, shift_sizes,
                                    num_primitive_range,
                                    num_max_width_range,
                                    num_fc_range,
@@ -115,6 +121,7 @@ def sample(m: nn.Module,
            add_relu_bn_after_fc: bool = False,
            kernel_sizes: [int] = (3, 5, 7),
            dilated_sizes: [int] = (1, 2, 3),
+           shift_sizes: [int] = (1, 2, 3),
            num_primitive_range: Tuple[int, int] = (3, 25),
            num_max_width_range: Tuple[int, int] = (2, 8),
            num_fc_range: Tuple[int, int] = (1, 8),
@@ -146,6 +153,8 @@ def sample(m: nn.Module,
             The candidates for kernel sizes.
         dilated_sizes: [int]
             The candidates for dilated sizes.
+        shift_sizes: [int]
+            The candidates for shifting sizes.
         num_primitive_range: Tuple[int, int]
             The range limitation of the primitive count.
         num_max_width_range: Tuple[int, int]
@@ -183,7 +192,7 @@ def sample(m: nn.Module,
     kernel_specs = [cpp_canvas.KernelSpecs(ker.c, ker.h, ker.w) for ker in kernels]
     options = build_sample_options(allowed_filter, forbidden_filter,
                                    add_relu_bn_after_fc,
-                                   kernel_sizes, dilated_sizes,
+                                   kernel_sizes, dilated_sizes, shift_sizes,
                                    num_primitive_range,
                                    num_max_width_range,
                                    num_fc_range,

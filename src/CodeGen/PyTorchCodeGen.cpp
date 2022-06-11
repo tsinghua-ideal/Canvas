@@ -188,12 +188,12 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW())
                      << ")"
                      << std::endl;
-    } else if (DynamicCast<ShiftPrimitive>(p)) {
-        // TODO: change to a random number of shift.
+    } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
+        int k = shift->k;
         gen->Write() << "self." << primitive_var << "_sh"
-                     << " = random.randint(-1, 1)" << std::endl;
+                     << " = random.randint(-" << k << ", " << k << ")" << std::endl;
         gen->Write() << "self." << primitive_var << "_sw"
-                     << " = random.randint(-1, 1)" << std::endl;
+                     << " = random.randint(-" << k << ", " << k << ")" << std::endl;
     } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
         if (softmax->type == SoftmaxHW) {
             gen->Write() << "self." << primitive_var

@@ -52,7 +52,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
         // Random a primitive according to the filters.
         PrimitiveOptions primitive_options(options.allowed_filter, options.forbidden_filter,
-                                           options.kernel_sizes, options.dilated_sizes,
+                                           options.kernel_sizes, options.dilated_sizes, options.shift_sizes,
                                            options.add_relu_bn_after_fc);
 
         // Hash filters.
