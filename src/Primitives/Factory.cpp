@@ -53,7 +53,6 @@ bool PrimitiveOptions::Filter(const PrimitiveSP& p) const {
 }
 
 std::vector<PrimitiveApply> PrimitiveFactory::RescalePossibilities(const std::vector<PrimitiveApply>& applies) {
-    // TODO: re-design this function.
     std::vector<PrimitiveApply> applies_copy = applies;
     RandomShuffle(applies_copy);
 
@@ -149,13 +148,10 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
             TryMakeAndPush<FoldPrimitive>(primitives, options, t, type, arith_type);
 
     // Unfold: no new variables.
-    if (not options.kernel_sizes.empty() and not options.dilated_sizes.empty()) {
-        for (const auto& type: {UnfoldH, UnfoldW, UnfoldHW}) {
-            int k = RandomChoose(options.kernel_sizes);
-            int d = RandomChoose(options.dilated_sizes);
-            TryMakeAndPush<UnfoldPrimitive>(primitives, options, t, k, d, type);
-        }
-    }
+    for (const auto& type: {UnfoldH, UnfoldW, UnfoldHW})
+        for (int k: options.kernel_sizes)
+            for (int d: options.dilated_sizes)
+                TryMakeAndPush<UnfoldPrimitive>(primitives, options, t, k, d, type);
 
     // Group: no new variables.
     for (const auto& type: {GroupByFactor, GroupAllChannels})
@@ -166,12 +162,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         TryMakeAndPush<PoolPrimitive>(primitives, options, t, type);
 
     // Shift: no new variables.
-    if (not options.shift_sizes.empty()) {
-        for (const auto& type: {ShiftH, ShiftW, ShiftHW}) {
-            int k = RandomChoose(options.shift_sizes);
+    for (const auto& type: {ShiftH, ShiftW, ShiftHW})
+        for (int k: options.shift_sizes)
             TryMakeAndPush<ShiftPrimitive>(primitives, options, t, type, k);
-        }
-    }
 
     // Transpose: no new variables, pruning: input could not have been transposed.
     if (DynamicCast<TransposePrimitive>(t->producer) == nullptr)

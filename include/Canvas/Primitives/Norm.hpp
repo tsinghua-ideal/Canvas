@@ -5,6 +5,7 @@
 
 namespace canvas {
 
+// TODO: may add different types of normalizations.
 struct NormPrimitive: Primitive {
     explicit NormPrimitive(const TensorSP& t);
 

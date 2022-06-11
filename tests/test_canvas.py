@@ -45,3 +45,8 @@ def test_sample():
         print(pack.code)
         net = canvas.replace(net, pack)
         t = net(torch.zeros(1, 3, 32, 32))
+
+
+def test_empty_sample():
+    for _ in range(10):
+        pack = canvas.empty_sample()
