@@ -5,6 +5,8 @@ import torch.nn as nn
 from functools import partial
 
 from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from timm.models.registry import register_model
+from timm.models.vision_transformer import _cfg
 
 
 class Mlp(nn.Module):
@@ -225,37 +227,45 @@ def _conv_filter(state_dict, patch_size=16):
     return out_dict
 
 
+@register_model
 def van_tiny(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[32, 64, 160, 256], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[3, 3, 5, 2],
         **kwargs)
+    model.default_cfg = _cfg()
     return model
 
 
+@register_model
 def van_small(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[2, 2, 4, 2],
         **kwargs)
+    model.default_cfg = _cfg()
     return model
 
 
+@register_model
 def van_base(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[3, 3, 12, 3],
         **kwargs)
+    model.default_cfg = _cfg()
     return model
 
 
+@register_model
 def van_large(**kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
         norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[3, 5, 27, 3],
         **kwargs)
+    model.default_cfg = _cfg()
     return model
