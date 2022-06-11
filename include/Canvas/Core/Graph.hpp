@@ -61,7 +61,7 @@ struct Graph {
         return n;
     }
 
-    [[nodiscard]] int DynamicVarCount() const;
+    [[nodiscard]] std::vector<int> DynamicVars() const;
 
     [[nodiscard]] std::optional<int> NextUnusedDynamicVarIndex() const;
 

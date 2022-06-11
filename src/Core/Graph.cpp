@@ -54,7 +54,7 @@ bool Graph::AlgebraCheck(const Variable::VarSpecs& specs) const {
     assert(c % g == 0);
 
     // No dynamic variables in the graph, so that we could fill all shapes concisely.
-    assert(DynamicVarCount() == 0);
+    assert(DynamicVars().empty());
 
     // Run variable substitutions.
     for (const auto& t: tensors) {
@@ -111,17 +111,18 @@ bool Graph::IsTopologicalFinished() const {
         and out->shape == Shape::StandardCHW();
 }
 
-int Graph::DynamicVarCount() const {
+std::vector<int> Graph::DynamicVars() const {
     bool used[Variable::kDynamicVarCount] = {false};
     for (const auto& t: tensors)
         for (const auto& dim: t->shape.dims)
             for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
                 if (dim.dynamic_power[i] != 0)
                     used[i] = true;
-    int count = 0;
-    for (const auto& u: used)
-        count += static_cast<int>(u);
-    return count;
+    std::vector<int> used_indices;
+    for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
+        if (used[i])
+            used_indices.push_back(i);
+    return used_indices;
 }
 
 std::optional<int> Graph::NextUnusedDynamicVarIndex() const {

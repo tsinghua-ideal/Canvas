@@ -93,7 +93,7 @@ TEST(Search, RandomSampleAPI) {
     auto net_specs = std::make_shared<NetSpecs>(kernels);
 
     // Random and generate code.
-    for (int i = 0; i < 100; ++ i) {
+    for (int i = 0; i < 10; ++ i) {
         auto solution = RandomSample(net_specs);
         std::cout << ConsoleUtils::blue
                   << "# Sample kernel " << i + 1 << ": "

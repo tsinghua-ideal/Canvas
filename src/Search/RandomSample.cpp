@@ -182,9 +182,12 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     assert(out->shape.CouldBeReshapeToCHW());
     graph->ApplyOutput();
 
-    // TODO: rewrite with new strategies.
-    if (graph->DynamicVarCount() > 0)
-        return {};
+    {
+        auto current_vars = graph->DynamicVars();
+        // TODO: better strategies may exist, e.g. with a reduction factor.
+        for (int index: current_vars)
+            graph->SolveDynamicVar(VarSolution(index, Variable::StaticVar(StaticVarPos::VC)));
+    }
 
     // Sample a grouping factor.
     std::vector<int> available_g_factors;
