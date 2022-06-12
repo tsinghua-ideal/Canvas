@@ -1,44 +1,32 @@
 #pragma once
 
+#include "Canvas/Core/Shape.hpp"
 #include "Canvas/Core/Primitive.hpp"
 
 
 namespace canvas {
 
-// TODO: add folding C.
 enum FoldType {
-    FoldH,
-    FoldW,
-    FoldHW
-};
-
-enum FoldArithmeticType {
     FoldAvg,
     FoldMax
 };
 
-static constexpr const char* FoldTypeToName(FoldType type) {
+static std::string FoldTypeToName(const std::vector<Shape::DimPos>& pos_vec, FoldType type) {
+    std::string prefix = "Fold";
+    for (const auto& pos: pos_vec)
+        prefix += "_" + Shape::DimPosToName(pos);
     switch (type) {
-        case FoldH: return "FoldH";
-        case FoldW: return "FoldW";
-        case FoldHW: return "FoldHW";
+        case FoldAvg: return prefix + "_Avg";
+        case FoldMax: return prefix + "_Max";
     }
-    return "";
-}
-
-static constexpr const char* FoldArithmeticTypeToName(FoldArithmeticType type) {
-    switch (type) {
-        case FoldAvg: return "Sum";
-        case FoldMax: return "Max";
-    }
-    return "";
+    Unreachable();
 }
 
 struct FoldPrimitive: Primitive {
+    std::vector<Shape::DimPos> pos_vec;
     FoldType type;
-    FoldArithmeticType arith_type;
 
-    explicit FoldPrimitive(const TensorSP& t, FoldType type=FoldHW, FoldArithmeticType arith_type=FoldAvg);
+    explicit FoldPrimitive(const TensorSP& t, const std::vector<Shape::DimPos>& pos, FoldType type=FoldAvg);
 
     CanvasPrimitiveCopyTemplate(FoldPrimitive);
 };

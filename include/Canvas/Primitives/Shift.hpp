@@ -22,6 +22,7 @@ static std::string ShiftTypeToName(ShiftType type, int k) {
     return name + "_K" + std::to_string(k);
 }
 
+// TODO: rewrite shift primitive to support any dimension (like fold).
 struct ShiftPrimitive: Primitive {
     ShiftType type;
     int k;

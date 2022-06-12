@@ -22,6 +22,19 @@ struct Shape {
         PW = 5,     // Width.
     };
 
+    [[nodiscard]] static std::string DimPosToName(const DimPos& pos) {
+        static_assert(kShapeMaxDim == 6);
+        switch (pos) {
+            case PG: return "G";
+            case PC: return "C";
+            case PKH: return "KH";
+            case PKW: return "KW";
+            case PH: return "H";
+            case PW: return "W";
+        }
+        Unreachable();
+    }
+
     struct ShapeSpecs {
         int dims[kShapeMaxDim] = {};
 

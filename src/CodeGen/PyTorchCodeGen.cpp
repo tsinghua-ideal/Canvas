@@ -49,7 +49,7 @@ static constexpr const char* TorchStyleActivationFunctionName(ActivationType typ
     return "";
 }
 
-static constexpr const char* TorchStyleFoldName(FoldArithmeticType type) {
+static constexpr const char* TorchStyleFoldName(FoldType type) {
     switch (type) {
         case FoldAvg: return "mean";
         case FoldMax: return "max";
@@ -57,7 +57,7 @@ static constexpr const char* TorchStyleFoldName(FoldArithmeticType type) {
     return "";
 }
 
-static constexpr const char* TorchStyleFoldSuffix(FoldArithmeticType type) {
+static constexpr const char* TorchStyleFoldSuffix(FoldType type) {
     switch (type) {
         case FoldAvg: return "";
         case FoldMax: return "[0]";
@@ -222,7 +222,6 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
             DynamicCast<FoldPrimitive>(p) or
             DynamicCast<GroupPrimitive>(p) or
             DynamicCast<OutputPrimitive>(p) or
-            DynamicCast<PoolPrimitive>(p) or
             DynamicCast<TransposePrimitive>(p) or
             DynamicCast<UnfoldPrimitive>(p)) {
         gen->Write() << "pass" << std::endl;
@@ -332,33 +331,22 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << ")"
                      << std::endl;
     } else if (auto fold = DynamicCast<FoldPrimitive>(p)) {
-        // Shape must be [..., KH?, KW?, H?, W?].
-        int n_hw = 0;
-        n_hw += static_cast<int>(not fold->ins[0]->shape.H().Empty());
-        n_hw += static_cast<int>(not fold->ins[0]->shape.W().Empty());
-        int kh_index = -1 - n_hw, kw_index = -1 - n_hw;
-        kh_index -= static_cast<int>(not fold->ins[0]->shape.KW().Empty());
-        auto reference = var_map[fold->ins[0]];
-        // Reduce KW
-        if (fold->type == FoldW or fold->type == FoldHW) {
-            assert(kw_index <= -1);
-            gen->Write() << var_map[fold->outs[0]]
-                         << " = " << reference
-                         << "." << TorchStyleFoldName(fold->arith_type) << "(" << kw_index << ")"
-                         << TorchStyleFoldSuffix(fold->arith_type)
-                         << std::endl;
-            kh_index += 1;
-            reference = var_map[fold->outs[0]];
+        auto reference_shape = fold->ins[0]->shape;
+        gen->Write() << var_map[fold->outs[0]]
+                     << " = " << var_map[fold->ins[0]];
+        assert(not fold->pos_vec.empty());
+        for (const auto& pos: fold->pos_vec) {
+            int index = 1;
+            assert(not reference_shape.dims[pos].Empty());
+            for (int i = 0; i < pos; ++ i)
+                if (not reference_shape.dims[i].Empty())
+                    ++ index;
+            gen->Write(false) << "." << TorchStyleFoldName(fold->type)
+                              << "(" << index << ")"
+                              << TorchStyleFoldSuffix(fold->type);
+            reference_shape.dims[pos].Reset();
         }
-        // Reduce KH.
-        if (fold->type == FoldH or fold->type == FoldHW) {
-            assert(kh_index <= -1);
-            gen->Write() << var_map[fold->outs[0]]
-                         << " = " << reference
-                         << "." << TorchStyleFoldName(fold->arith_type) << "(" << kh_index << ")"
-                         << TorchStyleFoldSuffix(fold->arith_type)
-                         << std::endl;
-        }
+        gen->Write(false) << std::endl;
     } else if (auto group = DynamicCast<GroupPrimitive>(p)) {
         auto old_shape_str = TorchStyleShape(group->ins[0]->shape);
         auto new_shape_str = TorchStyleShape(group->outs[0]->shape);
@@ -400,24 +388,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << var_map[output->ins[0]]
                      << ".view(self.n, self.c, self.h, self.w)"
                      << std::endl;
-    } else if (auto pool = DynamicCast<PoolPrimitive>(p)) {
-        PyTorchNCHWRecorder recorder(gen, var_map, pool->ins[0], pool->outs[0], false);
-        gen->Write() << var_map[pool->outs[0]]
-                     << " = F.adaptive_avg_pool2d("
-                     << recorder.reference << ", ("
-                     << (pool->type == PoolH or pool->type == PoolHW or pool->ins[0]->shape.H().Empty() ? "1" : "self.h")
-                     << ", "
-                     << (pool->type == PoolW or pool->type == PoolHW or pool->ins[0]->shape.W().Empty() ? "1" : "self.w")
-                     << "))"
-                     << std::endl;
-        gen->Write() << var_map[pool->outs[0]]
-                     << " = "
-                     << var_map[pool->outs[0]]
-                     << ".view(self.n, "
-                     << TorchStyleShape(pool->outs[0]->shape)
-                     << ")"
-                     << std::endl;
-    } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
+    }  else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         int h_index = -1, w_index = -1;
         h_index -= static_cast<int>(not shift->ins[0]->shape.W().Empty());
         auto reference = var_map[shift->ins[0]];

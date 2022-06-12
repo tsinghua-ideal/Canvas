@@ -16,7 +16,6 @@
 #include "Canvas/Primitives/Input.hpp"
 #include "Canvas/Primitives/Norm.hpp"
 #include "Canvas/Primitives/Output.hpp"
-#include "Canvas/Primitives/Pool.hpp"
 #include "Canvas/Primitives/Shift.hpp"
 #include "Canvas/Primitives/Softmax.hpp"
 #include "Canvas/Primitives/Transpose.hpp"

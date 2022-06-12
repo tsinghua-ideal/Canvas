@@ -148,9 +148,16 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         TryMakeAndPush<ChannelShufflePrimitive>(primitives, options, t);
 
     // Fold: no new variables.
-    for (const auto& type: {FoldH, FoldW, FoldHW})
-        for (const auto& arith_type: {FoldAvg, FoldMax})
-            TryMakeAndPush<FoldPrimitive>(primitives, options, t, type, arith_type);
+    for (const auto& type: {FoldAvg, FoldMax}) {
+        for (int i = 0; i < Shape::kShapeMaxDim; ++ i)
+            TryMakeAndPush<FoldPrimitive>(primitives, options, t,
+                                          std::vector<Shape::DimPos>({static_cast<Shape::DimPos>(i)}), type);
+        // Build extra H/W double folding primitives.
+        TryMakeAndPush<FoldPrimitive>(primitives, options, t,
+                                      std::vector<Shape::DimPos>({Shape::DimPos::PKH, Shape::DimPos::PKW}), type);
+        TryMakeAndPush<FoldPrimitive>(primitives, options, t,
+                                      std::vector<Shape::DimPos>({Shape::DimPos::PH, Shape::DimPos::PW}), type);
+    }
 
     // Unfold: no new variables.
     for (const auto& type: {UnfoldH, UnfoldW, UnfoldHW})
@@ -161,10 +168,6 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // Group: no new variables.
     for (const auto& type: {GroupByFactor, GroupAllChannels})
         TryMakeAndPush<GroupPrimitive>(primitives, options, t, type);
-
-    // Pool: no new variables.
-    for (const auto& type: {PoolH, PoolW, PoolHW})
-        TryMakeAndPush<PoolPrimitive>(primitives, options, t, type);
 
     // Shift: no new variables.
     for (const auto& type: {ShiftH, ShiftW, ShiftHW})
