@@ -92,9 +92,14 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // The next variable index.
     auto next_index_opt = graph->NextUnusedDynamicVarIndex();
 
+    // TODO: add einsum primitive for matrix multiplication.
+
     // FC: The channel could be a new variable.
     // Could not have dynamic variables in G, consider grouping-all primitive.
     // Norm/ReLU optimization will be added in the filter.
+    // TODO: support flexible FC remapping into C, consider (C, K, K, H, W) five dimensions.
+    // TODO: support multiple variable solving.
+    // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
     if (t->shape.G().IsStatic()) {
         if (next_index_opt.has_value())
             TryMakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(next_index_opt.value()));

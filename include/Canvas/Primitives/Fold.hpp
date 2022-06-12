@@ -5,6 +5,7 @@
 
 namespace canvas {
 
+// TODO: add folding C.
 enum FoldType {
     FoldH,
     FoldW,
