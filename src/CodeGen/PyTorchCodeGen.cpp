@@ -190,10 +190,9 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << std::endl;
     } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         int k = shift->k;
-        gen->Write() << "self." << primitive_var << "_sh"
-                     << " = random.randint(-" << k << ", " << k << ")" << std::endl;
-        gen->Write() << "self." << primitive_var << "_sw"
-                     << " = random.randint(-" << k << ", " << k << ")" << std::endl;
+        for (const auto& pos: shift->pos_vec)
+            gen->Write() << "self." << primitive_var << "_" << Shape::DimPosToName(pos)
+                         << " = random.randint(-" << k << ", " << k << ")" << std::endl;
     } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
         if (softmax->type == SoftmaxHW) {
             gen->Write() << "self." << primitive_var
@@ -389,25 +388,21 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << ".view(self.n, self.c, self.h, self.w)"
                      << std::endl;
     }  else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
-        int h_index = -1, w_index = -1;
-        h_index -= static_cast<int>(not shift->ins[0]->shape.W().Empty());
         auto reference = var_map[shift->ins[0]];
-        if (shift->type == ShiftH or shift->type == ShiftHW) {
+        auto shape = shift->ins[0]->shape;
+        for (const auto& pos: shift->pos_vec) {
+            int index = 1;
+            assert(not shape.dims[pos].Empty());
+            for (int i = 0; i < pos; ++ i)
+                if (not shape.dims[i].Empty())
+                    ++ index;
             gen->Write() << var_map[shift->outs[0]]
                          << " = torch.roll("
                          << reference << ", "
-                         << "self." << primitive_var << "_sh, "
-                         << h_index << ")"
+                         << "self." << primitive_var << "_" << Shape::DimPosToName(pos) << ", "
+                         << index << ")"
                          << std::endl;
             reference = var_map[shift->outs[0]];
-        }
-        if (shift->type == ShiftW or shift->type == ShiftHW) {
-            gen->Write() << var_map[shift->outs[0]]
-                         << " = torch.roll("
-                         << reference << ", "
-                         << "self." << primitive_var << "_sw, "
-                         << w_index << ")"
-                         << std::endl;
         }
     } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
         PyTorchNCHWRecorder recorder(gen, var_map, softmax->ins[0], softmax->outs[0], true);

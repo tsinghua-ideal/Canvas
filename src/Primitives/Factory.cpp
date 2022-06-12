@@ -170,9 +170,16 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         TryMakeAndPush<GroupPrimitive>(primitives, options, t, type);
 
     // Shift: no new variables.
-    for (const auto& type: {ShiftH, ShiftW, ShiftHW})
-        for (int k: options.shift_sizes)
-            TryMakeAndPush<ShiftPrimitive>(primitives, options, t, type, k);
+    for (int k: options.shift_sizes) {
+        for (int i = 0; i < Shape::kShapeMaxDim; ++ i)
+            TryMakeAndPush<ShiftPrimitive>(primitives, options, t,
+                                           std::vector<Shape::DimPos>({static_cast<Shape::DimPos>(i)}), k);
+        // Build extra H/W double shifting primitives.
+        TryMakeAndPush<ShiftPrimitive>(primitives, options, t,
+                                      std::vector<Shape::DimPos>({Shape::DimPos::PKH, Shape::DimPos::PKW}), k);
+        TryMakeAndPush<ShiftPrimitive>(primitives, options, t,
+                                      std::vector<Shape::DimPos>({Shape::DimPos::PH, Shape::DimPos::PW}), k);
+    }
 
     // Transpose: no new variables, pruning: input could not have been transposed.
     if (DynamicCast<TransposePrimitive>(t->producer) == nullptr)

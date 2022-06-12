@@ -1,33 +1,27 @@
 #pragma once
 
+#include <sstream>
+#include <vector>
+
 #include "Canvas/Core/Primitive.hpp"
 
 
 namespace canvas {
 
-enum ShiftType {
-    ShiftH,
-    ShiftW,
-    ShiftHW
-};
-
-static std::string ShiftTypeToName(ShiftType type, int k) {
-    std::string name;
-    switch (type) {
-        case ShiftH: name = "ShiftH"; break;
-        case ShiftW: name = "ShiftW"; break;
-        case ShiftHW: name = "ShiftHW"; break;
-        default: Unreachable();
-    }
-    return name + "_K" + std::to_string(k);
+static std::string ShiftToName(const std::vector<Shape::DimPos>& pos_vec, int k) {
+    std::stringstream ss;
+    ss << "Shift";
+    for (const auto& pos: pos_vec)
+        ss << "_" << Shape::DimPosToName(pos);
+    ss << "_K" << std::to_string(k);
+    return ss.str();
 }
 
-// TODO: rewrite shift primitive to support any dimension (like fold).
 struct ShiftPrimitive: Primitive {
-    ShiftType type;
+    std::vector<Shape::DimPos> pos_vec;
     int k;
 
-    explicit ShiftPrimitive(const TensorSP& t, ShiftType type, int k=1);
+    explicit ShiftPrimitive(const TensorSP& t, const std::vector<Shape::DimPos>& pos_vec, int k=1);
 
     CanvasPrimitiveCopyTemplate(ShiftPrimitive);
 };
