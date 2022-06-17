@@ -37,8 +37,8 @@ def get_loaders(args):
         # num_aug_repeats=aug_repeats,
         # num_aug_splits=0,
         interpolation=args.train_interpolation,
-        # mean=data_config['mean'],
-        # std=data_config['std'],
+        mean=args.mean,
+        std=args.std,
         num_workers=args.num_workers,
         distributed=False,
         collate_fn=collate_fn,
@@ -51,12 +51,12 @@ def get_loaders(args):
         batch_size=args.batch_size,
         is_training=False,
         use_prefetcher=True,
-        # interpolation=data_config['interpolation'],  # what is interpolation
-        # mean=data_config['mean'],
-        # std=data_config['std'],
+        interpolation=args.interpolation,
+        mean=args.mean,
+        std=args.std,
         num_workers=args.num_workers,
         # distributed=False,
-        # crop_pct=None,
+        crop_pct=args.crop_pct,
         pin_memory=args.pin_memory
     )
 

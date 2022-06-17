@@ -5,12 +5,25 @@ def arg_parse():
     parser = argparse.ArgumentParser(description='Canvas ImageNet trainer/searcher')
 
     # Models.
-    parser.add_argument('--model', type=str, metavar='NAME', default='resnet18',
+    parser.add_argument('--model', type=str, metavar='NAME', required=True,
                         help='Name of model to train (default: "resnet18"')
-    parser.add_argument('--num-classes', type=int, metavar='N', required=True,
-                        help='Number of label classes (Model default if None)')
+    parser.add_argument('--num-classes', type=int, metavar='N',
+                        help='Number of label classes (model default if none)')
+    parser.add_argument('--gp', default=None, type=str, metavar='POOL',
+                        help='Global pool type, one of (fast, avg, max, avgmax, avgmaxc, model default if none)')
+    parser.add_argument('--img-size', type=int, default=None, metavar='N',
+                        help='Image patch size (model default if none)')
     parser.add_argument('--input-size', default=(3, 224, 224), nargs=3, type=int, metavar='N N N',
-                        help='Input all image dimensions (d h w, e.g. --input-size 3 224 224)')
+                        help='Input all image dimensions (d h w, e.g. --input-size 3 224 224, '
+                             'model default if none)')
+    parser.add_argument('--crop-pct', default=None, type=float,
+                        metavar='N', help='Input image center crop percent (for validation only)')
+    parser.add_argument('--mean', type=float, nargs='+', default=None, metavar='MEAN',
+                        help='Override mean pixel value of dataset')
+    parser.add_argument('--std', type=float, nargs='+', default=None, metavar='STD',
+                        help='Override std deviation of of dataset')
+    parser.add_argument('--interpolation', default='', type=str, metavar='NAME',
+                        help='Image resize interpolation type (overrides model)')
     parser.add_argument('--drop', type=float, default=0.0, metavar='PCT',
                         help='Dropout rate (default: 0.)')
     parser.add_argument('--drop-path', type=float, default=None, metavar='PCT',
@@ -32,7 +45,7 @@ def arg_parse():
     parser.add_argument('--pin-memory', action='store_true', default=True,
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
 
-    # Dataset augmentation
+    # Dataset augmentation.
     parser.add_argument('--no-aug', action='store_true', default=False,
                         help='Disable all training augmentation, override other train aug args')
     parser.add_argument('--scale', type=float, nargs='+', default=[0.08, 1.0], metavar='PCT',
@@ -79,6 +92,24 @@ def arg_parse():
                         help='Enable BCE loss w/ Mixup/CutMix use.')
     parser.add_argument('--bce-target-thresh', type=float, default=None,
                         help='Threshold for binarizing softened BCE targets (default: None, disabled)')
+
+    # Optimizer parameters.
+    parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
+                        help='Learning rate (default: 1e-3)')
+    parser.add_argument('--opt', default='adamw', type=str, metavar='OPTIMIZER',
+                        help='Optimizer (default: "adamw"')
+    parser.add_argument('--opt-eps', default=None, type=float, metavar='EPSILON',
+                        help='Optimizer Epsilon (default: None, use opt default)')
+    parser.add_argument('--opt-betas', default=None, type=float, nargs='+', metavar='BETA',
+                        help='Optimizer Betas (default: None, use opt default)')
+    parser.add_argument('--momentum', type=float, default=0.9, metavar='M',
+                        help='Optimizer momentum (default: 0.9)')
+    parser.add_argument('--weight-decay', type=float, default=0.05,
+                        help='Weight decay (default: 0.05)')
+    parser.add_argument('--clip-grad', type=float, default=None, metavar='NORM',
+                        help='Clip gradient norm (default: none, no clipping)')
+    parser.add_argument('--clip-mode', type=str, default='norm',
+                        help='Gradient clipping mode, one of ("norm", "value", "agc")')
 
     # Parse program arguments.
     return parser.parse_args()
