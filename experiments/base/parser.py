@@ -5,10 +5,18 @@ def arg_parse():
     parser = argparse.ArgumentParser(description='Canvas ImageNet trainer/searcher')
 
     # Models.
+    parser.add_argument('--model', type=str, metavar='NAME', default='resnet18',
+                        help='Name of model to train (default: "resnet18"')
     parser.add_argument('--num-classes', type=int, metavar='N', required=True,
                         help='Number of label classes (Model default if None)')
     parser.add_argument('--input-size', default=(3, 224, 224), nargs=3, type=int, metavar='N N N',
                         help='Input all image dimensions (d h w, e.g. --input-size 3 224 224)')
+    parser.add_argument('--drop', type=float, default=0.0, metavar='PCT',
+                        help='Dropout rate (default: 0.)')
+    parser.add_argument('--drop-path', type=float, default=None, metavar='PCT',
+                        help='Drop path rate (default: None)')
+    parser.add_argument('--drop-block', type=float, default=None, metavar='PCT',
+                        help='Drop block rate (default: None)')
 
     # Dataset.
     parser.add_argument('--root', metavar='DIR', type=str, required=True,
@@ -63,6 +71,14 @@ def arg_parse():
                         help='Label smoothing (default: 0.1)')
     parser.add_argument('--train-interpolation', type=str, default='random',
                         help='Training interpolation (random, bilinear, bicubic default: "random")')
+
+    # Loss functions.
+    parser.add_argument('--jsd-loss', action='store_true', default=False,
+                        help='Enable Jensen-Shannon Divergence + CE loss. Use with `--aug-splits`.')
+    parser.add_argument('--bce-loss', action='store_true', default=False,
+                        help='Enable BCE loss w/ Mixup/CutMix use.')
+    parser.add_argument('--bce-target-thresh', type=float, default=None,
+                        help='Threshold for binarizing softened BCE targets (default: None, disabled)')
 
     # Parse program arguments.
     return parser.parse_args()

@@ -1,4 +1,3 @@
-import canvas
 import math
 import torch
 import torch.nn as nn
@@ -46,11 +45,46 @@ class Mlp(nn.Module):
         return x
 
 
+class LKA(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.conv0 = nn.Conv2d(dim, dim, 5, padding=2, groups=dim)
+        self.conv_spatial = nn.Conv2d(dim, dim, 7, stride=1, padding=9, groups=dim, dilation=3)
+        self.conv1 = nn.Conv2d(dim, dim, 1)
+
+    def forward(self, x):
+        u = x.clone()
+        attn = self.conv0(x)
+        attn = self.conv_spatial(attn)
+        attn = self.conv1(attn)
+
+        return u * attn
+
+
+class Attention(nn.Module):
+    def __init__(self, d_model):
+        super().__init__()
+
+        self.proj_1 = nn.Conv2d(d_model, d_model, 1)
+        self.activation = nn.GELU()
+        self.spatial_gating_unit = LKA(d_model)
+        self.proj_2 = nn.Conv2d(d_model, d_model, 1)
+
+    def forward(self, x):
+        shortcut = x.clone()
+        x = self.proj_1(x)
+        x = self.activation(x)
+        x = self.spatial_gating_unit(x)
+        x = self.proj_2(x)
+        x = x + shortcut
+        return x
+
+
 class Block(nn.Module):
     def __init__(self, dim, mlp_ratio=4., drop=0., drop_path=0., act_layer=nn.GELU):
         super().__init__()
         self.norm1 = nn.BatchNorm2d(dim)
-        self.attn = canvas.Placeholder(dim)
+        self.attn = Attention(dim)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
         self.norm2 = nn.BatchNorm2d(dim)
@@ -227,8 +261,9 @@ def _conv_filter(state_dict, patch_size=16):
     return out_dict
 
 
+# noinspection PyUnusedLocal
 @register_model
-def van_tiny(**kwargs):
+def van_tiny(pretrained=False, **kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[32, 64, 160, 256], mlp_ratios=[8, 8, 4, 4],
@@ -238,8 +273,9 @@ def van_tiny(**kwargs):
     return model
 
 
+# noinspection PyUnusedLocal
 @register_model
-def van_small(**kwargs):
+def van_small(pretrained=False, **kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
@@ -249,8 +285,9 @@ def van_small(**kwargs):
     return model
 
 
+# noinspection PyUnusedLocal
 @register_model
-def van_base(**kwargs):
+def van_base(pretrained=False, **kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
@@ -260,8 +297,9 @@ def van_base(**kwargs):
     return model
 
 
+# noinspection PyUnusedLocal
 @register_model
-def van_large(**kwargs):
+def van_large(pretrained=False, **kwargs):
     # noinspection PyTypeChecker
     model = VAN(
         embed_dims=[64, 128, 320, 512], mlp_ratios=[8, 8, 4, 4],
