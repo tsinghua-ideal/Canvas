@@ -1,7 +1,7 @@
 from timm.data import create_dataset, FastCollateMixup, create_loader
 
 
-def get_dataset_loader(args):
+def get_loaders(args):
     # Get dataset.
     dataset_train = create_dataset(name='', root=args.root, split=args.train_split, batch_size=args.batch_size)
     dataset_eval = create_dataset(name='', root=args.root, split=args.val_split, batch_size=args.batch_size)
@@ -55,8 +55,8 @@ def get_dataset_loader(args):
         # mean=data_config['mean'],
         # std=data_config['std'],
         num_workers=args.num_workers,
-        distributed=False,
-        crop_pct=args.crop_pct,
+        # distributed=False,
+        # crop_pct=None,
         pin_memory=args.pin_memory
     )
 
