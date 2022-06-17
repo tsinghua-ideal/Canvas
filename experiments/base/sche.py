@@ -1,5 +1,5 @@
 from timm.scheduler import create_scheduler
 
 
-def get_scheduler(args, optimizer):
+def get_schedule(args, optimizer):
     return create_scheduler(args, optimizer)

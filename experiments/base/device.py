@@ -1,5 +1,6 @@
 import torch
 
 
-def check_available():
+def initialize():
     assert torch.cuda.is_available(), 'No available CUDA devices'
+    torch.backends.cudnn.benchmark = True

@@ -1,1 +1,1 @@
-from . import dataset, device, loss, optim, parser, sched, trainer
+from . import dataset, device, loss, optim, parser, sche, trainer

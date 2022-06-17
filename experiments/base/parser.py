@@ -84,6 +84,8 @@ def arg_parse():
                         help='Label smoothing (default: 0.1)')
     parser.add_argument('--train-interpolation', type=str, default='random',
                         help='Training interpolation (random, bilinear, bicubic default: "random")')
+    parser.add_argument('--tta', type=int, default=0, metavar='N',
+                        help='Test/inference time augmentation (oversampling) factor')
 
     # Loss functions.
     parser.add_argument('--jsd-loss', action='store_true', default=False,
@@ -144,6 +146,10 @@ def arg_parse():
                         help='patience epochs for Plateau LR scheduler (default: 10')
     parser.add_argument('--decay-rate', '--dr', type=float, default=0.1, metavar='RATE',
                         help='LR decay rate (default: 0.1)')
+
+    # Misc.
+    parser.add_argument('--eval-metric', default='top1', type=str, metavar='EVAL_METRIC',
+                        help='Best metric (default: "top1"')
 
     # Parse program arguments.
     return parser.parse_args()
