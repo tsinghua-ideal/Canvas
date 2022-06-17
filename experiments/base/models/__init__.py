@@ -10,6 +10,7 @@ def get_model(args):
                               drop_rate=args.drop,
                               drop_path_rate=args.drop_path,
                               drop_block_rate=args.drop_block)
+    model.cuda()
 
     if args.num_classes is None:
         assert hasattr(model, 'num_classes'), 'Model must have `num_classes` attr if not set on cmd line/config.'

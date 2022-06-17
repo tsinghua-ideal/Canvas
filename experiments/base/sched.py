@@ -1,7 +1,5 @@
-from torch import optim
-
 from timm.scheduler import create_scheduler
 
 
-def get_scheduler(args, optimizer: optim.Optimizer):
+def get_scheduler(args, optimizer):
     return create_scheduler(args, optimizer)
