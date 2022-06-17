@@ -150,6 +150,8 @@ def arg_parse():
     # Misc.
     parser.add_argument('--eval-metric', default='top1', type=str, metavar='EVAL_METRIC',
                         help='Best metric (default: "top1"')
+    parser.add_argument('--torchscript', dest='torchscript', action='store_true',
+                        help='Convert model torchscript for inference')
 
     # Parse program arguments.
     return parser.parse_args()
