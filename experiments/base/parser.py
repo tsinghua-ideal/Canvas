@@ -116,34 +116,34 @@ def arg_parse():
     # Scheduler parameters.
     parser.add_argument('--sched', default='cosine', type=str, metavar='SCHEDULER',
                         help='LR scheduler (default: "step"')
-    parser.add_argument('--lr-noise', type=float, nargs='+', default=None, metavar='pct, pct',
-                        help='learning rate noise on/off epoch percentages')
+    parser.add_argument('--lr-noise', type=float, nargs='+', default=None, metavar='PCT, PCT',
+                        help='Learning rate noise on/off epoch percentages')
     parser.add_argument('--lr-noise-pct', type=float, default=0.67, metavar='PERCENT',
-                        help='learning rate noise limit percent (default: 0.67)')
+                        help='Learning rate noise limit percent (default: 0.67)')
     parser.add_argument('--lr-noise-std', type=float, default=1.0, metavar='STDDEV',
-                        help='learning rate noise std-dev (default: 1.0)')
+                        help='Learning rate noise std-dev (default: 1.0)')
     parser.add_argument('--lr-cycle-mul', type=float, default=1.0, metavar='MULT',
-                        help='learning rate cycle len multiplier (default: 1.0)')
+                        help='Learning rate cycle len multiplier (default: 1.0)')
     parser.add_argument('--lr-cycle-decay', type=float, default=0.5, metavar='MULT',
-                        help='amount to decay each learning rate cycle (default: 0.5)')
+                        help='Amount to decay each learning rate cycle (default: 0.5)')
     parser.add_argument('--lr-cycle-limit', type=int, default=1, metavar='N',
-                        help='learning rate cycle limit, cycles enabled if > 1')
+                        help='Learning rate cycle limit, cycles enabled if > 1')
     parser.add_argument('--lr-k-decay', type=float, default=1.0,
-                        help='learning rate k-decay for cosine/poly (default: 1.0)')
+                        help='Learning rate k-decay for cosine/poly (default: 1.0)')
     parser.add_argument('--warmup-lr', type=float, default=1e-6, metavar='LR',
-                        help='warmup learning rate (default: 1e-6)')
+                        help='Warmup learning rate (default: 1e-6)')
     parser.add_argument('--min-lr', type=float, default=1e-6, metavar='LR',
-                        help='lower lr bound for cyclic schedulers that hit 0 (1e-5)')
+                        help='Lower lr bound for cyclic schedulers that hit 0 (1e-5)')
     parser.add_argument('--epochs', type=int, default=300, metavar='N',
-                        help='number of epochs to train (default: 300)')
+                        help='Number of epochs to train (default: 300)')
     parser.add_argument('--decay-epochs', type=float, default=100, metavar='N',
-                        help='epoch interval to decay LR')
+                        help='Epoch interval to decay LR')
     parser.add_argument('--warmup-epochs', type=int, default=5, metavar='N',
-                        help='epochs to warmup LR, if scheduler supports')
+                        help='Epochs to warmup LR, if scheduler supports')
     parser.add_argument('--cooldown-epochs', type=int, default=10, metavar='N',
-                        help='epochs to cooldown LR at min_lr, after cyclic schedule ends')
+                        help='Epochs to cooldown LR at min_lr, after cyclic schedule ends')
     parser.add_argument('--patience-epochs', type=int, default=10, metavar='N',
-                        help='patience epochs for Plateau LR scheduler (default: 10')
+                        help='Patience epochs for Plateau LR scheduler (default: 10')
     parser.add_argument('--decay-rate', '--dr', type=float, default=0.1, metavar='RATE',
                         help='LR decay rate (default: 0.1)')
 
@@ -152,6 +152,8 @@ def arg_parse():
                         help='Best metric (default: "top1"')
     parser.add_argument('--torchscript', dest='torchscript', action='store_true',
                         help='Convert model torchscript for inference')
+    parser.add_argument('--log-interval', default=20, type=int, metavar='INTERVAL',
+                        help='Logging interval')
 
     # Parse program arguments.
     return parser.parse_args()
