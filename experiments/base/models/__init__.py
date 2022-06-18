@@ -1,9 +1,10 @@
-import torch
+from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 import timm
 from timm import data
 
 from .van import *
+from .. import log
 
 
 def get_model(args):
@@ -34,5 +35,11 @@ def get_model(args):
     setattr(args, 'mean', data_config['mean'])
     setattr(args, 'std', data_config['std'])
     setattr(args, 'crop_pct', data_config['crop_pct'])
+
+    if args.distributed:
+        logger = log.get_logger()
+        if args.local_rank == 0:
+            logger.info("Using native Torch DistributedDataParallel.")
+        model = NativeDDP(model, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb)
 
     return model

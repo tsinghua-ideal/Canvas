@@ -2,11 +2,11 @@ from base import dataset, device, loss, models, optim, parser, sche, trainer
 
 
 if __name__ == '__main__':
-    # Check available devices.
-    device.initialize()
-
     # Get arguments.
     args = parser.arg_parse()
+
+    # Check available devices and set distributed.
+    device.initialize(args)
 
     # Training utils.
     model = models.get_model(args)

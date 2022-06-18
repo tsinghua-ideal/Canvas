@@ -32,6 +32,8 @@ def arg_parse():
                         help='Drop block rate (default: None)')
 
     # Dataset.
+    parser.add_argument('--seed', type=int, default=42, metavar='S',
+                        help='Random seed (default: 42)')
     parser.add_argument('--root', metavar='DIR', type=str, required=True,
                         help='Path to dataset')
     parser.add_argument('--train-split', metavar='NAME', type=str, default='train',
@@ -44,6 +46,8 @@ def arg_parse():
                         help='How many training processes to use (default: 8)')
     parser.add_argument('--pin-memory', action='store_true', default=True,
                         help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
+    parser.add_argument('--use-multi-epochs-loader', action='store_true', default=False,
+                        help='Use the multi-epochs-loader to save time at the beginning of every epoch')
 
     # Dataset augmentation.
     parser.add_argument('--no-aug', action='store_true', default=False,
@@ -94,6 +98,10 @@ def arg_parse():
                         help='Enable BCE loss w/ Mixup/CutMix use.')
     parser.add_argument('--bce-target-thresh', type=float, default=None,
                         help='Threshold for binarizing softened BCE targets (default: None, disabled)')
+
+    # BatchNorm settings.
+    parser.add_argument('--dist-bn', type=str, default='reduce',
+                        help='Distribute BatchNorm stats between nodes after each epoch ("broadcast", "reduce", or "")')
 
     # Optimizer parameters.
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
@@ -154,6 +162,11 @@ def arg_parse():
                         help='Convert model torchscript for inference')
     parser.add_argument('--log-interval', default=20, type=int, metavar='INTERVAL',
                         help='Logging interval')
+
+    # Distributed.
+    parser.add_argument("--local_rank", default=0, type=int)
+    parser.add_argument('--no-ddp-bb', action='store_true', default=False,
+                        help='Force broadcast buffers for native DDP to off')
 
     # Parse program arguments.
     return parser.parse_args()

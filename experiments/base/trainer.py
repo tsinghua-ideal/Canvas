@@ -1,10 +1,11 @@
-import logging
 import time
 import torch
 from collections import OrderedDict
 
 from timm.models import model_parameters
-from timm.utils import accuracy, AverageMeter, dispatch_clip_grad
+from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
+
+from . import log
 
 
 def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_scheduler, logger):
@@ -30,7 +31,9 @@ def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_s
         # Calculate loss.
         output = model(image)
         loss = loss_func(output, target)
-        losses_m.update(loss.item(), image.size(0))
+
+        if not args.distributed:
+            losses_m.update(loss.item(), image.size(0))
 
         optimizer.zero_grad()
         loss.backward(create_graph=second_order)
@@ -57,22 +60,27 @@ def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_s
             lrl = [param_group['lr'] for param_group in optimizer.param_groups]
             lr = sum(lrl) / len(lrl)
 
-            logger.info(
-                'Train: {} [{:>4d}/{} ({:>3.0f}%)]  '
-                'Loss: {loss.val:#.4g} ({loss.avg:#.3g})  '
-                'Time: {batch_time.val:.3f}s, {rate:>7.2f}/s  '
-                '({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  '
-                'LR: {lr:.3e}  '
-                'Data: {data_time.val:.3f} ({data_time.avg:.3f})'.format(
-                    epoch,
-                    batch_idx, len(train_loader),
-                    100. * batch_idx / last_idx,
-                    loss=losses_m,
-                    batch_time=batch_time_m,
-                    rate=image.size(0) / batch_time_m.val,
-                    rate_avg=image.size(0) / batch_time_m.avg,
-                    lr=lr,
-                    data_time=data_time_m))
+            if args.distributed:
+                reduced_loss = reduce_tensor(loss.data, args.world_size)
+                losses_m.update(reduced_loss.item(), image.size(0))
+
+            if args.local_rank == 0:
+                logger.info(
+                    'Train: {} [{:>4d}/{} ({:>3.0f}%)]  '
+                    'Loss: {loss.val:#.4g} ({loss.avg:#.3g})  '
+                    'Time: {batch_time.val:.3f}s, {rate:>7.2f}/s  '
+                    '({batch_time.avg:.3f}s, {rate_avg:>7.2f}/s)  '
+                    'LR: {lr:.3e}  '
+                    'Data: {data_time.val:.3f} ({data_time.avg:.3f})'.format(
+                        epoch,
+                        batch_idx, len(train_loader),
+                        100. * batch_idx / last_idx,
+                        loss=losses_m,
+                        batch_time=batch_time_m,
+                        rate=image.size(0) * args.world_size / batch_time_m.val,
+                        rate_avg=image.size(0) * args.world_size / batch_time_m.avg,
+                        lr=lr,
+                        data_time=data_time_m))
 
     if hasattr(optimizer, 'sync_lookahead'):
         optimizer.sync_lookahead()
@@ -105,9 +113,16 @@ def validate(args, model, eval_loader, loss_func, logger):
             loss = loss_func(output, target)
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
+            if args.distributed:
+                reduced_loss = reduce_tensor(loss.data, args.world_size)
+                acc1 = reduce_tensor(acc1, args.world_size)
+                acc5 = reduce_tensor(acc5, args.world_size)
+            else:
+                reduced_loss = loss.data
+
             torch.cuda.synchronize()
 
-            losses_m.update(loss.item(), image.size(0))
+            losses_m.update(reduced_loss.item(), image.size(0))
             top1_m.update(acc1.item(), output.size(0))
             top5_m.update(acc5.item(), output.size(0))
 
@@ -115,7 +130,7 @@ def validate(args, model, eval_loader, loss_func, logger):
             end = time.time()
 
             # Logging.
-            if batch_idx == last_idx or batch_idx % args.log_interval == 0:
+            if args.local_rank == 0 and batch_idx == last_idx or batch_idx % args.log_interval == 0:
                 logger.info(
                     'Validate: [{0:>4d}/{1}]  '
                     'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})  '
@@ -136,16 +151,26 @@ def train(args, model, train_loader, eval_loader, loss_funcs, optimizer, schedul
     lr_scheduler, sched_epochs = schedule
 
     # Create a logger.
-    logging.basicConfig(level=logging.DEBUG)
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    logger.info('Begin training ...')
+    logger = log.get_logger()
+    if args.local_rank == 0:
+        logger.info('Begin training ...')
 
     # Iterate over epochs.
     for epoch in range(sched_epochs):
-        # Train and evaluate.
+        if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
+            train_loader.sampler.set_epoch(epoch)
+
+        # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
                                         optimizer, lr_scheduler, logger)
+
+        # Normalize.
+        if args.distributed and args.dist_bn in ('broadcast', 'reduce'):
+            # if args.local_rank == 0:
+            #     logger.info("Distributing BatchNorm running means and vars")
+            distribute_bn(model, args.world_size, args.dist_bn == 'reduce')
+
+        # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, logger)
 
         # Update LR scheduler.

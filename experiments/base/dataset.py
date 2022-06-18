@@ -40,9 +40,10 @@ def get_loaders(args):
         mean=args.mean,
         std=args.std,
         num_workers=args.num_workers,
-        distributed=False,
+        distributed=args.distributed,
         collate_fn=collate_fn,
-        pin_memory=args.pin_memory
+        pin_memory=args.pin_memory,
+        use_multi_epochs_loader=args.use_multi_epochs_loader
     )
 
     eval_loader = create_loader(
@@ -55,7 +56,7 @@ def get_loaders(args):
         mean=args.mean,
         std=args.std,
         num_workers=args.num_workers,
-        # distributed=False,
+        distributed=args.distributed,
         crop_pct=args.crop_pct,
         pin_memory=args.pin_memory
     )
