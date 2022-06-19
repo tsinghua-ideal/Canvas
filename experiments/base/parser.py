@@ -1,4 +1,5 @@
 import argparse
+import time
 
 
 def arg_parse():
@@ -174,6 +175,9 @@ def arg_parse():
     parser.add_argument('--canvas-seed', default='pure', type=str,
                         help='Canvas seed settings (one of "global" and "pure"), '
                              '"global" means same with training, "pure" means purely random')
+    parser.add_argument('--canvas-log-dir', default='', type=str, help='Canvas logging directory')
 
-    # Parse program arguments.
-    return parser.parse_args()
+    # Parse program arguments, and add timestamp information.
+    args = parser.parse_args()
+    setattr(args, 'timestamp', time.time_ns())
+    return args

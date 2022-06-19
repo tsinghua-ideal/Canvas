@@ -34,8 +34,13 @@ if __name__ == '__main__':
         logger.info('Sampled kernel hash: {}'.format(kernel_pack.hash))
 
         # Train.
+        train_metrics, eval_metrics, exception_info = None, None, None
         try:
             train_metrics, eval_metrics = \
                 trainer.train(args, model=model, train_loader=train_loader, eval_loader=eval_loader)
         except RuntimeError as ex:
-            logger.warning('Exception: {}'.format(ex))
+            exception_info = f'{ex}'
+            logger.warning(f'Exception: {exception_info}')
+
+        # Save into logging directory.
+        log.save(args, kernel_pack, train_metrics, eval_metrics, exception_info)

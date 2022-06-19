@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import sys
+import time
 
 import cpp_canvas
 
@@ -81,3 +82,12 @@ class KernelPack:
         self.module = load_from_code(kernel_pack_impl.torch_code)
         self.graphviz = kernel_pack_impl.graphviz_code
         self.hash = kernel_pack_impl.hash
+        self.timestamp = time.time_ns()
+
+    def save_code(self, path: str):
+        with open(path, 'w') as file:
+            file.write(self.code)
+
+    def save_graphviz(self, path: str):
+        with open(path, 'w') as file:
+            file.write(self.graphviz)

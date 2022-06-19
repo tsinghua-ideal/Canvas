@@ -172,8 +172,9 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         n_out_with_variable ++;
 #endif
     }
+
 #ifdef CANVAS_DEBUG_PRINT_STATISTICS
-        double r_out_with_variable = static_cast<double>(n_out_with_variable) / static_cast<double>(n_total_sampled);
+    double r_out_with_variable = static_cast<double>(n_out_with_variable) / static_cast<double>(n_total_sampled);
     IC(n_total_sampled, n_out_with_variable, r_out_with_variable);
 #endif
 
@@ -182,11 +183,17 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     assert(out->shape.CouldBeReshapeToCHW());
     graph->ApplyOutput();
 
-    {
+    try {
         auto current_vars = graph->DynamicVars();
         // TODO: better strategies may exist, e.g. with a reduction factor.
         for (int index: current_vars)
             graph->SolveDynamicVar(VarSolution(index, Variable::StaticVar(StaticVarPos::VC)));
+    } catch (const CanNotSolveDynamicVar& ex) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+        static int can_not_solve_remaining_dynamic_var = 0;
+        IC(can_not_solve_remaining_dynamic_var ++);
+#endif
+        return {};
     }
 
     // Sample a grouping factor.
