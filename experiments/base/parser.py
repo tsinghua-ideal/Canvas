@@ -168,5 +168,12 @@ def arg_parse():
     parser.add_argument('--no-ddp-bb', action='store_true', default=False,
                         help='Force broadcast buffers for native DDP to off')
 
+    # Canvas preferences.
+    parser.add_argument('--canvas-rounds', default=0, type=int,
+                        help='Search rounds for Canvas')
+    parser.add_argument('--canvas-seed', default='pure', type=str,
+                        help='Canvas seed settings (one of "global" and "pure"), '
+                             '"global" means same with training, "pure" means purely random')
+
     # Parse program arguments.
     return parser.parse_args()

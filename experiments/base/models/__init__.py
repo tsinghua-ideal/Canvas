@@ -1,9 +1,11 @@
+import torch
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 import timm
 from timm import data
 
-from .van import *
+from .canvas_van import canvas_van_tiny, canvas_van_small, canvas_van_base, canvas_van_large
+from .van import van_tiny, van_small, van_base, van_large
 from .. import log
 
 

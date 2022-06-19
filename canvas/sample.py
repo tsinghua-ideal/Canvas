@@ -171,7 +171,7 @@ def sample(m: nn.Module,
 
         Example
         -------
-        >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)))
+        >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)).cuda())
         >>> print(kernel.module)        # Show generated torch.nn.Module class.
         >>> print(kernel.graphviz)      # Show generated GraphViz code.
         >>> canvas.replace(m, kernel)   # Replace all kernels.
@@ -203,7 +203,7 @@ def sample(m: nn.Module,
     return kernel_pack.KernelPack(pack)
 
 
-def replace(m: nn.Module, pack: kernel_pack.KernelPack):
+def replace(m: nn.Module, pack: kernel_pack.KernelPack, device: str = 'cuda:0'):
     r"""Replace all kernel placeholders of n with sample kernels in pack.
 
         Parameters
@@ -215,6 +215,9 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
         pack: canvas.KernelPack
             Sampled kernel solution to replace.
 
+        device: str
+            Reload kernel to which device.
+
         Returns
         -------
         m: torch.nn.Module
@@ -223,7 +226,7 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
 
         Example
         -------
-        >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)))
+        >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)).cuda(), 'cuda:0')
         >>> print(conv.module)          # Show generated torch.nn.Module class.
         >>> print(conv.graphviz)        # Show generated GraphViz code.
         >>> canvas.replace(m, kernel)   # Replace all kernels.
@@ -238,6 +241,6 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack):
     # Reload all kernels.
     kernels = m.canvas_cached_placeholders
     for kernel in kernels:
-        kernel.reload(pack.module)
+        kernel.reload(pack.module, device)
 
     return m

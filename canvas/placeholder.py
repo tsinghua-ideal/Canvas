@@ -62,16 +62,18 @@ class Placeholder(nn.Module):
 
         self.h = self.w = 0
 
-    def reload(self, kernel_cls):
+    def reload(self, kernel_cls, device: str):
         r"""Reload the internal kernel implement.
 
             Parameters
             ----------
             kernel_cls: type
                 The Python class of the kernel to replace.
+            device: str
+                Reload this module to which device.
         """
 
-        self.kernel = kernel_cls(self.c, self.h, self.w)
+        self.kernel = kernel_cls(self.c, self.h, self.w).to(device)
         self.kernel.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor):

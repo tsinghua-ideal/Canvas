@@ -26,7 +26,8 @@ PYBIND11_MODULE(cpp_canvas, m) {
     // The kernel pack (solution class in Python).
     pybind11::class_<canvas::KernelPack>(m, "KernelPackImpl")
             .def_readwrite("torch_code", &canvas::KernelPack::torch_code)
-            .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code);
+            .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code)
+            .def_readwrite("hash", &canvas::KernelPack::hash);
 
     // The sample options.
     pybind11::class_<canvas::SampleOptions>(m, "SampleOptions")
@@ -42,7 +43,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
               auto solution = canvas::RandomSample(net_specs, options);
               auto torch_code = canvas::PyTorchCodeGen().Gen(solution);
               auto graphviz_code = canvas::DotCodeGen().Gen(solution);
-              return {torch_code.ToString(), graphviz_code.ToString()};
+              return {torch_code.ToString(), graphviz_code.ToString(), std::to_string(solution.Hash())};
           },
           "Sample a kernel from the space specified by the configuration.");
 

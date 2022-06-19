@@ -5,7 +5,7 @@ from collections import OrderedDict
 from timm.models import model_parameters
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
 
-from . import log
+from . import log, loss, optim, sche
 
 
 def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_scheduler, logger):
@@ -30,13 +30,13 @@ def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_s
 
         # Calculate loss.
         output = model(image)
-        loss = loss_func(output, target)
+        loss_value = loss_func(output, target)
 
         if not args.distributed:
-            losses_m.update(loss.item(), image.size(0))
+            losses_m.update(loss_value.item(), image.size(0))
 
         optimizer.zero_grad()
-        loss.backward(create_graph=second_order)
+        loss_value.backward(create_graph=second_order)
         if args.clip_grad is not None:
             dispatch_clip_grad(
                 model_parameters(model, exclude_head='agc' in args.clip_mode),
@@ -61,7 +61,7 @@ def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_s
             lr = sum(lrl) / len(lrl)
 
             if args.distributed:
-                reduced_loss = reduce_tensor(loss.data, args.world_size)
+                reduced_loss = reduce_tensor(loss_value.data, args.world_size)
                 losses_m.update(reduced_loss.item(), image.size(0))
 
             if args.local_rank == 0:
@@ -130,7 +130,7 @@ def validate(args, model, eval_loader, loss_func, logger):
             end = time.time()
 
             # Logging.
-            if args.local_rank == 0 and batch_idx == last_idx or batch_idx % args.log_interval == 0:
+            if args.local_rank == 0 and (batch_idx == last_idx or batch_idx % args.log_interval == 0):
                 logger.info(
                     'Validate: [{0:>4d}/{1}]  '
                     'Time: {batch_time.val:.3f} ({batch_time.avg:.3f})  '
@@ -143,11 +143,13 @@ def validate(args, model, eval_loader, loss_func, logger):
     return OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])
 
 
-def train(args, model, train_loader, eval_loader, loss_funcs, optimizer, schedule):
+def train(args, model, train_loader, eval_loader):
     # Loss functions for training and validation.
-    train_loss_func, eval_loss_func = loss_funcs
+    train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
 
     # LR scheduler and epochs.
+    optimizer = optim.get_optimizer(args, model)
+    schedule = sche.get_schedule(args, optimizer)
     lr_scheduler, sched_epochs = schedule
 
     # Create a logger.
@@ -156,6 +158,7 @@ def train(args, model, train_loader, eval_loader, loss_funcs, optimizer, schedul
         logger.info('Begin training ...')
 
     # Iterate over epochs.
+    all_train_metrics, all_eval_metrics = [], []
     for epoch in range(sched_epochs):
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
@@ -163,6 +166,7 @@ def train(args, model, train_loader, eval_loader, loss_funcs, optimizer, schedul
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
                                         optimizer, lr_scheduler, logger)
+        all_train_metrics.append(train_metrics)
 
         # Normalize.
         if args.distributed and args.dist_bn in ('broadcast', 'reduce'):
@@ -172,7 +176,10 @@ def train(args, model, train_loader, eval_loader, loss_funcs, optimizer, schedul
 
         # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, logger)
+        all_eval_metrics.append(eval_metrics)
 
         # Update LR scheduler.
         if lr_scheduler is not None:
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
+
+    return all_train_metrics, all_eval_metrics

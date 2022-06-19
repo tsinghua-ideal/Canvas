@@ -80,3 +80,4 @@ class KernelPack:
         self.code = kernel_pack_impl.torch_code
         self.module = load_from_code(kernel_pack_impl.torch_code)
         self.graphviz = kernel_pack_impl.graphviz_code
+        self.hash = kernel_pack_impl.hash
