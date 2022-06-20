@@ -390,10 +390,13 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << std::endl;
     }  else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         auto reference = var_map[shift->ins[0]];
+        bool shifted = false;
         auto shape = shift->ins[0]->shape;
         for (const auto& pos: shift->pos_vec) {
             int index = 1;
-            assert(not shape.dims[pos].Empty());
+            if (shape.dims[pos].Empty())
+                continue;
+            shifted = true;
             for (int i = 0; i < pos; ++ i)
                 if (not shape.dims[i].Empty())
                     ++ index;
@@ -405,6 +408,11 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << std::endl;
             reference = var_map[shift->outs[0]];
         }
+        if (not shifted)
+            gen->Write() << var_map[shift->outs[0]]
+                         << " = "
+                         << reference
+                         << std::endl;
     } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
         PyTorchNCHWRecorder recorder(gen, var_map, softmax->ins[0], softmax->outs[0], true);
         gen->Write() << var_map[softmax->outs[0]]
