@@ -203,19 +203,6 @@ typedef std::chrono::system_clock::time_point canvas_time_point_t;
 /// Time interval type.
 typedef decltype(std::chrono::seconds()) canvas_timeval_t;
 
-/// Exception class.
-class ExceptionWithInfo: public std::exception {
-public:
-    std::string info;
-
-    explicit ExceptionWithInfo(std::string info="An unknown exception occurs"):
-        info(std::move(info)) {}
-
-    [[nodiscard]] const char* what() const noexcept override {
-        return info.c_str();
-    }
-};
-
 /// Dynamic pointer cast.
 template <typename Type, typename PtrType>
 static auto DynamicCast(const PtrType& ptr) {

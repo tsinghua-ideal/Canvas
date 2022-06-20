@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from typing import Tuple
+from typing import Tuple, Type
 
 import cpp_canvas
 from . import kernel_pack, placeholder, utils
@@ -185,7 +185,7 @@ def sample(m: nn.Module,
         >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)).cuda())
         >>> print(kernel.module)        # Show generated torch.nn.Module class.
         >>> print(kernel.graphviz)      # Show generated GraphViz code.
-        >>> canvas.replace(m, kernel)   # Replace all kernels.
+        >>> canvas.replace(m, kernel.module)   # Replace all kernels.
 
         """
     # Check module type.
@@ -215,7 +215,7 @@ def sample(m: nn.Module,
     return kernel_pack.KernelPack(pack)
 
 
-def replace(m: nn.Module, pack: kernel_pack.KernelPack, device: str = 'cuda:0'):
+def replace(m: nn.Module, module: Type[nn.Module], device: str = 'cuda:0'):
     r"""Replace all kernel placeholders of n with sample kernels in pack.
 
         Parameters
@@ -224,8 +224,8 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack, device: str = 'cuda:0'):
             The module to be replaced, all kernel placeholders in this
             will be reloaded with the corresponding kernels.
 
-        pack: canvas.KernelPack
-            Sampled kernel solution to replace.
+        module: nn.Module
+            Torch module to replace.
 
         device: str
             Reload kernel to which device.
@@ -239,9 +239,9 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack, device: str = 'cuda:0'):
         Example
         -------
         >>> kernel = canvas.sample(m, torch.zeros((1, 3, 224, 224)).cuda(), 'cuda:0')
-        >>> print(conv.module)          # Show generated torch.nn.Module class.
-        >>> print(conv.graphviz)        # Show generated GraphViz code.
-        >>> canvas.replace(m, kernel)   # Replace all kernels.
+        >>> print(kernel.module)          # Show generated torch.nn.Module class.
+        >>> print(kernel.graphviz)        # Show generated GraphViz code.
+        >>> canvas.replace(m, kernel.module)   # Replace all kernels.
     """
 
     # Check placeholders.
@@ -253,6 +253,6 @@ def replace(m: nn.Module, pack: kernel_pack.KernelPack, device: str = 'cuda:0'):
     # Reload all kernels.
     kernels = m.canvas_cached_placeholders
     for kernel in kernels:
-        kernel.reload(pack.module, device)
+        kernel.reload(module, device)
 
     return m

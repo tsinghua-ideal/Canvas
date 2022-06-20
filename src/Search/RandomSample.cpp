@@ -3,6 +3,7 @@
 
 #include "Canvas/Search/RandomSample.hpp"
 #include "Canvas/Primitives/Factory.hpp"
+#include "Canvas/Utils/Exceptions.hpp"
 
 // #define CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
 // #define CANVAS_DEBUG_FAILED_COUNT
@@ -226,9 +227,9 @@ Solution RandomSample(const NetSpecsSP& net_specs, const SampleOptions& options)
 
         auto current_time_point = std::chrono::system_clock::now();
         if (options.timeout != std::chrono::seconds(0) and current_time_point - start_time_point > options.timeout)
-            break;
+            throw TimeoutException(options.timeout);
     }
-    return {};
+    Unreachable();
 }
 
 } // namespace canvas

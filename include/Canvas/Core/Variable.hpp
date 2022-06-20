@@ -11,6 +11,7 @@
 #include <string>
 
 #include "Canvas/Utils/Common.hpp"
+#include "Canvas/Utils/Exceptions.hpp"
 
 
 namespace canvas {

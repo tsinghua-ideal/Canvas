@@ -7,6 +7,7 @@
 
 #include "Canvas/Core/Tensor.hpp"
 #include "Canvas/Utils/Common.hpp"
+#include "Canvas/Utils/Exceptions.hpp"
 
 
 namespace canvas {

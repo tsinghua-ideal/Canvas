@@ -35,9 +35,15 @@ if __name__ == '__main__':
 
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
-        example_input = torch.zeros((1, ) + args.input_size).to(args.device)
-        kernel_pack = canvas.sample(model, example_input)
-        canvas.replace(model, kernel_pack, args.device)
+        try:
+            example_input = torch.zeros((1, ) + args.input_size).to(args.device)
+            kernel_pack = canvas.sample(model, example_input)
+            canvas.replace(model, kernel_pack.module, args.device)
+        except RuntimeError as ex:
+            # Out of memory or timeout.
+            logger.warning(f'Exception: {ex}')
+            canvas.replace(model, canvas.Identity, args.device)
+            continue
         logger.info('Sampled kernel hash: {}'.format(kernel_pack.hash))
 
         # Train.

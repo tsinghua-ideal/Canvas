@@ -78,11 +78,13 @@ class KernelPack:
     """
 
     def __init__(self, kernel_pack_impl: cpp_canvas.KernelPackImpl):
+        if kernel_pack_impl.exception_info:
+            raise RuntimeError(kernel_pack_impl.exception_info)
+        self.timestamp = time.time_ns()
         self.code = kernel_pack_impl.torch_code
         self.module = load_from_code(kernel_pack_impl.torch_code)
         self.graphviz = kernel_pack_impl.graphviz_code
         self.hash = kernel_pack_impl.hash
-        self.timestamp = time.time_ns()
 
     def save_code(self, path: str):
         with open(path, 'w') as file:
