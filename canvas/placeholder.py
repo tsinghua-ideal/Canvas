@@ -2,6 +2,8 @@ import math
 import torch
 from torch import nn
 
+from .modules import Identity, Conv2D
+
 
 class Placeholder(nn.Module):
     r"""Placeholder for replaced kernels.
@@ -17,7 +19,7 @@ class Placeholder(nn.Module):
         w: int
             Output feature map width.
 
-        kernel: torch.nn.Module
+        canvas_placeholder_kernel: torch.nn.Module
             The replaced kernel instance.
 
         id: int
@@ -37,7 +39,7 @@ class Placeholder(nn.Module):
         super().__init__()
         self.id = None
         self.c, self.h, self.w = c, 0, 0
-        self.kernel = nn.Identity()
+        self.canvas_placeholder_kernel = Identity(c, 0, 0)
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
@@ -73,8 +75,8 @@ class Placeholder(nn.Module):
                 Reload this module to which device.
         """
 
-        self.kernel = kernel_cls(self.c, self.h, self.w).to(device)
-        self.kernel.apply(self._init_weights)
+        self.canvas_placeholder_kernel = kernel_cls(self.c, self.h, self.w).to(device)
+        self.canvas_placeholder_kernel.apply(self._init_weights)
 
     def forward(self, x: torch.Tensor):
         r"""Forward propagation of the kernel.
@@ -90,13 +92,13 @@ class Placeholder(nn.Module):
                 The calculation result of this module.
         """
 
-        assert self.kernel is not None
+        assert self.canvas_placeholder_kernel is not None
         if self.h == 0 or self.w == 0:
             self.h, self.w = x.size()[2], x.size()[3]
             assert self.h > 0 and self.w > 0
         else:
             assert self.h == x.size()[2], self.w == x.size()[3]
-        return self.kernel(x)
+        return self.canvas_placeholder_kernel(x)
 
 
 def get_placeholders(m: nn.Module,
