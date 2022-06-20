@@ -25,7 +25,14 @@ if __name__ == '__main__':
     logger = log.get_logger()
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
     logger.info(f'Start Canvas kernel search ({args.canvas_rounds if args.canvas_rounds else "infinite"} rounds)')
+    reset_weights = False
     for i in round_range:
+        if reset_weights:
+            logger.info('Resetting weights ...')
+            del model
+            model = models.get_model(args)
+            reset_weights = False
+
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
         example_input = torch.zeros((1, ) + args.input_size).to(args.device)
@@ -41,6 +48,8 @@ if __name__ == '__main__':
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
+            if 'NaN' in exception_info:
+                reset_weights = True
 
         # Save into logging directory.
         log.save(args, kernel_pack, train_metrics, eval_metrics, exception_info)

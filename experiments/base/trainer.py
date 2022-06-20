@@ -1,3 +1,4 @@
+import math
 import time
 import torch
 from collections import OrderedDict
@@ -181,5 +182,9 @@ def train(args, model, train_loader, eval_loader):
         # Update LR scheduler.
         if lr_scheduler is not None:
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
+
+        # Check NaN errors.
+        if math.isnan(train_metrics['loss']) or math.isnan(eval_metrics['loss']):
+            raise RuntimeError('NaN occurs during training')
 
     return all_train_metrics, all_eval_metrics
