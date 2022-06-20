@@ -33,7 +33,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
     pybind11::class_<canvas::SampleOptions>(m, "SampleOptions")
             .def(pybind11::init<std::string, std::string,
                  std::vector<int>, std::vector<int>, std::vector<int>,
-                 bool, int, int, int, int, int, int, int>());
+                 bool, int, int, int, int, int, int, double, int>());
 
     // The `canvas.sample` function, sampling a kernel from the search space.
     m.def("sample",

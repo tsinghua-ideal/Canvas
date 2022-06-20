@@ -24,6 +24,13 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     IC();
     IC(n_primitives, max_width, expected_fc_count);
 #endif
+    if (expected_fc_count > options.max_fc_ratio * n_primitives) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+        static int too_many_fc_primitives = 0;
+        IC(too_many_fc_primitives ++);
+#endif
+        return {};
+    }
 
     // Take actions.
     GraphSP graph = std::make_shared<Graph>();
@@ -100,8 +107,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 #endif
         try {
             graph->Apply(apply);
-            if (apply.solution)
-                auto substitution = apply.solution.value().substitution;
         } catch (const CanNotSolveDynamicVar& ex) {
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
             IC(ex);
