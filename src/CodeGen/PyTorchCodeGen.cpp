@@ -335,8 +335,9 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << " = " << var_map[fold->ins[0]];
         assert(not fold->pos_vec.empty());
         for (const auto& pos: fold->pos_vec) {
-            int index = 1;
-            assert(not reference_shape.dims[pos].Empty());
+            if (reference_shape.dims[pos].Empty())
+                continue;
+            int index = 1; // Batch size dimension.
             for (int i = 0; i < pos; ++ i)
                 if (not reference_shape.dims[i].Empty())
                     ++ index;
@@ -470,6 +471,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
 }
 
 Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
+    // TODO: add inplace operations for saving memory.
     try {
         auto global_specs = solution.global_specs;
         auto net_specs = solution.net_specs;

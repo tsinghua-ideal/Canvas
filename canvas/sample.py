@@ -243,6 +243,7 @@ def replace(m: nn.Module, module: Type[nn.Module], device: str = 'cuda:0'):
         >>> print(kernel.graphviz)        # Show generated GraphViz code.
         >>> canvas.replace(m, kernel.module)   # Replace all kernels.
     """
+    assert module is not None, 'Module to replace should not be None.'
 
     # Check placeholders.
     if not hasattr(m, 'canvas_cached_placeholders') or len(m.canvas_cached_placeholders) == 0:

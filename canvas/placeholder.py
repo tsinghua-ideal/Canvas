@@ -37,7 +37,7 @@ class Placeholder(nn.Module):
         super().__init__()
         self.id = None
         self.c, self.h, self.w = c, 0, 0
-        self.kernel = nn.Conv2d(c, c, 1, bias=False)
+        self.kernel = nn.Identity()
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
