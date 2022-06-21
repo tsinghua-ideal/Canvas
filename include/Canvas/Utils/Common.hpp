@@ -1,9 +1,11 @@
 #pragma once
 
 #include <algorithm>
+#include <boost/algorithm/string.hpp>
 #include <cassert>
 #include <chrono>
 #include <exception>
+#include <ice-cream.hpp>
 #include <iostream>
 #include <memory>
 #include <numeric>
@@ -13,8 +15,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
-
-#include <ice-cream.hpp>
 
 
 namespace canvas {
@@ -270,7 +270,7 @@ static Type StringTo(const std::string& str) {
     return value;
 }
 
-/// Fast algorithm of powering
+/// Fast algorithm of powering.
 template <typename Type>
 static Type Power(Type base, int power) {
     assert(power >= 0);
@@ -283,6 +283,22 @@ static Type Power(Type base, int power) {
         base *= base, power /= 2;
     }
     return result;
+}
+
+/// Split a string into vector.
+static void Split(const std::string& str, std::vector<std::string>& vec) {
+    boost::algorithm::split(vec, boost::algorithm::to_lower_copy(str),
+                            boost::is_any_of("\t ,"),
+                            boost::token_compress_on);
+}
+
+static std::string ToLowerCopy(const std::string& str) {
+    return boost::algorithm::to_lower_copy(str);
+}
+
+/// Judge whether one is a prefix of the other.
+static bool IsPrefix(const std::string& name, const std::string& filter) {
+    return name.rfind(filter, 0) == 0;
 }
 
 } // namespace canvas

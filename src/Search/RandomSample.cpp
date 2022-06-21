@@ -138,6 +138,10 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
+    // Filter by user options.
+    if (options.Filter(graph))
+        return {};
+
     // For debug (filter primitives).
     // if (graph->PrimitiveCount<ReorderPrimitive>() == 0)
     //     return {};

@@ -6,11 +6,6 @@
 namespace canvas {
 
 void PrimitiveOptions::BuildFilters(const std::string& allowed_str, const std::string& forbidden_str) {
-    auto Split = [](const std::string& str, std::vector<std::string>& vec) {
-        boost::algorithm::split(vec, boost::algorithm::to_lower_copy(str),
-                                boost::is_any_of("\t ,"),
-                                boost::token_compress_on);
-    };
     if (not allowed_str.empty())
         Split(allowed_str, allowed_filter);
     if (not forbidden_str.empty())
@@ -39,15 +34,16 @@ bool PrimitiveOptions::Filter(const PrimitiveSP& p) const {
         return true;
 
     // Filter by type name.
-    auto name = boost::algorithm::to_lower_copy(p->name);
-    auto IsPrefix = [=](const std::string& filter) -> bool {
-        return name.rfind(filter, 0) == 0;
+    auto name = ToLowerCopy(p->name);
+    auto IsPrefixImpl = [&name](const std::string& filter) -> bool {
+        return IsPrefix(name, filter);
     };
+
     if (not allowed_filter.empty())
-        if (std::none_of(allowed_filter.begin(), allowed_filter.end(), IsPrefix))
+        if (std::none_of(allowed_filter.begin(), allowed_filter.end(), IsPrefixImpl))
             return true;
     if (not forbidden_filter.empty())
-        if (std::any_of(forbidden_filter.begin(), forbidden_filter.end(), IsPrefix))
+        if (std::any_of(forbidden_filter.begin(), forbidden_filter.end(), IsPrefixImpl))
             return true;
     return false;
 }

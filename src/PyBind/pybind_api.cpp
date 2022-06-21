@@ -32,7 +32,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
 
     // The sample options.
     pybind11::class_<canvas::SampleOptions>(m, "SampleOptions")
-            .def(pybind11::init<std::string, std::string,
+            .def(pybind11::init<std::string, std::string, std::string,
                  std::vector<int>, std::vector<int>, std::vector<int>,
                  bool, int, int, int, int, int, int, double, int>());
 

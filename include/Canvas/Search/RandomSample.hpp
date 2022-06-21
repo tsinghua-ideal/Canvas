@@ -10,7 +10,8 @@ struct SampleOptions {
     // Temporarily not visible to users.
     static constexpr int kMaxGroupFactor = 10;
 
-    const std::string allowed_filter, forbidden_filter;
+    const std::string allowed_filter, forbidden_filter, necessary_filter;
+    std::vector<std::string> necessaries;
 
     const std::vector<int> kernel_sizes, dilated_sizes, shift_sizes;
 
@@ -21,14 +22,18 @@ struct SampleOptions {
     const canvas_timeval_t timeout;
 
     SampleOptions():
+            necessary_filter("unfold"),
             kernel_sizes({3, 5, 7}), dilated_sizes({1, 2, 3}), shift_sizes({1, 2, 3}),
             add_relu_bn_after_fc(false),
             np_range(3, 25), mw_range(2, 8), fc_range(1, 8),
             max_fc_ratio(0.6),
-            timeout(std::chrono::seconds::zero()) {}
+            timeout(std::chrono::seconds::zero()) {
+        BuildNecessaryFilters();
+    }
 
     SampleOptions(std::string allowed_filter,
                   std::string forbidden_filter,
+                  std::string necessary_filter,
                   std::vector<int> kernel_sizes,
                   std::vector<int> dilated_sizes,
                   std::vector<int> shift_sizes,
@@ -40,6 +45,7 @@ struct SampleOptions {
                   int timeout):
         allowed_filter(std::move(allowed_filter)),
         forbidden_filter(std::move(forbidden_filter)),
+        necessary_filter(std::move(necessary_filter)),
         kernel_sizes(std::move(kernel_sizes)),
         dilated_sizes(std::move(dilated_sizes)),
         shift_sizes(std::move(shift_sizes)),
@@ -57,6 +63,26 @@ struct SampleOptions {
             assert(k > 0);
         assert(timeout > 0);
         assert(0 < max_fc_ratio and max_fc_ratio <= 1.0);
+        BuildNecessaryFilters();
+    }
+
+    void BuildNecessaryFilters() {
+        if (not necessary_filter.empty())
+            Split(necessary_filter, necessaries);
+    }
+
+    [[nodiscard]] bool Filter(const GraphSP& graph) const {
+        // Remaining options have been controlled during training.
+        if (necessaries.empty())
+            return false;
+        std::vector<int> counter(necessaries.size(), 0);
+        for (const auto& p: graph->primitives) {
+            auto name = ToLowerCopy(p->name);
+            for (int i = 0; i < necessaries.size(); ++ i)
+                if (IsPrefix(name, necessaries[i]))
+                    counter[i] ++;
+        }
+        return std::any_of(counter.begin(), counter.end(), [](int c) { return c == 0; });
     }
 };
 
