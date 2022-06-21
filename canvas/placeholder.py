@@ -2,7 +2,7 @@ import math
 import torch
 from torch import nn
 
-from .modules import Identity, Conv2D
+from .modules import Identity
 
 
 class Placeholder(nn.Module):

@@ -43,13 +43,10 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
     }
 
     // Links.
-    for (const auto& t: graph->tensors) {
-        for (const auto& p: t->consumers) {
-            for (const auto& out_t: p->outs) {
+    for (const auto& t: graph->tensors)
+        for (const auto& p: t->consumers)
+            for (const auto& out_t: p->outs)
                 Write() << "t_" << t->id << " -> t_" << out_t->id << ";" << std::endl;
-            }
-        }
-    }
 
     // End digraph.
     EndScope();

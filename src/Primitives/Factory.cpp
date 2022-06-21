@@ -88,7 +88,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // The next variable index.
     auto next_index_opt = graph->NextUnusedDynamicVarIndex();
 
-    // TODO: add einsum primitive for matrix multiplication.
+    // TODO: add einsum primitive for matrix multiplication, a simplified version: original dot primitive.
 
     // FC: The channel could be a new variable.
     // Could not have dynamic variables in G, consider grouping-all primitive.

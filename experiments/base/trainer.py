@@ -83,6 +83,9 @@ def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_s
                         lr=lr,
                         data_time=data_time_m))
 
+            if math.isnan(losses_m.avg):
+                break
+
     if hasattr(optimizer, 'sync_lookahead'):
         optimizer.sync_lookahead()
 
@@ -111,21 +114,24 @@ def validate(args, model, eval_loader, loss_func, logger):
                 output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
                 target = target[0:target.size(0):reduce_factor]
 
-            loss = loss_func(output, target)
+            loss_value = loss_func(output, target)
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
             if args.distributed:
-                reduced_loss = reduce_tensor(loss.data, args.world_size)
+                reduced_loss = reduce_tensor(loss_value.data, args.world_size)
                 acc1 = reduce_tensor(acc1, args.world_size)
                 acc5 = reduce_tensor(acc5, args.world_size)
             else:
-                reduced_loss = loss.data
+                reduced_loss = loss_value.data
 
             torch.cuda.synchronize()
 
             losses_m.update(reduced_loss.item(), image.size(0))
             top1_m.update(acc1.item(), output.size(0))
             top5_m.update(acc5.item(), output.size(0))
+
+            if math.isnan(losses_m.avg):
+                break
 
             batch_time_m.update(time.time() - end)
             end = time.time()
@@ -169,6 +175,10 @@ def train(args, model, train_loader, eval_loader):
                                         optimizer, lr_scheduler, logger)
         all_train_metrics.append(train_metrics)
 
+        # Check NaN errors.
+        if math.isnan(train_metrics['loss']):
+            raise RuntimeError('NaN occurs during training')
+
         # Normalize.
         if args.distributed and args.dist_bn in ('broadcast', 'reduce'):
             # if args.local_rank == 0:
@@ -184,7 +194,7 @@ def train(args, model, train_loader, eval_loader):
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
 
         # Check NaN errors.
-        if math.isnan(train_metrics['loss']) or math.isnan(eval_metrics['loss']):
+        if math.isnan(eval_metrics['loss']):
             raise RuntimeError('NaN occurs during training')
 
     return all_train_metrics, all_eval_metrics
