@@ -23,17 +23,11 @@ static std::string TorchStyleVariable(const Variable& var) {
     return var.Format(info, " * ", " // ", "None[", "]");
 }
 
-/// Translate into PyTorch-style variable, return "1" if the variable is empty.
-static std::string TorchStyleGCKK(const Variable& g, const Variable& c,
-                                  const Variable& kh, const Variable& kw) {
-    return TorchStyleVariable(g * c * kh * kw);
-}
-
 /// Translate into PyTorch-style shape, skip if the variable inside is empty.
 static std::string TorchStyleShape(const Shape& shape) {
     bool displayed = false;
     std::stringstream ss;
-    for (const auto& dim: shape.dims)
+    for (const auto& dim: shape.Continuous())
         if (not dim.Empty())
             ss << (displayed ? ", " : "") << TorchStyleVariable(dim), displayed = true;
     return ss.str();
@@ -104,45 +98,26 @@ static std::string TorchStyleBroadcasting(const std::vector<Variable>& prefix,
     return ss.str();
 }
 
-PyTorchNCHWRecorder::PyTorchNCHWRecorder(CodeGen* gen, VarMap& var_map, const TensorSP& in, const TensorSP& out,
-                                         bool record_os, bool force_record_os):
-        gen(gen), var_map(var_map), out(out), force_record_os(force_record_os) {
-    auto& in_shape = in->shape;
+static std::string PyTorchReshapeToNCHW(CodeGen* gen, VarMap& var_map, const TensorSP& in, const TensorSP& out) {
+    assert(in->shape.IsChannelSpatial());
+    auto channel = in->shape.Channel();
+    auto spatial = in->shape.Spatial();
     int gckk_count = 0;
-    gckk_count += not in_shape.G().Empty();
-    gckk_count += not in_shape.C().Empty();
-    gckk_count += not in_shape.KH().Empty();
-    gckk_count += not in_shape.KW().Empty();
-    need_view = (gckk_count != 1 or in_shape.H().Empty() or in_shape.W().Empty());
-    if (force_record_os)
-        assert(record_os);
-    if ((need_view and record_os) or force_record_os) {
-        gen->Write() << var_map[out] << "_os"
-                     << " = " << var_map[in]
-                     << ".shape"
-                     << std::endl;
-    }
-    if (need_view) {
+    gckk_count += not channel->G().Empty();
+    gckk_count += not channel->C().Empty();
+    gckk_count += not channel->KH().Empty();
+    gckk_count += not channel->KW().Empty();
+    if (gckk_count != 1 or spatial->H().Empty() or spatial->W().Empty()) {
         gen->Write() << var_map[out]
                      << " = " << var_map[in]
                      << ".view(self.n, "
-                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW()) << ", "
-                     << TorchStyleVariable(in_shape.H()) << ", " << TorchStyleVariable(in_shape.W())
+                     << TorchStyleVariable(channel->Pi()) << ", "
+                     << TorchStyleVariable(spatial->H()) << ", " << TorchStyleVariable(spatial->W())
                      << ")"
                      << std::endl;
-        reference = var_map[out];
+        return var_map[out];
     } else {
-        reference = var_map[in];
-    }
-}
-
-void PyTorchNCHWRecorder::GenCopyShapeCode() {
-    if (need_view or force_record_os) {
-        gen->Write() << var_map[out]
-                     << " = " << var_map[out]
-                     << ".view("
-                     << var_map[out] << "_os)"
-                     << std::endl;
+        return var_map[in];
     }
 }
 
@@ -162,66 +137,38 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
     if (auto fc = DynamicCast<FCPrimitive>(p)) {
         auto& in_shape = p->ins[0]->shape;
         auto& out_shape = p->outs[0]->shape;
+        assert(in_shape.IsChannelSpatial() and out_shape.IsChannelSpatial());
         gen->Write() << "self." << primitive_var
                      << " = nn.Conv2d("
-                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW()) // Input channels.
+                     << TorchStyleVariable(in_shape.Channel()->Pi()) // Input channels.
                      << ", "
-                     << TorchStyleVariable(out_shape.GCKK()) // Output channels.
+                     << TorchStyleVariable(out_shape.Channel()->Pi()) // Output channels.
                      << ", 1, padding=0"
-                     << ", groups=" << TorchStyleVariable(in_shape.G())
+                     << ", groups=" << TorchStyleVariable(in_shape.Channel()->G())
                      << ", bias=False)"
                      << std::endl;
         if (fc->with_norm)
             gen->Write() << "self." << primitive_var << "_bn"
                          << " = nn.BatchNorm2d("
-                         << TorchStyleVariable(out_shape.GCKK())
+                         << TorchStyleVariable(out_shape.Channel()->Pi())
                          << ")"
                          << std::endl;
         if (fc->with_relu)
             gen->Write() << "self." << primitive_var << "_relu"
                          << " = nn.ReLU(inplace=True)"
                          << std::endl;
-    } else if (DynamicCast<NormPrimitive>(p)) {
-        auto& in_shape = p->ins[0]->shape;
-        gen->Write() << "self." << primitive_var
-                     << " = nn.BatchNorm2d("
-                     << TorchStyleGCKK(in_shape.G(), in_shape.C(), in_shape.KH(), in_shape.KW())
-                     << ")"
-                     << std::endl;
     } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         int k = shift->k;
-        for (const auto& pos: shift->pos_vec)
-            gen->Write() << "self." << primitive_var << "_" << Shape::DimPosToName(pos)
+        for (const auto& index: shift->indices)
+            gen->Write() << "self." << primitive_var << "_" << index.d << "_" << index.k
                          << " = random.randint(-" << k << ", " << k << ")" << std::endl;
-    } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
-        if (softmax->type == SoftmaxHW) {
-            gen->Write() << "self." << primitive_var
-                         << " = nn.Softmax2d()"
-                         << std::endl;
-        } else {
-            int index = -1;
-            if (softmax->type == SoftmaxC)
-                index = 1;
-            else if (softmax->type == SoftmaxH)
-                index = 2;
-            else if (softmax->type == SoftmaxW)
-                index = 3;
-            assert(index != -1);
-            gen->Write() << "self." << primitive_var
-                         << " = nn.Softmax(dim="
-                         << index
-                         << ")"
-                         << std::endl;
-        }
     } else if (DynamicCast<InputPrimitive>(p) or
             DynamicCast<ActivationPrimitive>(p) or
             DynamicCast<BroadcastPrimitive>(p) or
-            DynamicCast<ChannelShufflePrimitive>(p) or
             DynamicCast<ElementWisePrimitive>(p) or
             DynamicCast<FoldPrimitive>(p) or
             DynamicCast<GroupPrimitive>(p) or
             DynamicCast<OutputPrimitive>(p) or
-            DynamicCast<TransposePrimitive>(p) or
             DynamicCast<UnfoldPrimitive>(p)) {
         gen->Write() << "pass" << std::endl;
     } else {
@@ -279,25 +226,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << ")"
                          << std::endl;
         }
-    } else if (auto channel_shuffle = DynamicCast<ChannelShufflePrimitive>(p)) {
-        PyTorchNCHWRecorder recorder(gen, var_map, channel_shuffle->ins[0], channel_shuffle->outs[0],
-                                     true, true);
-        auto& in_shape = channel_shuffle->ins[0]->shape;
-        gen->Write() << var_map[channel_shuffle->outs[0]]
-                     << " = "
-                     << recorder.reference
-                     << ".view(self.n, "
-                     << TorchStyleVariable(Variable::StaticVar(StaticVarPos::VG)) << ", "
-                     << TorchStyleVariable(in_shape.GCKK() / StaticVarPos::VG) << ", "
-                     << TorchStyleVariable(in_shape.H()) << ", "
-                     << TorchStyleVariable(in_shape.W()) << ")"
-                     << std::endl;
-        gen->Write() << var_map[channel_shuffle->outs[0]]
-                     << " = "
-                     << var_map[channel_shuffle->outs[0]]
-                     << ".permute(0, 2, 1, 3, 4).contiguous()"
-                     << std::endl;
-        recorder.GenCopyShapeCode();
     } else if (auto element_wise = DynamicCast<ElementWisePrimitive>(p)) {
         gen->Write() << var_map[element_wise->outs[0]]
                      << " = "
@@ -306,10 +234,10 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << TorchStyleElementWiseFunctionSuffix(element_wise->type)
                      << std::endl;
     } else if (auto fc = DynamicCast<FCPrimitive>(p)) {
-        PyTorchNCHWRecorder recorder(gen, var_map, fc->ins[0], fc->outs[0], false);
+        auto reference = PyTorchReshapeToNCHW(gen, var_map, fc->ins[0], fc->outs[0]);
         gen->Write() << var_map[fc->outs[0]]
                      << " = self." << primitive_var
-                     << "(" << recorder.reference << ")"
+                     << "(" << reference << ")"
                      << std::endl;
         if (fc->with_norm) {
             gen->Write() << var_map[fc->outs[0]]
@@ -334,17 +262,14 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         gen->Write() << var_map[fold->outs[0]]
                      << " = " << var_map[fold->ins[0]];
         assert(not fold->indices.empty());
-        for (const auto& pos: fold->indices) {
-            if (reference_shape.dims[pos].Empty())
+        for (const auto& index: fold->indices) {
+            if (reference_shape[index].Empty())
                 continue;
-            int index = 1; // Batch size dimension.
-            for (int i = 0; i < pos; ++ i)
-                if (not reference_shape.dims[i].Empty())
-                    ++ index;
+            int dim = reference_shape.GetRelativeIndex(index) + 1;
             gen->Write(false) << "." << TorchStyleFoldName(fold->type)
-                              << "(" << index << ")"
+                              << "(" << dim << ")"
                               << TorchStyleFoldSuffix(fold->type);
-            reference_shape.dims[pos].Reset();
+            reference_shape[index].Reset();
         }
         gen->Write(false) << std::endl;
     } else if (auto group = DynamicCast<GroupPrimitive>(p)) {
@@ -375,13 +300,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << " == "
                      << "tuple(" << var_map[input->outs[0]] << ".size())"
                      << std::endl;
-    } else if (auto norm = DynamicCast<NormPrimitive>(p)) {
-        PyTorchNCHWRecorder recorder(gen, var_map, norm->ins[0], norm->outs[0], true);
-        gen->Write() << var_map[norm->outs[0]]
-                     << " = self." << primitive_var
-                     << "(" << recorder.reference << ")"
-                     << std::endl;
-        recorder.GenCopyShapeCode();
     } else if (auto output = DynamicCast<OutputPrimitive>(p)) {
         // Reshape and return the output variable.
         gen->Write() << "return "
@@ -392,19 +310,16 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         auto reference = var_map[shift->ins[0]];
         bool shifted = false;
         auto shape = shift->ins[0]->shape;
-        for (const auto& pos: shift->pos_vec) {
-            int index = 1;
-            if (shape.dims[pos].Empty())
+        for (const auto& index: shift->indices) {
+            if (shape[index].Empty())
                 continue;
             shifted = true;
-            for (int i = 0; i < pos; ++ i)
-                if (not shape.dims[i].Empty())
-                    ++ index;
+            int dim = shape.GetRelativeIndex(index) + 1;
             gen->Write() << var_map[shift->outs[0]]
                          << " = torch.roll("
                          << reference << ", "
-                         << "self." << primitive_var << "_" << Shape::DimPosToName(pos) << ", "
-                         << index << ")"
+                         << "self." << primitive_var << "_" << index.d << "_" << index.k << ", "
+                         << dim << ")"
                          << std::endl;
             reference = var_map[shift->outs[0]];
         }
@@ -413,36 +328,14 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << " = "
                          << reference
                          << std::endl;
-    } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
-        PyTorchNCHWRecorder recorder(gen, var_map, softmax->ins[0], softmax->outs[0], true);
-        gen->Write() << var_map[softmax->outs[0]]
-                     << " = self." << primitive_var
-                     << "(" << recorder.reference << ")"
-                     << std::endl;
-        recorder.GenCopyShapeCode();
-    } else if (auto transpose = DynamicCast<TransposePrimitive>(p)) {
-        gen->Write() << var_map[transpose->outs[0]] << "_nd"
-                     << " = len("
-                     << var_map[transpose->ins[0]]
-                     << ".shape)"
-                     << std::endl;
-        gen->Write() << "assert " << var_map[transpose->outs[0]] << "_nd >= 2"
-                     << std::endl;
-        gen->Write() << var_map[transpose->outs[0]]
-                     << " = torch.transpose("
-                     << var_map[transpose->ins[0]] << ", "
-                     << var_map[transpose->outs[0]] << "_nd - 1, "
-                     << var_map[transpose->outs[0]] << "_nd - 2)"
-                     << ".contiguous()" // Deep copy to change the memory layout.
-                     << std::endl;
     } else if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {
         // PyTorch's `Unfold` only support [N, C, ...] format (C may be empty, 1).
-        PyTorchNCHWRecorder recorder(gen, var_map, unfold->ins[0], unfold->outs[0], false);
+        auto reference = PyTorchReshapeToNCHW(gen, var_map, unfold->ins[0], unfold->outs[0]);
         int dilation = unfold->d, kernel_size = unfold->k;
         int padding = dilation * (kernel_size - 1) / 2;
         gen->Write() << var_map[unfold->outs[0]]
                      << " = F.unfold("
-                     << recorder.reference << ", ("
+                     << reference << ", ("
                      << ((unfold->type == UnfoldH or unfold->type == UnfoldHW) ? kernel_size : 1) << ", "
                      << ((unfold->type == UnfoldW or unfold->type == UnfoldHW) ? kernel_size : 1)
                      << "), dilation=("

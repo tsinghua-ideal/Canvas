@@ -221,11 +221,6 @@ struct Shape {
         return DynamicCast<SpatialShape>(dims[1]);
     }
 
-    [[nodiscard]] std::pair<ChannelShapeSP, SpatialShapeSP> ChannelSpatial() {
-        assert(IsChannelSpatial());
-        return {DynamicCast<ChannelShape>(dims[0]), DynamicCast<SpatialShape>(dims[1])};
-    }
-
     [[nodiscard]] ShapeSpecs FillToStaticShape(const Variable::VarSpecs& specs) const {
         std::vector<int> dim_specs;
         for (const auto& dim: Continuous())
@@ -256,6 +251,17 @@ struct Shape {
 
     [[nodiscard]] std::vector<Variable> Continuous() const {
         return Merge(dims[0]->Continuous(), dims[1]->Continuous());
+    }
+
+    [[nodiscard]] int GetRelativeIndex(const Index& index) const {
+        int rel = 0;
+        for (int i = 0, max = (index.d == 0 ? index.k : MetaShape::kMaxMetaDims); i < max; ++ i)
+            if (not dims[0]->dims[i].Empty())
+                ++ rel;
+        for (int i = 0, max = (index.d == 0 ? 0 : index.k); i < max; ++ i)
+            if (not dims[1]->dims[i].Empty())
+                ++ rel;
+        return rel;
     }
 
     [[nodiscard]] size_t Hash() const {

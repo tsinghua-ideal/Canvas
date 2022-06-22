@@ -31,15 +31,10 @@ void CodeGen::CommonChecks(const Solution& solution) {
     if (not graph->IsTopologicalFinished())
         CriticalError("Unable to generate code for an unfinished graph (topologically)");
 
-    // All the shapes satisfy the assumptions.
-    for (const auto& t: graph->tensors)
-        if (not t->shape.SatisfyAssumption())
-            CriticalError("Unable to generate code for a solution which has illegal variables");
-
     // Check remaining dynamic variables.
     for (const auto& t: graph->tensors)
-        if (not t->shape.IsAllStatic())
-            CriticalError("Unable to generate code for a solution with dynamic variables, but without fills");
+        if (not t->shape.IsStatic())
+            CriticalError("Unable to generate code for a solution with dynamic variables");
 }
 
 } // namespace canvas

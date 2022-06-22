@@ -75,6 +75,10 @@ struct Variable {
                                           int numeric_numerator=1, int numeric_denominator=1,
                                           const std::initializer_list<int>& dyn_vars={});
 
+    [[nodiscard]] static Variable CHW() {
+        return Compose({StaticVarPos::VC, StaticVarPos::VH, StaticVarPos::VW});
+    }
+
     void Reset() {
         std::memset(this, 0, sizeof(Variable));
         numeric_numerator = numeric_denominator = 1;

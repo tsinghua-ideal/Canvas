@@ -13,20 +13,6 @@
 
 namespace canvas {
 
-struct PyTorchNCHWRecorder {
-    CodeGen *gen;
-    VarMap& var_map;
-
-    bool need_view = false, force_record_os = false;
-    std::string reference;
-    TensorSP out;
-
-    PyTorchNCHWRecorder(CodeGen *gen, VarMap& var_map, const TensorSP& in, const TensorSP& out,
-                        bool record_os, bool force_record_os=false);
-
-    void GenCopyShapeCode();
-};
-
 struct PyTorchInitTranslator {
     VarMap& var_map;
 

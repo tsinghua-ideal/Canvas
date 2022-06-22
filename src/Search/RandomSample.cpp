@@ -75,7 +75,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
         // Grouping number filters.
         if (net_specs->c_gcd == 1)
-            primitive_options.forbidden_filter.emplace_back(GroupTypeToName(GroupByFactor));
+            primitive_options.forbidden_filter.emplace_back("GroupByFactor");
 
         // Must be output next step.
         if (n_steps_remaining == 1)
@@ -129,45 +129,39 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
-    // Pruning: channel shuffle must cooperate with grouping.
-    if (graph->PrimitiveCount<ChannelShufflePrimitive>() > 0 and graph->PrimitiveCount<GroupPrimitive>() == 0) {
-#ifdef CANVAS_DEBUG_FAILED_COUNT
-        static int can_not_cooperate_channel_group = 0;
-        IC(can_not_cooperate_channel_group ++);
-#endif
-        return {};
-    }
-
     // Filter by user options.
     if (options.Filter(graph))
         return {};
-
-    // For debug (filter primitives).
-    // if (graph->PrimitiveCount<ReorderPrimitive>() == 0)
-    //     return {};
 
 #ifdef CANVAS_DEBUG_PRINT_STATISTICS
     static int n_total_sampled = 0, n_out_with_variable = 0;
     n_total_sampled ++;
 #endif
     auto out = graph->Out();
-    if (not out->shape.IsAllStatic()) {
-        if (out->shape.H().Empty() or out->shape.W().Empty()) {
+    if (not out->shape.IsStatic()) {
+        auto pi = out->shape.Pi();
+        if (pi.DynamicVarCount() > 1) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
-            static int illegal_output_shape = 0;
-            IC(illegal_output_shape ++);
+            static int can_not_solve_output_shape = 0;
+            IC(can_not_solve_output_shape ++);
 #endif
             return {};
         }
-        assert(out->shape.H() == Variable::StaticVar(StaticVarPos::VH));
-        assert(out->shape.W() == Variable::StaticVar(StaticVarPos::VW));
-        auto channel = out->shape.GCKK();
-        assert(channel.DynamicVarCount() == 1); // Only C channel could have unsolved variables.
-        assert(channel.SatisfyAssumption());
-        auto v = Variable::StaticVar(StaticVarPos::VC) / channel.StaticFactor();
-        assert(v.IsStatic());
+        int dyn_var_index = pi.GetOnlyDynamicVar();
+        if (std::abs(pi.dynamic_power[dyn_var_index]) != 1) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+            static int can_not_solve_output_shape_multipower = 0;
+            IC(can_not_solve_output_shape_multipower ++);
+#endif
+            return {};
+        }
+        Variable repl;
+        if (pi.dynamic_power[dyn_var_index] == 1) // S * x = CHW
+            repl = Variable::CHW() / pi.StaticFactor();
+        else // S / x = CHW
+            repl = pi.StaticFactor() / Variable::CHW();
         try {
-            graph->SolveDynamicVar(VarSolution(channel.GetOnlyDynamicVar(), v));
+            graph->SolveDynamicVar(VarSolution(dyn_var_index, repl));
         } catch (const CanNotSolveDynamicVar& ex) {
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
             IC(ex);
@@ -190,7 +184,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
     // Add output primitive and fill the budget.
     assert(graph->Width() == 1);
-    assert(out->shape.CouldBeReshapeToCHW());
+    assert(out->shape.CouldBeReshapedToCHW());
     graph->ApplyOutput();
 
     try {
