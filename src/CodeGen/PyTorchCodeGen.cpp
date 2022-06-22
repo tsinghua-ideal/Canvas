@@ -333,8 +333,8 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         auto reference_shape = fold->ins[0]->shape;
         gen->Write() << var_map[fold->outs[0]]
                      << " = " << var_map[fold->ins[0]];
-        assert(not fold->pos_vec.empty());
-        for (const auto& pos: fold->pos_vec) {
+        assert(not fold->indices.empty());
+        for (const auto& pos: fold->indices) {
             if (reference_shape.dims[pos].Empty())
                 continue;
             int index = 1; // Batch size dimension.

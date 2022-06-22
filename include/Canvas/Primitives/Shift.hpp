@@ -8,20 +8,20 @@
 
 namespace canvas {
 
-static std::string ShiftToName(const std::vector<Shape::DimPos>& pos_vec, int k) {
+static std::string ShiftToName(const Shape& s, const std::vector<Shape::Index>& indices, int k) {
     std::stringstream ss;
     ss << "Shift";
-    for (const auto& pos: pos_vec)
-        ss << "_" << Shape::DimPosToName(pos);
-    ss << "_K" << std::to_string(k);
+    for (const auto& index: indices)
+        ss << "_" << index.d << "/" << index.k << "/" << s.IndexToName(index);
+    ss << "_K" << k;
     return ss.str();
 }
 
 struct ShiftPrimitive: Primitive {
-    std::vector<Shape::DimPos> pos_vec;
     int k;
+    std::vector<Shape::Index> indices;
 
-    explicit ShiftPrimitive(const TensorSP& t, const std::vector<Shape::DimPos>& pos_vec, int k=1);
+    explicit ShiftPrimitive(const TensorSP& t, const std::vector<Shape::Index>& indices, int k=1);
 
     CanvasPrimitiveCopyTemplate(ShiftPrimitive);
 };

@@ -8,17 +8,13 @@
 
 #include "Canvas/Primitives/Activation.hpp"
 #include "Canvas/Primitives/Broadcast.hpp"
-#include "Canvas/Primitives/ChannelShuffle.hpp"
 #include "Canvas/Primitives/ElementWise.hpp"
 #include "Canvas/Primitives/FC.hpp"
 #include "Canvas/Primitives/Fold.hpp"
 #include "Canvas/Primitives/Group.hpp"
 #include "Canvas/Primitives/Input.hpp"
-#include "Canvas/Primitives/Norm.hpp"
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Primitives/Shift.hpp"
-#include "Canvas/Primitives/Softmax.hpp"
-#include "Canvas/Primitives/Transpose.hpp"
 #include "Canvas/Primitives/Unfold.hpp"
 #include "Canvas/Utils/Common.hpp"
 

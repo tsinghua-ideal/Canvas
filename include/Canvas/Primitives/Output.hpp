@@ -13,7 +13,7 @@ struct OutputPrimitive: Primitive {
             throw CanNotApplyPrimitive("Output");
         if (not t->shape.CouldBeReshapedToCHW())
             throw CanNotApplyPrimitive("OutputPrimitive");
-        outs.push_back(std::make_shared<Tensor>(Shape::StandardCHW()));
+        outs.push_back(std::make_shared<Tensor>(Shape::MakeShapeCHW()));
     }
 
     CanvasPrimitiveCopyTemplate(OutputPrimitive);

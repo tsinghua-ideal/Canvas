@@ -96,7 +96,7 @@ bool Graph::IsTopologicalFinished() const {
         output_count += (DynamicCast<OutputPrimitive>(p) != nullptr);
     return output_count == 1
         and DynamicCast<OutputPrimitive>(out->producer) != nullptr
-        and out->shape == Shape::StandardCHW();
+        and out->shape == Shape::MakeShapeCHW();
 }
 
 std::vector<int> Graph::DynamicVars() const {

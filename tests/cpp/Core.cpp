@@ -65,7 +65,7 @@ TEST(Core, VariableFactors) {
 }
 
 TEST(Core, Shape) {
-    Shape s = Shape::StandardCHW();
+    Shape s = Shape::MakeShapeCHW();
     std::stringstream ss;
     ss << s;
     ASSERT_EQ(ss.str(), "[C, H, W]");

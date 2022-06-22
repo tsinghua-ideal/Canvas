@@ -10,20 +10,24 @@
 
 namespace canvas {
 
-struct MetaDims;
-struct ChannelDims;
-struct SpatialDims;
+struct MetaShape;
+struct ChannelShape;
+struct SpatialShape;
 
-typedef std::shared_ptr<MetaDims> MetaDimsSP;
+typedef std::shared_ptr<MetaShape> MetaShapeSP;
+typedef std::shared_ptr<ChannelShape> ChannelShapeSP;
+typedef std::shared_ptr<SpatialShape> SpatialShapeSP;
 
-struct MetaDims {
+struct MetaShape {
     static constexpr int kMaxMetaDims = 4;
 
     Variable dims[kMaxMetaDims];
 
-    MetaDims() = default;
+    MetaShape() = default;
 
-    [[nodiscard]] virtual std::string DimPosToName(int pos) const = 0;
+    [[nodiscard]] virtual MetaShapeSP Copy() const = 0;
+
+    [[nodiscard]] virtual std::string IndexToName(int i) const = 0;
 
     [[nodiscard]] bool IsStatic() const {
         return std::all_of(dims, dims + kMaxMetaDims, [](const Variable& dim) -> bool {
@@ -64,7 +68,7 @@ struct MetaDims {
         return value;
     }
 
-    [[nodiscard]] bool operator == (const MetaDims& rhs) const {
+    [[nodiscard]] bool operator == (const MetaShape& rhs) const {
         for (int i = 0; i < kMaxMetaDims; ++ i)
             if (dims[i] != rhs.dims[i])
                 return false;
@@ -72,60 +76,84 @@ struct MetaDims {
     }
 };
 
-struct ChannelDims: MetaDims {
+struct ChannelShape: MetaShape {
     static constexpr int kMaxChannelDims = 4;
 
-    enum ChannelDimPos {
+    enum Index {
         PG = 0,     // Groups.
         PC = 1,     // Channels.
         PKH = 2,    // Kernel height.
         PKW = 3,    // Kernel width.
     };
 
-    ChannelDims() = default;
+    ChannelShape() = default;
 
-    [[nodiscard]] static MetaDimsSP StandardC() {
-        auto meta_dims = std::make_shared<ChannelDims>();
+    ChannelShape(const ChannelShape& rhs) = default;
+
+    [[nodiscard]] MetaShapeSP Copy() const final {
+        return std::make_shared<ChannelShape>(*this);
+    }
+
+    [[nodiscard]] static MetaShapeSP MakeShapeC() {
+        auto meta_dims = std::make_shared<ChannelShape>();
         meta_dims->dims[PC] = Variable::StaticVar(StaticVarPos::VC);
         return meta_dims;
     }
 
-    [[nodiscard]] std::string DimPosToName(int pos) const final {
+    [[nodiscard]] Variable& G() { return dims[Index::PG]; }
+    [[nodiscard]] Variable& C() { return dims[Index::PC]; }
+    [[nodiscard]] Variable& KH() { return dims[Index::PKH]; }
+    [[nodiscard]] Variable& KW() { return dims[Index::PKW]; }
+
+    [[nodiscard]] Variable CKK() const {
+        return dims[Index::PC] * dims[Index::PKH] * dims[Index::PKW];
+    }
+
+    [[nodiscard]] std::string IndexToName(int i) const final {
         static_assert(kMaxChannelDims == 4);
-        switch (pos) {
+        switch (i) {
             case PG: return "G";
             case PC: return "C";
             case PKH: return "KH";
             case PKW: return "KW";
-            default: Unreachable();
+            default: assert(false);
         }
         Unreachable();
     }
 };
 
-struct SpatialDims: MetaDims {
+struct SpatialShape: MetaShape {
     static constexpr int kMaxSpatialDims = 2;
 
-    enum SpatialDimPos {
+    enum Index {
         PH = 0,    // Image height.
         PW = 1,    // Image width.
     };
 
-    SpatialDims() = default;
+    SpatialShape() = default;
 
-    [[nodiscard]] static MetaDimsSP StandardHW() {
-        auto meta_dims = std::make_shared<SpatialDims>();
+    SpatialShape(const SpatialShape& rhs) = default;
+
+    [[nodiscard]] MetaShapeSP Copy() const final {
+        return std::make_shared<SpatialShape>(*this);
+    }
+
+    [[nodiscard]] static MetaShapeSP MakeShapeHW() {
+        auto meta_dims = std::make_shared<SpatialShape>();
         meta_dims->dims[PH] = Variable::StaticVar(StaticVarPos::VH);
         meta_dims->dims[PW] = Variable::StaticVar(StaticVarPos::VW);
         return meta_dims;
     }
 
-    [[nodiscard]] std::string DimPosToName(int pos) const final {
+    [[nodiscard]] Variable& H() { return dims[Index::PH]; }
+    [[nodiscard]] Variable& W() { return dims[Index::PW]; }
+
+    [[nodiscard]] std::string IndexToName(int i) const final {
         static_assert(kMaxSpatialDims == 2);
-        switch (pos) {
+        switch (i) {
             case PH: return "H";
             case PW: return "W";
-            default: Unreachable();
+            default: assert(false);
         }
         Unreachable();
     }
@@ -149,15 +177,53 @@ struct Shape {
         }
     };
 
-    MetaDimsSP dims[2];
+    struct Index {
+        const int d, k;
 
-    Shape() = default;
+        Index(int d, int k): d(d), k(k) {
+            assert(0 <= d and d < 2);
+            assert(0 <= k and k < MetaShape::kMaxMetaDims);
+        }
+    };
 
-    Shape(const Shape& rhs) = default;
+    MetaShapeSP dims[2];
 
-    Shape(const MetaDimsSP& first, const MetaDimsSP& second) {
+    Shape(const Shape& rhs) {
+        dims[0] = rhs.dims[0]->Copy();
+        dims[1] = rhs.dims[1]->Copy();
+    }
+
+    Shape(const MetaShapeSP& first, const MetaShapeSP& second) {
         assert(first and second);
+        assert(not (DynamicCast<SpatialShape>(first) and DynamicCast<ChannelShape>(second)));
         dims[0] = first, dims[1] = second;
+    }
+
+    [[nodiscard]] static Shape MakeChannelSpatial() {
+        return {std::make_shared<ChannelShape>(), std::make_shared<SpatialShape>()};
+    }
+
+    [[nodiscard]] static Shape MakeShapeCHW() {
+        return {ChannelShape::MakeShapeC(), SpatialShape::MakeShapeHW()};
+    }
+
+    [[nodiscard]] bool IsChannelSpatial() const {
+        return DynamicCast<ChannelShape>(dims[0]) and DynamicCast<SpatialShape>(dims[1]);
+    }
+
+    [[nodiscard]] ChannelShapeSP Channel() {
+        assert(IsChannelSpatial());
+        return DynamicCast<ChannelShape>(dims[0]);
+    }
+
+    [[nodiscard]] SpatialShapeSP Spatial() {
+        assert(IsChannelSpatial());
+        return DynamicCast<SpatialShape>(dims[1]);
+    }
+
+    [[nodiscard]] std::pair<ChannelShapeSP, SpatialShapeSP> ChannelSpatial() {
+        assert(IsChannelSpatial());
+        return {DynamicCast<ChannelShape>(dims[0]), DynamicCast<SpatialShape>(dims[1])};
     }
 
     [[nodiscard]] ShapeSpecs FillToStaticShape(const Variable::VarSpecs& specs) const {
@@ -165,10 +231,6 @@ struct Shape {
         for (const auto& dim: Continuous())
             dim_specs.push_back(dim.FillToInteger(specs));
         return ShapeSpecs(dim_specs);
-    }
-
-    [[nodiscard]] static Shape StandardCHW() {
-        return {ChannelDims::StandardC(), SpatialDims::StandardHW()};
     }
 
     [[nodiscard]] bool IsStatic() const {
@@ -209,6 +271,15 @@ struct Shape {
     }
 
     friend std::ostream& operator << (std::ostream& os, const Shape& rhs);
+
+    [[nodiscard]] std::string IndexToName(const Index& index) const {
+        return dims[index.d]->IndexToName(index.k);
+    }
+
+    Variable& operator [] (const Index& index) {
+        assert(dims[0] and dims[1]);
+        return dims[index.d]->dims[index.k];
+    }
 };
 
 } // namespace canvas
