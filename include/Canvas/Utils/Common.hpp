@@ -166,6 +166,14 @@ void RandomShuffle(VecType& vec) {
     std::shuffle(vec.begin(), vec.end(), std::mt19937(RandomInt()));
 }
 
+/// Merge two vectors.
+template <typename VecType>
+[[maybe_unused]] VecType Merge(const VecType &lhs, const VecType& rhs) {
+    VecType merged = lhs;
+    merged.insert(merged.end(), rhs.begin(), rhs.end());
+    return merged;
+}
+
 /// Filter in a vector-like thing.
 template <typename VecType, typename Function>
 [[maybe_unused]] VecType Filter(const VecType &vec, const Function &f) {

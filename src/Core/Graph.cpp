@@ -85,18 +85,6 @@ void Graph::LegalityCheck() const {
     for (const auto& p: primitives)
         for (const auto& t: br::join(p->ins, p->outs))
             assert(t_set.count(t));
-
-    // Shape checks.
-    for (const auto& t: tensors) {
-        auto& shape = t->shape;
-        // G.
-        assert(shape.G().SatisfyAssumption());
-        // C.
-        assert(shape.C().SatisfyAssumption());
-        // H, W.
-        assert(shape.H() == Variable::StaticVar(StaticVarPos::VH) or shape.H().Empty());
-        assert(shape.W() == Variable::StaticVar(StaticVarPos::VW) or shape.W().Empty());
-    }
 }
 
 bool Graph::IsTopologicalFinished() const {
@@ -114,7 +102,7 @@ bool Graph::IsTopologicalFinished() const {
 std::vector<int> Graph::DynamicVars() const {
     bool used[Variable::kDynamicVarCount] = {false};
     for (const auto& t: tensors)
-        for (const auto& dim: t->shape.dims)
+        for (const auto& dim: t->shape.Continuous())
             for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
                 if (dim.dynamic_power[i] != 0)
                     used[i] = true;
@@ -128,7 +116,7 @@ std::vector<int> Graph::DynamicVars() const {
 std::optional<int> Graph::NextUnusedDynamicVarIndex() const {
     bool used[Variable::kDynamicVarCount] = {false};
     for (const auto& t: tensors)
-        for (const auto& dim: t->shape.dims)
+        for (const auto& dim: t->shape.Continuous())
             for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
                 if (dim.dynamic_power[i] != 0)
                     used[i] = true;
@@ -244,7 +232,7 @@ std::pair<GraphSP, PrimitiveApply> Graph::CopyAndApply(const PrimitiveApply& pa)
 void Graph::SolveDynamicVar(const VarSolution& s) {
     for (const auto &t: tensors) {
         t->shape.SolveDynamicVar(s);
-        for (const auto& dim: t->shape.dims)
+        for (const auto& dim: t->shape.Continuous())
             if (not dim.MaybeInteger())
                 throw CanNotSolveDynamicVar(s);
     }
