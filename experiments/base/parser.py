@@ -161,7 +161,7 @@ def arg_parse():
                         help='Best metric (default: "top1"')
     parser.add_argument('--torchscript', dest='torchscript', action='store_true',
                         help='Convert model torchscript for inference')
-    parser.add_argument('--log-interval', default=20, type=int, metavar='INTERVAL',
+    parser.add_argument('--log-interval', default=100, type=int, metavar='INTERVAL',
                         help='Logging interval')
 
     # Distributed.

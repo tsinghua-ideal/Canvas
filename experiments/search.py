@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # Initialization.
     example_input = torch.zeros((1, ) + args.input_size).to(args.device)
     canvas.get_placeholders(model, example_input)
-    last_not_nan_clone = canvas.get_state_dict(model, remove_placeholders=True)
+    best_score, best_clone = 0, canvas.get_state_dict(model, remove_placeholders=True)
 
     # Search.
     logger = log.get_logger()
@@ -47,13 +47,17 @@ if __name__ == '__main__':
         try:
             train_metrics, eval_metrics = \
                 trainer.train(args, model=model, train_loader=train_loader, eval_loader=eval_loader)
-            last_not_nan_clone = canvas.get_state_dict(model, remove_placeholders=True)
+            score = max([item['top1'] for item in eval_metrics])
+            logger.info(f'Solution score: {score}')
+            if score > best_score:
+                best_score, best_clone = score, canvas.get_state_dict(model, remove_placeholders=True)
+                logger.info(f'Best score has been updated to {best_score}')
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
             if 'NaN' in exception_info:
-                logger.warning('Restoring to last non-nan model parameters')
-                canvas.restore_from_state_dict(model, last_not_nan_clone)
+                logger.warning('Restoring to best model parameters')
+                canvas.restore_from_state_dict(model, best_clone)
 
         # Save into logging directory.
         log.save(args, kernel_pack, train_metrics, eval_metrics, exception_info)
