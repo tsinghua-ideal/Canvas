@@ -237,9 +237,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         // Pruning for multiplying 2.
         if (lhs == rhs and type == BAdd)
             continue;
-        auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type);
+        auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type, 1);
         if (not all_matches.empty())
-            Push(RandomChoose(all_matches), primitives, options);
+            Push(all_matches[0], primitives, options);
     }
 }
 
