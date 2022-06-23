@@ -10,7 +10,7 @@ NetSpecs::NetSpecs(std::vector<KernelSpecs> kernel_specs): kernel_specs(std::mov
 
     for (const auto& kernel: this->kernel_specs)
         c_gcd = c_gcd == 0 ? kernel.c : std::gcd(kernel.c, c_gcd);
-    for (int i = 2; i <= c_gcd; ++ i)
+    for (size_t i = 2; i <= c_gcd; ++ i)
         if (c_gcd % i == 0)
             c_gcd_factors.push_back(i);
 }

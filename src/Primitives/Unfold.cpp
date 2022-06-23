@@ -11,13 +11,11 @@ UnfoldPrimitive::UnfoldPrimitive(const TensorSP& t, int k, int d, UnfoldType typ
     auto channel = new_shape.Channel();
     auto spatial = new_shape.Spatial();
     if (type == UnfoldH or type == UnfoldHW) {
-        if (not channel->KH().Empty() or spatial->H().Empty())
-            throw CanNotApplyPrimitive(UnfoldTypeToName(type, k, d));
+        assert(channel->KH().Empty() and not spatial->H().Empty());
         channel->KH() = Variable::Number(k);
     }
     if (type == UnfoldW or type == UnfoldHW) {
-        if (not channel->KW().Empty() or spatial->W().Empty())
-            throw CanNotApplyPrimitive(UnfoldTypeToName(type, k, d));
+        assert(channel->KW().Empty() and not spatial->W().Empty());
         channel->KW() = Variable::Number(k);
     }
     outs.push_back(std::make_shared<Tensor>(new_shape));

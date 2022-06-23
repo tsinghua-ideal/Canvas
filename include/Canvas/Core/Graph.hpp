@@ -67,8 +67,6 @@ struct Graph {
 
     [[nodiscard]] GraphSP Copy() const { return std::make_shared<Graph>(*this); }
 
-    [[nodiscard]] TensorSP In() const { return in; }
-
     /// Return the only tensor with no consumers (null if not only).
     [[nodiscard]] TensorSP Out() const;
 

@@ -49,7 +49,7 @@ Graph::~Graph() {
 
 bool Graph::AlgebraCheck(const Variable::VarSpecs& specs) const {
     // Get all parameters.
-    int g = specs.g, c = specs.c, h = specs.h, w = specs.w;
+    size_t g = specs.g, c = specs.c, h = specs.h, w = specs.w;
     assert(g > 0 and c > 0 and h > 0 and w > 0);
     assert(c % g == 0);
 

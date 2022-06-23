@@ -8,8 +8,7 @@ ShiftPrimitive::ShiftPrimitive(const TensorSP& t, const std::vector<Shape::Index
     assert(not indices.empty());
     auto& s = t->shape;
     for (const auto& index: indices)
-        if (s[index].Empty())
-            throw CanNotApplyPrimitive(ShiftToName(t->shape, indices, k));
+        assert (not s[index].Empty());
     outs.push_back(std::make_shared<Tensor>(s));
 }
 

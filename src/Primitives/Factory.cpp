@@ -20,6 +20,11 @@ bool PrimitiveOptions::Filter(const PrimitiveSP& p) const {
     if (delta_width > max_delta_width)
         return true;
 
+    // Too large tensor dimensions.
+    for (const auto& t: p->outs)
+        if (t->shape.Continuous().size() > kMaxNumberDimensions)
+            return true;
+
     // Filter by hash.
     if (hash_filter.count(p->Hash(true)))
         return true;
@@ -98,9 +103,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
     if (t->shape.IsChannelSpatial() and t->shape.Channel()->G().IsStatic()) {
         if (next_index_opt.has_value())
-            TryMakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(next_index_opt.value()));
+            MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(next_index_opt.value()));
         else
-            TryMakeAndPush<FCPrimitive>(primitives, options, t); // By default, we retain the channel number and fold spatial information.
+            MakeAndPush<FCPrimitive>(primitives, options, t); // By default, we retain the channel number and fold spatial information.
     }
 
     // Activation: no new variables, pruning: no double ReLU.
@@ -108,7 +113,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         if (auto last_activation = DynamicCast<ActivationPrimitive>(t->producer))
             if (type == ReLU and last_activation->type == ReLU)
                 continue;
-        TryMakeAndPush<ActivationPrimitive>(primitives, options, t, type);
+        MakeAndPush<ActivationPrimitive>(primitives, options, t, type);
     }
 
     // Element-wise: no new variables, pruning: double abs/neg.
@@ -124,7 +129,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
             if (type == Abs and (last_element_wise->type == Exp or last_element_wise->type == Neg))
                 continue;
         }
-        TryMakeAndPush<ElementWisePrimitive>(primitives, options, t, type);
+        MakeAndPush<ElementWisePrimitive>(primitives, options, t, type);
     }
 
     // Fold: no new variables.
@@ -132,57 +137,89 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         for (int d = 0; d < 2; ++ d) {
             int max_dims = DynamicCast<ChannelShape>(t->shape.dims[d]) ?
                     ChannelShape::kMaxChannelDims : SpatialShape::kMaxSpatialDims;
-            for (int k = 0; k < max_dims; ++ k)
-                TryMakeAndPush<FoldPrimitive>(primitives, options, t, std::vector<Shape::Index>({Shape::Index(d, k)}), type);
+            for (int k = 0; k < max_dims; ++ k) {
+                auto index = Shape::Index(d, k);
+                if (not t->shape[index].Empty())
+                    MakeAndPush<FoldPrimitive>(primitives, options, t, std::vector<Shape::Index>({index}), type);
+            }
 
             // Build extra KH/KW double folding primitives.
             if (DynamicCast<ChannelShape>(t->shape.dims[d])) {
-                auto indices = std::vector<Shape::Index>({Shape::Index(d, ChannelShape::Index::PKH),
-                                                          Shape::Index(d, ChannelShape::Index::PKW)});
-                TryMakeAndPush<FoldPrimitive>(primitives, options, t, indices, type);
+                auto index_kh = Shape::Index(d, ChannelShape::Index::PKH);
+                auto index_kw = Shape::Index(d, ChannelShape::Index::PKW);
+                if (not t->shape[index_kh].Empty() and not t->shape[index_kw].Empty()) {
+                    auto indices = std::vector<Shape::Index>({index_kh, index_kw});
+                    MakeAndPush<FoldPrimitive>(primitives, options, t, indices, type);
+                }
             }
 
             // Build extra H/W double folding primitives.
             if (DynamicCast<SpatialShape>(t->shape.dims[d])) {
-                auto indices = std::vector<Shape::Index>({Shape::Index(d, SpatialShape::Index::PH),
-                                                          Shape::Index(d, SpatialShape::Index::PW)});
-                TryMakeAndPush<FoldPrimitive>(primitives, options, t, indices, type);
+                auto index_h = Shape::Index(d, SpatialShape::Index::PH);
+                auto index_w = Shape::Index(d, SpatialShape::Index::PW);
+                if (not t->shape[index_h].Empty() and not t->shape[index_w].Empty()) {
+                    auto indices = std::vector<Shape::Index>({index_h, index_w});
+                    MakeAndPush<FoldPrimitive>(primitives, options, t, indices, type);
+                }
             }
         }
     }
 
     // Unfold: no new variables.
-    for (const auto& type: {UnfoldH, UnfoldW, UnfoldHW})
-        for (int k: options.kernel_sizes)
-            for (int d: options.dilated_sizes)
-                TryMakeAndPush<UnfoldPrimitive>(primitives, options, t, k, d, type);
+    if (t->shape.IsChannelSpatial()) {
+        auto channel = t->shape.Channel();
+        auto spatial = t->shape.Spatial();
+        for (const auto& type: {UnfoldH, UnfoldW, UnfoldHW}) {
+            if ((type == UnfoldH or type == UnfoldHW) and (not channel->KH().Empty() or spatial->H().Empty()))
+                continue;
+            if ((type == UnfoldW or type == UnfoldHW) and (not channel->KW().Empty() or spatial->W().Empty()))
+                continue;
+            for (int k: options.kernel_sizes)
+                for (int d: options.dilated_sizes)
+                    MakeAndPush<UnfoldPrimitive>(primitives, options, t, k, d, type);
+        }
+    }
 
     // Group: no new variables.
     for (int d = 0; d < 2; ++ d)
-        if (DynamicCast<ChannelShape>(t->shape.dims[d]))
-            for (const auto& type: {GroupByFactor, GroupAllChannels})
-                TryMakeAndPush<GroupPrimitive>(primitives, options, t, d, type);
+        if (auto channel = DynamicCast<ChannelShape>(t->shape.dims[d])) {
+            if (not channel->G().Empty())
+                continue;
+            if ((channel->C() / Variable::StaticVar(StaticVarPos::VG)).MaybeInteger())
+                MakeAndPush<GroupPrimitive>(primitives, options, t, d, GroupType::GroupByFactor);
+            if (not channel->CKK().Empty())
+                MakeAndPush<GroupPrimitive>(primitives, options, t, d, GroupType::GroupAllChannels);
+        }
 
     // Shift: no new variables.
     for (int s: options.shift_sizes) {
         for (int d = 0; d < 2; ++ d) {
             int max_dims = DynamicCast<ChannelShape>(t->shape.dims[d]) ?
                            ChannelShape::kMaxChannelDims : SpatialShape::kMaxSpatialDims;
-            for (int k = 0; k < max_dims; ++ k)
-                TryMakeAndPush<ShiftPrimitive>(primitives, options, t, std::vector<Shape::Index>({Shape::Index(d, k)}), s);
+            for (int k = 0; k < max_dims; ++ k) {
+                auto index = Shape::Index(d, k);
+                if (not t->shape[index].Empty())
+                    MakeAndPush<ShiftPrimitive>(primitives, options, t, std::vector<Shape::Index>({index}), s);
+            }
 
             // Build extra KH/KW double shifting primitives.
             if (DynamicCast<ChannelShape>(t->shape.dims[d])) {
-                auto indices = std::vector<Shape::Index>({Shape::Index(d, ChannelShape::Index::PKH),
-                                                          Shape::Index(d, ChannelShape::Index::PKW)});
-                TryMakeAndPush<ShiftPrimitive>(primitives, options, t, indices, s);
+                auto index_kh = Shape::Index(d, ChannelShape::Index::PKH);
+                auto index_kw = Shape::Index(d, ChannelShape::Index::PKW);
+                if (not t->shape[index_kh].Empty() and not t->shape[index_kw].Empty()) {
+                    auto indices = std::vector<Shape::Index>({index_kh, index_kw});
+                    MakeAndPush<ShiftPrimitive>(primitives, options, t, indices, s);
+                }
             }
 
             // Build extra H/W double shifting primitives.
             if (DynamicCast<SpatialShape>(t->shape.dims[d])) {
-                auto indices = std::vector<Shape::Index>({Shape::Index(d, SpatialShape::Index::PH),
-                                                          Shape::Index(d, SpatialShape::Index::PW)});
-                TryMakeAndPush<ShiftPrimitive>(primitives, options, t, indices, s);
+                auto index_h = Shape::Index(d, SpatialShape::Index::PH);
+                auto index_w = Shape::Index(d, SpatialShape::Index::PW);
+                if (not t->shape[index_h].Empty() and not t->shape[index_w].Empty()) {
+                    auto indices = std::vector<Shape::Index>({index_h, index_w});
+                    MakeAndPush<ShiftPrimitive>(primitives, options, t, indices, s);
+                }
             }
         }
     }
@@ -202,7 +239,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
             continue;
         auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type);
         if (not all_matches.empty())
-            TryPush(RandomChoose(all_matches), primitives, options);
+            Push(RandomChoose(all_matches), primitives, options);
     }
 }
 

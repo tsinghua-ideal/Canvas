@@ -12,7 +12,7 @@ struct OutputPrimitive: Primitive {
         if (not t->consumers.empty())
             throw CanNotApplyPrimitive("Output");
         if (not t->shape.CouldBeReshapedToCHW())
-            throw CanNotApplyPrimitive("OutputPrimitive");
+            throw CanNotApplyPrimitive("Output");
         outs.push_back(std::make_shared<Tensor>(Shape::MakeShapeCHW()));
     }
 

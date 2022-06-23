@@ -10,12 +10,10 @@ GroupPrimitive::GroupPrimitive(const TensorSP& t, int d, GroupType type):
     auto channel = DynamicCast<ChannelShape>(new_shape.dims[d]);
     if (type == GroupByFactor) {
         channel->C() /= StaticVarPos::VG;
-        if (not channel->G().Empty() or not channel->C().MaybeInteger())
-            throw CanNotApplyPrimitive(GroupTypeToName(d, type));
+        assert(channel->C().MaybeInteger());
         channel->G() = StaticVarPos::VG;
     } else if (type == GroupAllChannels) {
-        if (not channel->G().Empty() or channel->CKK().Empty())
-            throw CanNotApplyPrimitive(GroupTypeToName(d, type));
+        assert(not channel->CKK().Empty());
         channel->G() = channel->CKK();
         channel->C().Reset(), channel->KH().Reset(), channel->KW().Reset();
     }

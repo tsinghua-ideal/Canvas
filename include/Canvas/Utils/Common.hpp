@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCUnusedMacroInspection"
 #pragma once
 
 #include <algorithm>
@@ -34,14 +36,14 @@ public:
     [[maybe_unused]] static constexpr const char *clear  = "\033[2K\r";
 };
 
-/// Warning
+/// Warning.
 [[maybe_unused]] static void Warning(const std::string& info) {
     std::cout << ConsoleUtils::green;
     std::cout << "Warning: " << info;
     std::cout << ConsoleUtils::reset << std::endl;
 }
 
-/// An unimplemented error raiser
+/// An unimplemented error raiser.
 [[noreturn]] [[maybe_unused]] static void UnimplementedImpl(int line, const char *file) {
     std::cerr << ConsoleUtils::red;
     std::cerr << "Unimplemented part at line " << line << " in file " << file;
@@ -317,3 +319,5 @@ struct std::hash<Type> { \
         return instance expr; \
     } \
 }
+
+#pragma clang diagnostic pop

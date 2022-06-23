@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <initializer_list>
+#include <numeric>
 #include <utility>
 
 #include "Canvas/Core/Variable.hpp"
@@ -161,19 +162,23 @@ struct SpatialShape: MetaShape {
 
 struct Shape {
     struct ShapeSpecs {
-        std::vector<int> dims;
 
-        explicit ShapeSpecs(std::vector<int> dims): dims(std::move(dims)) {}
+        static constexpr size_t kPredefinedMaxBatchSize = 128;
 
-        [[nodiscard]] int Pi() const {
-            int pi = 1;
-            for (const auto& dim: dims)
-                pi *= dim;
-            return pi;
-        }
+        std::vector<size_t> dims;
+
+        explicit ShapeSpecs(std::vector<size_t> dims): dims(std::move(dims)) {}
 
         [[nodiscard]] bool IsValid() const {
-            return std::all_of(dims.begin(), dims.end(), [](int x) -> bool { return x > 0; });
+            if (dims.empty())
+                return false;
+            size_t pi = 1;
+            for (const auto& dim: dims) {
+                pi *= dim;
+                if (dim == 0)
+                    return false;
+            }
+            return pi * kPredefinedMaxBatchSize <= std::numeric_limits<int>::max();
         }
     };
 
@@ -222,7 +227,7 @@ struct Shape {
     }
 
     [[nodiscard]] ShapeSpecs FillToStaticShape(const Variable::VarSpecs& specs) const {
-        std::vector<int> dim_specs;
+        std::vector<size_t> dim_specs;
         for (const auto& dim: Continuous())
             dim_specs.push_back(dim.FillToInteger(specs));
         return ShapeSpecs(dim_specs);
@@ -241,7 +246,7 @@ struct Shape {
     }
 
     [[nodiscard]] bool CouldBeReshapedToCHW() const {
-        return Pi() == Variable::Compose({StaticVarPos::VC, StaticVarPos::VH, StaticVarPos::VW});
+        return Pi() == Variable::CHW();
     }
 
     void SolveDynamicVar(const VarSolution& s) {

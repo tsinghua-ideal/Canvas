@@ -24,6 +24,7 @@ if __name__ == '__main__':
     # Initialization.
     example_input = torch.zeros((1, ) + args.input_size).to(args.device)
     canvas.get_placeholders(model, example_input)
+    # TODO: add checkpoint restoring.
     last_not_nan_clone = canvas.get_state_dict(model, remove_placeholders=True)
 
     # Search.

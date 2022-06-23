@@ -25,9 +25,9 @@ struct Variable {
     static constexpr int kFactorThreshold = 1000;
 
     struct VarSpecs {
-        int g, c, h, w;
+        size_t g, c, h, w;
 
-        VarSpecs(int g, int c, int h, int w): g(g), c(c), h(h), w(w) {}
+        VarSpecs(size_t g, size_t c, size_t h, size_t w): g(g), c(c), h(h), w(w) {}
     };
 
     /// Variable position indices.
@@ -41,17 +41,17 @@ struct Variable {
 
     static const char* var_info[kStaticVarCount];
 
-    int numeric_numerator = 1, numeric_denominator = 1;
+    size_t numeric_numerator = 1, numeric_denominator = 1;
     int static_power[kStaticVarCount] = {0}, dynamic_power[kDynamicVarCount] = {0};
 
     Variable() = default;
 
-    Variable(int numeric_numerator, int numeric_denominator):
+    Variable(size_t numeric_numerator, size_t numeric_denominator):
             numeric_numerator(numeric_numerator), numeric_denominator(numeric_denominator) {}
 
     Variable(const Variable& rhs) = default;
 
-    [[nodiscard]] static Variable Number(int numeric_numerator=1, int numeric_denominator=1) {
+    [[nodiscard]] static Variable Number(size_t numeric_numerator=1, size_t numeric_denominator=1) {
         assert(numeric_numerator > 0 and numeric_denominator > 0);
         Variable var(numeric_numerator, numeric_denominator);
         var.Simplify();
@@ -72,7 +72,7 @@ struct Variable {
     }
 
     [[nodiscard]] static Variable Compose(const std::initializer_list<StaticVarPos>& dims,
-                                          int numeric_numerator=1, int numeric_denominator=1,
+                                          size_t numeric_numerator=1, size_t numeric_denominator=1,
                                           const std::initializer_list<int>& dyn_vars={});
 
     [[nodiscard]] static Variable CHW() {
@@ -84,10 +84,10 @@ struct Variable {
         numeric_numerator = numeric_denominator = 1;
     }
 
-    [[nodiscard]] int FillToInteger(const VarSpecs& specs) const;
+    [[nodiscard]] size_t FillToInteger(const VarSpecs& specs) const;
 
     void Simplify() {
-        int gcd = std::gcd(numeric_numerator, numeric_denominator);
+        auto gcd = std::gcd(numeric_numerator, numeric_denominator);
         numeric_numerator /= gcd, numeric_denominator /= gcd;
     }
 
@@ -141,7 +141,7 @@ struct Variable {
     [[nodiscard]] bool MaybeInteger() const;
 
     [[nodiscard]] bool Empty() const {
-        auto func = [](uint8_t x) -> bool { return x == 0; };
+        auto func = [](int x) -> bool { return x == 0; };
         return numeric_numerator == 1 and numeric_denominator == 1 and
                std::all_of(static_power, static_power + kStaticVarCount, func) and
                std::all_of(dynamic_power, dynamic_power + kDynamicVarCount, func);

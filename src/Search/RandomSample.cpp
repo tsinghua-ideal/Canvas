@@ -33,8 +33,16 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
+    // Sample a grouping factor.
+    std::vector<int> available_g_factors;
+    for (int i = 0; i <= SampleOptions::kMaxGroupFactor; ++ i)
+        if (net_specs->c_gcd % (1 << i) == 0)
+            available_g_factors.push_back(i);
+    auto global_specs = GlobalSpecs(1 << RandomChoose(available_g_factors));
+
     // Take actions.
     GraphSP graph = std::make_shared<Graph>();
+    std::unordered_set<TensorSP> algebra_checked;
     for (int i = 0; i < n_primitives; ++ i) {
         int width = graph->Width();
 
@@ -96,7 +104,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         if (applies.empty()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
             static int no_available_applies = 0;
-            IC(no_available_applies ++);
+            IC(i, n_primitives, primitive_options.max_delta_width, no_available_applies ++);
 #endif
             return {};
         }
@@ -118,6 +126,25 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 #endif
             return {};
         } // Failed if other exceptions.
+
+        // Early algebra checks.
+        for (const auto& kernel: net_specs->kernel_specs) {
+            auto specs = Merge(global_specs, kernel);
+            for (const auto& t: graph->tensors) {
+                if (not t->shape.IsStatic())
+                    continue;
+                if (algebra_checked.count(t))
+                    continue;
+                algebra_checked.insert(t);
+                if (not (t->shape.FillToStaticShape(specs)).IsValid()) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+                    static int can_not_pass_algebra_check = 0;
+                    IC(can_not_pass_algebra_check ++);
+#endif
+                    return {};
+                }
+            }
+        }
     }
 
     // FC constraints.
@@ -130,8 +157,13 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     }
 
     // Filter by user options.
-    if (options.Filter(graph))
+    if (options.Filter(graph)) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+        static int can_pass_option_filter = 0;
+        IC(can_pass_option_filter ++);
+#endif
         return {};
+    }
 
 #ifdef CANVAS_DEBUG_PRINT_STATISTICS
     static int n_total_sampled = 0, n_out_with_variable = 0;
@@ -200,17 +232,15 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
-    // Sample a grouping factor.
-    std::vector<int> available_g_factors;
-    for (int i = 0; i <= SampleOptions::kMaxGroupFactor; ++ i)
-        if (net_specs->c_gcd % (1 << i) == 0)
-            available_g_factors.push_back(i);
-    auto global_specs = GlobalSpecs(1 << RandomChoose(available_g_factors));
-
     // The final check, fill the solution with concise values.
     for (const auto& kernel: net_specs->kernel_specs)
-        if (not graph->AlgebraCheck(Merge(global_specs, kernel)))
+        if (not graph->AlgebraCheck(Merge(global_specs, kernel))) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+            static int can_not_pass_algebra_check = 0;
+            IC(can_not_pass_algebra_check ++);
+#endif
             return {};
+        }
     return {net_specs, graph, global_specs};
 }
 
