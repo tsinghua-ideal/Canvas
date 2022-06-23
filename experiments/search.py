@@ -52,6 +52,9 @@ if __name__ == '__main__':
             if score > best_score:
                 best_score, best_clone = score, canvas.get_state_dict(model, remove_placeholders=True)
                 logger.info(f'Best score has been updated to {best_score}')
+            else:
+                logger.warning('Restoring to best model parameters')
+                canvas.restore_from_state_dict(model, best_clone)
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
