@@ -34,7 +34,7 @@ if __name__ == '__main__':
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
         try:
-            kernel_pack = canvas.sample(model, example_input)
+            kernel_pack = canvas.sample(model, example_input, force_bmm_possibility=args.canvas_bmm_pct)
             canvas.replace(model, kernel_pack.module, args.device)
         except RuntimeError as ex:
             # Out of memory or timeout.

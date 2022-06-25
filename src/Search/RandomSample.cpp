@@ -235,13 +235,16 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 }
 
 Solution RandomSample(const NetSpecsSP& net_specs, const SampleOptions& options) {
+    bool force_bmm = MakeChoice(options.force_bmm_possibility);
     auto start_time_point = std::chrono::system_clock::now();
     int times = 0;
     while (true) {
         ++ times;
         auto solution = TryRandomSample(net_specs, options);
-        if (not solution.Empty())
-            return solution;
+        if (not solution.Empty()) {
+            if ((not force_bmm) or solution.graph->PrimitiveCount<MatrixMultiplicationPrimitive>() > 0)
+                return solution;
+        }
 
         auto current_time_point = std::chrono::system_clock::now();
         if (options.timeout != std::chrono::seconds(0) and current_time_point - start_time_point > options.timeout)

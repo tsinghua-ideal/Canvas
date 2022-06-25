@@ -17,6 +17,7 @@ def build_sample_options(allowed_filter: str = '',
                          num_max_width_range: Tuple[int, int] = (2, 8),
                          num_fc_range: Tuple[int, int] = (1, 8),
                          max_fc_ratio: float = 0.6,
+                         force_bmm_possibility: float = 0.0,
                          timeout: int = 0):
     # Check option types.
     if type(allowed_filter) != str:
@@ -44,6 +45,8 @@ def build_sample_options(allowed_filter: str = '',
                          'two positive ints [L, R], where L <= R.')
     if type(max_fc_ratio) != float or not (0 <= max_fc_ratio <= 1):
         raise ValueError('The variable `max_fc_ratio` should be a float between [0.0, 1.0].')
+    if type(force_bmm_possibility) != float or not (0 <= force_bmm_possibility <= 1):
+        raise ValueError('The variable `force_bmm_possibility` should be a float between [0.0, 1.0].')
     if not (type(timeout) == int and timeout >= 0):
         raise ValueError('Timeout value `timeout` should be an int '
                          'greater than zero.')
@@ -55,6 +58,7 @@ def build_sample_options(allowed_filter: str = '',
                                     num_max_width_range[0], num_max_width_range[1],
                                     num_fc_range[0], num_fc_range[1],
                                     max_fc_ratio,
+                                    force_bmm_possibility,
                                     timeout)
 
 
@@ -69,6 +73,7 @@ def empty_sample(allowed_filter: str = '',
                  num_max_width_range: Tuple[int, int] = (2, 8),
                  num_fc_range: Tuple[int, int] = (1, 8),
                  max_fc_ratio: float = 0.6,
+                 force_bmm_possibility: float = 0.0,
                  timeout: int = 0):
     r"""Sample an available kernel from the search space, without network reference.
 
@@ -98,6 +103,8 @@ def empty_sample(allowed_filter: str = '',
             The range limitation of the FC (Fully-Connected) primitive count.
         max_fc_ratio: float
             Maximum FC primitive ratio out of all primitives.
+        force_bmm_possibility: float
+            The possibility to forcibly contain BMM (attention like) primitive.
         timeout: int
             The sampling timeout in seconds, zero for no timeout.
 
@@ -120,6 +127,7 @@ def empty_sample(allowed_filter: str = '',
                                    num_max_width_range,
                                    num_fc_range,
                                    max_fc_ratio,
+                                   force_bmm_possibility,
                                    timeout)
     pack = cpp_canvas.sample([], options)
 
@@ -141,6 +149,7 @@ def sample(m: nn.Module,
            num_max_width_range: Tuple[int, int] = (2, 8),
            num_fc_range: Tuple[int, int] = (1, 8),
            max_fc_ratio: float = 0.6,
+           force_bmm_possibility: float = 0.0,
            timeout: int = 0):
     r"""Sample an available kernel for a module from the search space.
         This function will find all placeholders in the module, and sample
@@ -181,6 +190,8 @@ def sample(m: nn.Module,
             The range limitation of the FC (Fully-Connected) primitive count.
         max_fc_ratio: float
             Maximum FC primitive ratio out of all primitives.
+        force_bmm_possibility: float
+            The possibility to forcibly contain BMM (attention like) primitive.
         timeout: int
             The sampling timeout in seconds, zero for no timeout.
 
@@ -217,6 +228,7 @@ def sample(m: nn.Module,
                                    num_max_width_range,
                                    num_fc_range,
                                    max_fc_ratio,
+                                   force_bmm_possibility,
                                    timeout)
     pack = cpp_canvas.sample(kernel_specs, options)
 

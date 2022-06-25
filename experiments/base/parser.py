@@ -175,7 +175,10 @@ def arg_parse():
     parser.add_argument('--canvas-seed', default='pure', type=str,
                         help='Canvas seed settings (one of "global" and "pure"), '
                              '"global" means same with training, "pure" means purely random')
-    parser.add_argument('--canvas-log-dir', default='', type=str, help='Canvas logging directory')
+    parser.add_argument('--canvas-log-dir', default='', type=str,
+                        help='Canvas logging directory')
+    parser.add_argument('--canvas-bmm-pct', default=0.5, type=float,
+                        help='Possibility to forcibly contain BMM (attention-like)')
 
     # Parse program arguments, and add timestamp information.
     args = parser.parse_args()

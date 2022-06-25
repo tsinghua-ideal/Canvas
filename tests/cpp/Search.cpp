@@ -89,7 +89,10 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
 TEST(Search, RandomSampleAPI) {
     // Create network specifications.
     std::vector<KernelSpecs> kernels;
-    kernels.emplace_back(32, 224, 224);
+    kernels.emplace_back(32, 56, 56);
+    kernels.emplace_back(64, 28, 28);
+    kernels.emplace_back(160, 14, 14);
+    kernels.emplace_back(256, 7, 7);
     auto net_specs = std::make_shared<NetSpecs>(kernels);
 
     // Random and generate code.
