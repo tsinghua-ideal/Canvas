@@ -8,17 +8,13 @@
 
 #include "Canvas/Primitives/Activation.hpp"
 #include "Canvas/Primitives/Broadcast.hpp"
-#include "Canvas/Primitives/ChannelShuffle.hpp"
 #include "Canvas/Primitives/ElementWise.hpp"
 #include "Canvas/Primitives/FC.hpp"
 #include "Canvas/Primitives/Fold.hpp"
 #include "Canvas/Primitives/Group.hpp"
 #include "Canvas/Primitives/Input.hpp"
-#include "Canvas/Primitives/Norm.hpp"
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Primitives/Shift.hpp"
-#include "Canvas/Primitives/Softmax.hpp"
-#include "Canvas/Primitives/Transpose.hpp"
 #include "Canvas/Primitives/Unfold.hpp"
 #include "Canvas/Utils/Common.hpp"
 
@@ -29,6 +25,8 @@ struct Graph;
 typedef std::shared_ptr<Graph> GraphSP;
 
 struct PrimitiveOptions {
+    static constexpr int kMaxNumberDimensions = 7;
+
     // Kernel/dilated/shift sizes.
     std::vector<int> kernel_sizes = {3, 5, 7}, dilated_sizes = {1, 2, 3}, shift_sizes = {1, 2, 3};
 
@@ -89,22 +87,20 @@ struct PrimitiveFactory {
                                     const PrimitiveOptions& options);
 };
 
-static void TryPush(const PrimitiveApply& pa,
-                    std::vector<PrimitiveApply>& vec,
-                    const PrimitiveOptions& options) {
+static void Push(const PrimitiveApply& pa,
+                 std::vector<PrimitiveApply>& vec,
+                 const PrimitiveOptions& options) {
     if (not options.Filter(pa.primitive))
         vec.push_back(pa);
 }
 
 template <typename PrimitiveType, class ... Args>
-static void TryMakeAndPush(std::vector<PrimitiveApply>& vec,
-                           const PrimitiveOptions& options,
-                           Args&&... args) {
-    try {
-        auto p = std::make_shared<PrimitiveType>(args...);
-        if (not options.Filter(p))
-            vec.push_back(PrimitiveApply(p));
-    } catch (CanNotApplyPrimitive& e) {}
+static void MakeAndPush(std::vector<PrimitiveApply>& vec,
+                        const PrimitiveOptions& options,
+                        Args&&... args) {
+    auto p = std::make_shared<PrimitiveType>(args...);
+    if (not options.Filter(p))
+        vec.push_back(PrimitiveApply(p));
 }
 
 } // namespace canvas

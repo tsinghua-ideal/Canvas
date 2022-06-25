@@ -24,7 +24,7 @@ size_t Primitive::Hash(bool ignore_outs) const {
 }
 
 std::ostream& operator << (std::ostream& os, const Primitive& rhs) {
-    auto Print = [&os](const auto& vec) -> std::ostream& {
+    auto Print = [&os](const std::vector<TensorSP>& vec) -> std::ostream& {
         os << "[";
         bool displayed = false;
         for (const auto& t: vec) {

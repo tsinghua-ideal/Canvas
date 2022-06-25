@@ -28,7 +28,7 @@ struct Tensor {
     PrimitiveSP producer;
     PrimitiveArray consumers;
 
-    explicit Tensor(const Shape& shape={}, PrimitiveSP producer=nullptr):
+    explicit Tensor(const Shape& shape, PrimitiveSP producer=nullptr):
         shape(shape), producer(std::move(producer)) {}
 
     Tensor(const Tensor& rhs) = default;

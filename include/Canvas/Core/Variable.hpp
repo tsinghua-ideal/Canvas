@@ -25,9 +25,9 @@ struct Variable {
     static constexpr int kFactorThreshold = 1000;
 
     struct VarSpecs {
-        int g, c, h, w;
+        size_t g, c, h, w;
 
-        VarSpecs(int g, int c, int h, int w): g(g), c(c), h(h), w(w) {}
+        VarSpecs(size_t g, size_t c, size_t h, size_t w): g(g), c(c), h(h), w(w) {}
     };
 
     /// Variable position indices.
@@ -41,17 +41,17 @@ struct Variable {
 
     static const char* var_info[kStaticVarCount];
 
-    int numeric_numerator = 1, numeric_denominator = 1;
+    size_t numeric_numerator = 1, numeric_denominator = 1;
     int static_power[kStaticVarCount] = {0}, dynamic_power[kDynamicVarCount] = {0};
 
     Variable() = default;
 
-    Variable(int numeric_numerator, int numeric_denominator):
+    Variable(size_t numeric_numerator, size_t numeric_denominator):
             numeric_numerator(numeric_numerator), numeric_denominator(numeric_denominator) {}
 
     Variable(const Variable& rhs) = default;
 
-    [[nodiscard]] static Variable Number(int numeric_numerator=1, int numeric_denominator=1) {
+    [[nodiscard]] static Variable Number(size_t numeric_numerator=1, size_t numeric_denominator=1) {
         assert(numeric_numerator > 0 and numeric_denominator > 0);
         Variable var(numeric_numerator, numeric_denominator);
         var.Simplify();
@@ -72,18 +72,22 @@ struct Variable {
     }
 
     [[nodiscard]] static Variable Compose(const std::initializer_list<StaticVarPos>& dims,
-                                          int numeric_numerator=1, int numeric_denominator=1,
+                                          size_t numeric_numerator=1, size_t numeric_denominator=1,
                                           const std::initializer_list<int>& dyn_vars={});
+
+    [[nodiscard]] static Variable CHW() {
+        return Compose({StaticVarPos::VC, StaticVarPos::VH, StaticVarPos::VW});
+    }
 
     void Reset() {
         std::memset(this, 0, sizeof(Variable));
         numeric_numerator = numeric_denominator = 1;
     }
 
-    [[nodiscard]] int FillToInteger(const VarSpecs& specs) const;
+    [[nodiscard]] size_t FillToInteger(const VarSpecs& specs) const;
 
     void Simplify() {
-        int gcd = std::gcd(numeric_numerator, numeric_denominator);
+        auto gcd = std::gcd(numeric_numerator, numeric_denominator);
         numeric_numerator /= gcd, numeric_denominator /= gcd;
     }
 
@@ -103,6 +107,8 @@ struct Variable {
     }
 
     [[nodiscard]] int DynamicVarCount() const;
+
+    [[nodiscard]] int GetFirstLinearDynamicVar() const;
 
     [[nodiscard]] int GetOnlyDynamicVar() const;
 
@@ -137,7 +143,7 @@ struct Variable {
     [[nodiscard]] bool MaybeInteger() const;
 
     [[nodiscard]] bool Empty() const {
-        auto func = [](uint8_t x) -> bool { return x == 0; };
+        auto func = [](int x) -> bool { return x == 0; };
         return numeric_numerator == 1 and numeric_denominator == 1 and
                std::all_of(static_power, static_power + kStaticVarCount, func) and
                std::all_of(dynamic_power, dynamic_power + kDynamicVarCount, func);
@@ -214,13 +220,30 @@ struct VarSolution {
     Variable substitution;
 
     VarSolution(int index, const Variable& substitution): index(index), substitution(substitution) {}
+
+    static std::optional<VarSolution> Solve(const Variable& lhs, const Variable& rhs) {
+        // Solve variable relationships between `lhs` and `rhs`, returning dynamic variable substitution.
+        auto equ_lhs = lhs.Numerator() * rhs.Denominator();
+        auto equ_rhs = lhs.Denominator() * rhs.Numerator();
+        assert(equ_lhs.Denominator().Empty() and equ_rhs.Denominator().Empty());
+        int linear_dyn_var = equ_lhs.GetFirstLinearDynamicVar();
+        if (linear_dyn_var == kInvalidIndex) {
+            std::swap(equ_lhs, equ_rhs);
+            linear_dyn_var = equ_lhs.GetFirstLinearDynamicVar();
+        }
+        if (linear_dyn_var == kInvalidIndex)
+            return std::nullopt;
+        assert(equ_lhs.dynamic_power[linear_dyn_var] == 1);
+        equ_lhs.dynamic_power[linear_dyn_var] = 0;
+        return std::make_optional<VarSolution>(linear_dyn_var, equ_rhs / equ_lhs);
+    }
 };
 
 using StaticVarPos = Variable::StaticVarPos;
 
-class CanNotSolveDynamicVar: public ExceptionWithInfo {
+class CanNotSolveDynamicVarOnGraph: public ExceptionWithInfo {
 public:
-    explicit CanNotSolveDynamicVar(const VarSolution& s) {
+    explicit CanNotSolveDynamicVarOnGraph(const VarSolution& s) {
         std::stringstream ss;
         ss << "Can not apply \"x_" << s.index << " = " << s.substitution << "\" on the graph";
         info = ss.str();

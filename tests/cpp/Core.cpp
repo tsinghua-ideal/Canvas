@@ -3,10 +3,18 @@
 #include "Canvas/Core/Graph.hpp"
 #include "Canvas/Core/Shape.hpp"
 #include "Canvas/Core/Variable.hpp"
-#include "Canvas/Primitives/Factory.hpp"
 
 
 using namespace canvas;
+
+struct TestPrimitive: Primitive {
+    explicit TestPrimitive(const TensorSP& t):
+            Primitive("Test", {t}, false) {
+        outs.push_back(std::make_shared<Tensor>(t->shape));
+    }
+
+    CanvasPrimitiveCopyTemplate(TestPrimitive);
+};
 
 TEST(Core, Variable) {
     auto x = Variable::Compose({StaticVarPos::VC, StaticVarPos::VDG}, 1, 1, {0, 4});
@@ -57,8 +65,7 @@ TEST(Core, VariableFactors) {
 }
 
 TEST(Core, Shape) {
-    Shape s;
-    s.C() = StaticVarPos::VC, s.H() = StaticVarPos::VH, s.W() = StaticVarPos::VW;
+    Shape s = Shape::MakeShapeCHW();
     std::stringstream ss;
     ss << s;
     ASSERT_EQ(ss.str(), "[C, H, W]");
@@ -70,7 +77,7 @@ TEST(Core, GraphDeconstruction) {
     {
         auto graph = std::make_shared<Graph>();
         auto in = graph->in;
-        graph->Apply(std::make_shared<ActivationPrimitive>(in));
+        graph->Apply(std::make_shared<TestPrimitive>(in));
     }
     ASSERT_EQ(prev_num_tensor_deconstruction + 2, Tensor::num_deconstruction);
     ASSERT_EQ(prev_num_primitive_deconstruction + 2, Primitive::num_deconstruction);
@@ -82,7 +89,7 @@ TEST(Core, GraphCopy) {
     {
         auto graph = std::make_shared<Graph>();
         auto in = graph->in;
-        graph->Apply(std::make_shared<ActivationPrimitive>(in));
+        graph->Apply(std::make_shared<TestPrimitive>(in));
 
         // Copy.
         {
@@ -93,7 +100,7 @@ TEST(Core, GraphCopy) {
 
         // Copy and apply.
         {
-            auto unfold_2 = std::make_shared<ActivationPrimitive>(in);
+            auto unfold_2 = std::make_shared<TestPrimitive>(in);
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "UnusedLocalVariable"
             auto [copy, remapped] = graph->CopyAndApply(unfold_2);

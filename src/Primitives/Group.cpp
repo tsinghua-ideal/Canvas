@@ -3,19 +3,19 @@
 
 namespace canvas {
 
-GroupPrimitive::GroupPrimitive(const TensorSP& t, GroupType type):
-        type(type), Primitive(GroupTypeToName(type), {t}, false) {
+GroupPrimitive::GroupPrimitive(const TensorSP& t, int d, GroupType type):
+        d(d), type(type), Primitive(GroupTypeToName(d, type), {t}, false) {
+    assert(0 <= d and d < 2 and DynamicCast<ChannelShape>(t->shape.dims[d]));
     Shape new_shape = t->shape;
+    auto channel = DynamicCast<ChannelShape>(new_shape.dims[d]);
     if (type == GroupByFactor) {
-        new_shape.C() /= StaticVarPos::VG;
-        if (not new_shape.G().Empty() or not new_shape.C().MaybeInteger())
-            throw CanNotApplyPrimitive(GroupTypeToName(type));
-        new_shape.G() = StaticVarPos::VG;
+        channel->C() /= StaticVarPos::VG;
+        assert(channel->C().MaybeInteger());
+        channel->G() = StaticVarPos::VG;
     } else if (type == GroupAllChannels) {
-        if (not new_shape.G().Empty() or new_shape.CKK().Empty())
-            throw CanNotApplyPrimitive(GroupTypeToName(type));
-        new_shape.G() = new_shape.CKK();
-        new_shape.C().Reset(), new_shape.KH().Reset(), new_shape.KW().Reset();
+        assert(not channel->CKK().Empty());
+        channel->G() = channel->CKK();
+        channel->C().Reset(), channel->KH().Reset(), channel->KW().Reset();
     }
     outs.push_back(std::make_shared<Tensor>(new_shape));
 }

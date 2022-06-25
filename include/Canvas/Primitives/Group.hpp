@@ -10,18 +10,19 @@ enum GroupType {
     GroupAllChannels,
 };
 
-static constexpr const char* GroupTypeToName(GroupType type) {
+static std::string GroupTypeToName(int d, GroupType type) {
     switch (type) {
-        case GroupByFactor: return "GroupByFactor";
-        case GroupAllChannels: return "GroupAll";
+        case GroupByFactor: return "GroupByFactor_" + std::to_string(d);
+        case GroupAllChannels: return "GroupAll_" + std::to_string(d);
     }
-    return "";
+    Unreachable();
 }
 
 struct GroupPrimitive: Primitive {
+    int d;
     GroupType type;
 
-    explicit GroupPrimitive(const TensorSP& t, GroupType type=GroupByFactor);
+    explicit GroupPrimitive(const TensorSP& t, int d, GroupType type=GroupByFactor);
 
     CanvasPrimitiveCopyTemplate(GroupPrimitive);
 };

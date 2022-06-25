@@ -49,7 +49,7 @@ Graph::~Graph() {
 
 bool Graph::AlgebraCheck(const Variable::VarSpecs& specs) const {
     // Get all parameters.
-    int g = specs.g, c = specs.c, h = specs.h, w = specs.w;
+    size_t g = specs.g, c = specs.c, h = specs.h, w = specs.w;
     assert(g > 0 and c > 0 and h > 0 and w > 0);
     assert(c % g == 0);
 
@@ -85,18 +85,6 @@ void Graph::LegalityCheck() const {
     for (const auto& p: primitives)
         for (const auto& t: br::join(p->ins, p->outs))
             assert(t_set.count(t));
-
-    // Shape checks.
-    for (const auto& t: tensors) {
-        auto& shape = t->shape;
-        // G.
-        assert(shape.G().SatisfyAssumption());
-        // C.
-        assert(shape.C().SatisfyAssumption());
-        // H, W.
-        assert(shape.H() == Variable::StaticVar(StaticVarPos::VH) or shape.H().Empty());
-        assert(shape.W() == Variable::StaticVar(StaticVarPos::VW) or shape.W().Empty());
-    }
 }
 
 bool Graph::IsTopologicalFinished() const {
@@ -108,13 +96,13 @@ bool Graph::IsTopologicalFinished() const {
         output_count += (DynamicCast<OutputPrimitive>(p) != nullptr);
     return output_count == 1
         and DynamicCast<OutputPrimitive>(out->producer) != nullptr
-        and out->shape == Shape::StandardCHW();
+        and out->shape == Shape::MakeShapeCHW();
 }
 
 std::vector<int> Graph::DynamicVars() const {
     bool used[Variable::kDynamicVarCount] = {false};
     for (const auto& t: tensors)
-        for (const auto& dim: t->shape.dims)
+        for (const auto& dim: t->shape.Continuous())
             for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
                 if (dim.dynamic_power[i] != 0)
                     used[i] = true;
@@ -128,7 +116,7 @@ std::vector<int> Graph::DynamicVars() const {
 std::optional<int> Graph::NextUnusedDynamicVarIndex() const {
     bool used[Variable::kDynamicVarCount] = {false};
     for (const auto& t: tensors)
-        for (const auto& dim: t->shape.dims)
+        for (const auto& dim: t->shape.Continuous())
             for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
                 if (dim.dynamic_power[i] != 0)
                     used[i] = true;
@@ -244,15 +232,15 @@ std::pair<GraphSP, PrimitiveApply> Graph::CopyAndApply(const PrimitiveApply& pa)
 void Graph::SolveDynamicVar(const VarSolution& s) {
     for (const auto &t: tensors) {
         t->shape.SolveDynamicVar(s);
-        for (const auto& dim: t->shape.dims)
+        for (const auto& dim: t->shape.Continuous())
             if (not dim.MaybeInteger())
-                throw CanNotSolveDynamicVar(s);
+                throw CanNotSolveDynamicVarOnGraph(s);
     }
     for (const auto& p: primitives) {
         p->SolveDynamicVar(s);
         for (const auto& dim: p->IntermediateVariables())
             if (not dim.MaybeInteger())
-                throw CanNotSolveDynamicVar(s);
+                throw CanNotSolveDynamicVarOnGraph(s);
     }
 }
 

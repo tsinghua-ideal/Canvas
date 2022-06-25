@@ -10,7 +10,7 @@ static_assert(Variable::kStaticVarCount == 4);
 const char* Variable::var_info[kStaticVarCount] = {"G", "C", "H", "W"};
 
 Variable Variable::Compose(const std::initializer_list<StaticVarPos>& dims,
-                           int numeric_numerator, int numeric_denominator,
+                           size_t numeric_numerator, size_t numeric_denominator,
                            const std::initializer_list<int>& dyn_vars) {
     Variable var;
     for (const auto& dim: dims) {
@@ -23,21 +23,23 @@ Variable Variable::Compose(const std::initializer_list<StaticVarPos>& dims,
         assert(dyn_var < kDynamicVarCount);
         var.dynamic_power[dyn_var] += 1;
     }
+    var.numeric_numerator = numeric_numerator;
+    var.numeric_denominator = numeric_denominator;
     var.Simplify();
     return var;
 }
 
-int Variable::FillToInteger(const Variable::VarSpecs& specs) const {
+size_t Variable::FillToInteger(const Variable::VarSpecs& specs) const {
     assert(IsStatic());
-    auto Product = [=](bool positive) -> int {
-        int result = positive ? numeric_numerator : numeric_denominator;
+    auto Product = [=](bool positive) -> size_t {
+        size_t result = positive ? numeric_numerator : numeric_denominator;
         result *= (static_power[VG] >= 0) == positive ? Power(specs.g, std::abs(static_power[VG])) : 1;
         result *= (static_power[VC] >= 0) == positive ? Power(specs.c, std::abs(static_power[VC])) : 1;
         result *= (static_power[VH] >= 0) == positive ? Power(specs.h, std::abs(static_power[VH])) : 1;
         result *= (static_power[VW] >= 0) == positive ? Power(specs.w, std::abs(static_power[VW])) : 1;
         return result;
     };
-    int numerator = Product(true), denominator = Product(false);
+    size_t numerator = Product(true), denominator = Product(false);
     if (denominator == 0 or numerator % denominator != 0)
         return 0;
     return numerator / denominator;
@@ -50,6 +52,7 @@ bool Variable::MaybeInteger() const {
             return true;
 
     // Pure number.
+    assert(numeric_numerator != 0);
     if (IsNumber())
         return numeric_numerator % numeric_denominator == 0;
 
@@ -106,6 +109,13 @@ Variable Variable::Reciprocal() const {
     return reciprocal;
 }
 
+int Variable::GetFirstLinearDynamicVar() const {
+    for (int i = 0; i < kDynamicVarCount; ++ i)
+        if (dynamic_power[i] == 1)
+            return i;
+    return kInvalidIndex;
+}
+
 int Variable::GetOnlyDynamicVar() const {
     int index = kInvalidIndex;
     for (int i = 0; i < kDynamicVarCount; ++ i) {
@@ -141,7 +151,7 @@ Variable Variable::Denominator() const {
         denominator.static_power[i] = std::abs(std::min(static_power[i], 0));
     for (int i = 0; i < kDynamicVarCount; ++ i)
         denominator.dynamic_power[i] = std::abs(std::min(dynamic_power[i], 0));
-    denominator.numeric_denominator = numeric_denominator;
+    denominator.numeric_numerator = numeric_denominator;
     return denominator;
 }
 
@@ -166,7 +176,7 @@ size_t Variable::Hash() const {
 }
 
 std::vector<Variable> Variable::GetAllFactors() const {
-    std::vector<std::pair<Variable, int>> primes;
+    std::vector<std::pair<Variable, size_t>> primes;
     auto PushPrime = [&primes](Variable var, int power) {
         if (power == 0)
             return;
@@ -176,8 +186,8 @@ std::vector<Variable> Variable::GetAllFactors() const {
     };
 
     // Push prime of numbers into vector.
-    auto DecomposeNumber = [&](int x, bool is_numerator) {
-        for (int i = 2; i <= x; ++ i) {
+    auto DecomposeNumber = [&](size_t x, bool is_numerator) {
+        for (size_t i = 2; i <= x; ++ i) {
             int count = 0;
             while (x % i == 0)
                 x /= i, ++ count;

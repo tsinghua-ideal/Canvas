@@ -12,11 +12,11 @@ void BroadcastPrimitive::SolveDynamicVar(const VarSolution& s) {
     rhs_pi.SolveDynamicVar(s);
     multiplier.SolveDynamicVar(s);
     if (not lhs_pi.MaybeInteger() or not multiplier.MaybeInteger())
-        throw CanNotSolveDynamicVar(s);
+        throw CanNotSolveDynamicVarOnGraph(s);
     for (auto& var: br::join(prefix, suffix)) {
         var.SolveDynamicVar(s);
         if (not var.MaybeInteger())
-            throw CanNotSolveDynamicVar(s);
+            throw CanNotSolveDynamicVarOnGraph(s);
     }
 }
 
@@ -106,29 +106,27 @@ BroadcastPrimitive::GetAllPossibleMatches(const TensorSP& lhs, const TensorSP& r
 
     // Only if exactly one dynamic variable occurs in the denominator, a variable solution will be constructed.
     auto m_denominator = multiplier.Denominator();
-    auto dynamic_var_count = m_denominator.DynamicVarCount();
-    assert(dynamic_var_count <= 1);
-    if (dynamic_var_count == 0) {
+    if (m_denominator.DynamicVarCount() == 0) {
         // No new solution.
         return {PrimitiveApply(std::make_shared<BroadcastPrimitive>(lhs, rhs, type, false,
                                                                     lhs_pi, rhs_pi, multiplier, prefix, suffix))};
     } else {
-        int var_index = m_denominator.GetOnlyDynamicVar();
-        // The power of the dynamic variable could not be less than -1.
-        assert(m_denominator.dynamic_power[var_index] == 1);
-        auto numerator = multiplier.Numerator();
-        // Get all factors, then restrict `lhs_pi`, `rhs_pi` and `multiplier` to be integer.
-        auto all_factors = numerator.GetAllFactors();
+        auto m_numerator = multiplier.Numerator();
+        auto all_factors = m_numerator.GetAllFactors();
         RandomShuffle(all_factors);
         std::vector<PrimitiveApply> collections;
         for (const auto& factor: all_factors) {
-            auto s = VarSolution(var_index, factor);
+            // A factor of numerator equals to the denominator.
+            // TODO: support dynamic variable splitting, e.g. x_1 | (x_2 = x_3 * x_4).
+            auto s = VarSolution::Solve(factor, m_denominator);
+            if (not s.has_value())
+                continue;
             auto replaced_lhs_pi = lhs_pi, replaced_rhs_pi = rhs_pi, replaced_multiplier = multiplier;
-            replaced_lhs_pi.SolveDynamicVar(s);
-            replaced_rhs_pi.SolveDynamicVar(s);
-            replaced_multiplier.SolveDynamicVar(s);
+            replaced_lhs_pi.SolveDynamicVar(s.value());
+            replaced_rhs_pi.SolveDynamicVar(s.value());
+            replaced_multiplier.SolveDynamicVar(s.value());
             if (replaced_lhs_pi.MaybeInteger() and replaced_rhs_pi.MaybeInteger() and replaced_multiplier.MaybeInteger()) {
-                // NOTE: Notice that the dynamic variables in `prefix` and `suffix` should also be processed later.
+                // NOTE: notice that the dynamic variables in `prefix` and `suffix` should also be processed later.
                 collections.emplace_back(std::make_shared<BroadcastPrimitive>(lhs, rhs, type, false,
                                                                               replaced_lhs_pi, replaced_rhs_pi,
                                                                               replaced_multiplier, prefix, suffix),

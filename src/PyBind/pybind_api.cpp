@@ -18,7 +18,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
 
     // The kernel specification class.
     pybind11::class_<canvas::KernelSpecs>(m, "KernelSpecs")
-            .def(pybind11::init<int, int, int>())
+            .def(pybind11::init<size_t, size_t, size_t>())
             .def_readwrite("c", &canvas::KernelSpecs::c)
             .def_readwrite("h", &canvas::KernelSpecs::h)
             .def_readwrite("w", &canvas::KernelSpecs::w);
@@ -48,7 +48,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
                   auto graphviz_code = canvas::DotCodeGen().Gen(solution);
                   return {torch_code.ToString(), graphviz_code.ToString(), std::to_string(solution.Hash())};
               } catch (const std::exception& exception) {
-                  return {std::string(exception.what())};
+                  return canvas::KernelPack(std::string(exception.what()));
               }
           },
           "Sample a kernel from the space specified by the configuration.");

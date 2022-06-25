@@ -15,9 +15,9 @@ namespace canvas {
 
 /// Global settings for a kernel design.
 struct GlobalSpecs {
-    int g;
+    size_t g;
 
-    explicit GlobalSpecs(int g=1): g(g) {}
+    explicit GlobalSpecs(size_t g=1): g(g) {}
 
     GlobalSpecs(const GlobalSpecs& specs) = default;
 
@@ -28,9 +28,9 @@ struct GlobalSpecs {
 
 /// Specifications for a single kernel.
 struct KernelSpecs {
-    int c, h, w;
+    size_t c, h, w;
 
-    KernelSpecs(int c, int h, int w): c(c), h(h), w(w) {}
+    KernelSpecs(size_t c, size_t h, size_t w): c(c), h(h), w(w) {}
 
     [[nodiscard]] size_t Hash() const {
         size_t hash = c;
@@ -48,7 +48,7 @@ private:
 
 public:
     size_t c_gcd = 0;
-    std::vector<int> c_gcd_factors;
+    std::vector<size_t> c_gcd_factors;
     std::vector<KernelSpecs> kernel_specs;
 
     explicit NetSpecs(std::vector<KernelSpecs> kernel_specs);

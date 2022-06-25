@@ -29,7 +29,7 @@ GraphSP RandomGraph(int n_primitives, const PrimitiveOptions& filter=PrimitiveOp
         try {
             ++ try_times;
             graph = TryToGenerate();
-        } catch (const CanNotSolveDynamicVar& _) {}
+        } catch (const CanNotSolveDynamicVarOnGraph& _) {}
     }
     std::cout << "Generate a graph with " << try_times << " tries" << std::endl;
     return graph;
@@ -80,16 +80,16 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
                 ASSERT_EQ(graph->Width(), width - i);
             }
             std::cout << "Final kernel width: " << graph->Width() << std::endl;
-            std::cout << graph->Hash() << std::endl;
+            std::cout << "Graph hash:" << graph->Hash() << std::endl;
             break;
-        } catch (const CanNotSolveDynamicVar& _) {}
+        } catch (const CanNotSolveDynamicVarOnGraph& _) {}
     }
 }
 
 TEST(Search, RandomSampleAPI) {
     // Create network specifications.
     std::vector<KernelSpecs> kernels;
-    kernels.emplace_back(256, 32, 32);
+    kernels.emplace_back(32, 224, 224);
     auto net_specs = std::make_shared<NetSpecs>(kernels);
 
     // Random and generate code.

@@ -1,3 +1,5 @@
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "OCUnusedMacroInspection"
 #pragma once
 
 #include <algorithm>
@@ -34,14 +36,14 @@ public:
     [[maybe_unused]] static constexpr const char *clear  = "\033[2K\r";
 };
 
-/// Warning
+/// Warning.
 [[maybe_unused]] static void Warning(const std::string& info) {
     std::cout << ConsoleUtils::green;
     std::cout << "Warning: " << info;
     std::cout << ConsoleUtils::reset << std::endl;
 }
 
-/// An unimplemented error raiser
+/// An unimplemented error raiser.
 [[noreturn]] [[maybe_unused]] static void UnimplementedImpl(int line, const char *file) {
     std::cerr << ConsoleUtils::red;
     std::cerr << "Unimplemented part at line " << line << " in file " << file;
@@ -164,6 +166,14 @@ auto RandomChoose(const VecType& vec) {
 template <typename VecType>
 void RandomShuffle(VecType& vec) {
     std::shuffle(vec.begin(), vec.end(), std::mt19937(RandomInt()));
+}
+
+/// Merge two vectors.
+template <typename VecType>
+[[maybe_unused]] VecType Merge(const VecType &lhs, const VecType& rhs) {
+    VecType merged = lhs;
+    merged.insert(merged.end(), rhs.begin(), rhs.end());
+    return merged;
 }
 
 /// Filter in a vector-like thing.
@@ -309,3 +319,5 @@ struct std::hash<Type> { \
         return instance expr; \
     } \
 }
+
+#pragma clang diagnostic pop

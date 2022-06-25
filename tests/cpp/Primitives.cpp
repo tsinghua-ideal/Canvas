@@ -11,7 +11,7 @@ using namespace canvas;
 
 TEST(Primitives, DuplicatePrimitiveChecking) {
     auto graph = std::make_shared<Graph>();
-    auto group = std::make_shared<GroupPrimitive>(graph->in);
+    auto group = std::make_shared<GroupPrimitive>(graph->in, 0);
     graph->Apply(group);
 
     PrimitiveOptions filter;
@@ -31,11 +31,12 @@ TEST(Primitives, DuplicatePrimitiveChecking) {
 }
 
 TEST(Primitives, BroadcastDynamicMatching) {
-    Shape lhs_shape, rhs_shape;
-    lhs_shape.G() = StaticVarPos::VG, lhs_shape.C() = Variable::DynamicVar(2) / StaticVarPos::VG;
-    lhs_shape.H() = StaticVarPos::VH, lhs_shape.W() = StaticVarPos::VW;
-    rhs_shape.G() = StaticVarPos::VG, rhs_shape.C() = StaticVarPos::VC / StaticVarPos::VG;
-    rhs_shape.H() = StaticVarPos::VH, rhs_shape.W() = StaticVarPos::VW;
+    Shape lhs_shape = Shape::MakeChannelSpatial(), rhs_shape = Shape::MakeChannelSpatial();
+    lhs_shape.Channel()->G() = StaticVarPos::VG, lhs_shape.Channel()->C() = Variable::DynamicVar(2) / StaticVarPos::VG;
+    lhs_shape.Spatial()->H() = StaticVarPos::VH, lhs_shape.Spatial()->W() = StaticVarPos::VW;
+
+    rhs_shape.Channel()->G() = StaticVarPos::VG, rhs_shape.Channel()->C() = StaticVarPos::VC / StaticVarPos::VG;
+    rhs_shape.Spatial()->H() = StaticVarPos::VH, rhs_shape.Spatial()->W() = StaticVarPos::VW;
     auto lhs = std::make_shared<Tensor>(lhs_shape), rhs = std::make_shared<Tensor>(rhs_shape);
     auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, BMul);
     std::cout << "Solutions:" << std::endl;
@@ -48,9 +49,8 @@ TEST(Primitives, BroadcastDynamicMatching) {
 }
 
 TEST(Primitives, BroadcastDynamicMatchingHW) {
-    Shape lhs_shape, rhs_shape;
-    lhs_shape.C() = Variable::DynamicVar(3);
-    rhs_shape.C() = StaticVarPos::VC, rhs_shape.H() = StaticVarPos::VH, rhs_shape.W() = StaticVarPos::VW;
+    Shape lhs_shape = Shape::MakeChannelSpatial(), rhs_shape = Shape::MakeShapeCHW();
+    lhs_shape.Channel()->C() = Variable::DynamicVar(3);
     auto lhs = std::make_shared<Tensor>(lhs_shape), rhs = std::make_shared<Tensor>(rhs_shape);
     auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, BMul);
     std::cout << "Solutions:" << std::endl;
@@ -63,10 +63,7 @@ TEST(Primitives, BroadcastDynamicMatchingHW) {
 }
 
 TEST(Primitives, BroadcastSpecialCases) {
-    Shape s1, s2;
-    s1.C() = StaticVarPos::VC, s1.H() = StaticVarPos::VH, s1.W() = StaticVarPos::VW;
-    s2.C() = StaticVarPos::VC, s2.H() = StaticVarPos::VH, s2.W() = StaticVarPos::VW;
-    auto t1 = std::make_shared<Tensor>(s1), t2 = std::make_shared<Tensor>(s2);
+    auto t1 = std::make_shared<Tensor>(Shape::MakeShapeCHW()), t2 = std::make_shared<Tensor>(Shape::MakeShapeCHW());
     auto b_add = std::make_shared<BroadcastPrimitive>(t2, t1, BroadcastType::BAdd);
     std::cout << *b_add << std::endl;
     std::cout << "Prefix:" << std::endl;
@@ -78,3 +75,5 @@ TEST(Primitives, BroadcastSpecialCases) {
     std::cout << "Multiplier:" << b_add->multiplier << std::endl;
     std::cout << std::endl;
 }
+
+// TODO: check whether all primitives exist.

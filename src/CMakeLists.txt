@@ -6,9 +6,13 @@ add_subdirectory(Search)
 add_subdirectory(Utils)
 
 # Link flags
-set_property(GLOBAL PROPERTY CANVAS_ALL_LIBS_PROPERTY
-        SearchLib CodeGenLib CoreLib PrimitiveLib UtilsLib ${Boost_LIBRARIES} -lstdc++ -lm)
-get_property(CANVAS_ALL_LIBS GLOBAL PROPERTY CANVAS_ALL_LIBS_PROPERTY)
+set_property(GLOBAL PROPERTY CANVAS_3RD_PARTY_LIBS_PROPERTY
+        ${Boost_LIBRARIES} -lstdc++ -lm)
+get_property(CANVAS_3RD_PARTY_LIBS GLOBAL PROPERTY CANVAS_3RD_PARTY_LIBS_PROPERTY)
+
+set_property(GLOBAL PROPERTY CANVAS_LIBS_PROPERTY
+        SearchLib CodeGenLib CoreLib PrimitiveLib UtilsLib)
+get_property(CANVAS_LIBS GLOBAL PROPERTY CANVAS_LIBS_PROPERTY)
 
 # Packed executables/libraries
 add_subdirectory(PyBind)

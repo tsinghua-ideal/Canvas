@@ -33,8 +33,16 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
+    // Sample a grouping factor.
+    std::vector<int> available_g_factors;
+    for (int i = 0; i <= SampleOptions::kMaxGroupFactor; ++ i)
+        if (net_specs->c_gcd % (1 << i) == 0)
+            available_g_factors.push_back(i);
+    auto global_specs = GlobalSpecs(1 << RandomChoose(available_g_factors));
+
     // Take actions.
     GraphSP graph = std::make_shared<Graph>();
+    std::unordered_set<TensorSP> algebra_checked;
     for (int i = 0; i < n_primitives; ++ i) {
         int width = graph->Width();
 
@@ -75,7 +83,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
         // Grouping number filters.
         if (net_specs->c_gcd == 1)
-            primitive_options.forbidden_filter.emplace_back(GroupTypeToName(GroupByFactor));
+            primitive_options.forbidden_filter.emplace_back("GroupByFactor");
 
         // Must be output next step.
         if (n_steps_remaining == 1)
@@ -96,7 +104,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         if (applies.empty()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
             static int no_available_applies = 0;
-            IC(no_available_applies ++);
+            IC(i, n_primitives, primitive_options.max_delta_width, no_available_applies ++);
 #endif
             return {};
         }
@@ -108,7 +116,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 #endif
         try {
             graph->Apply(apply);
-        } catch (const CanNotSolveDynamicVar& ex) {
+        } catch (const CanNotSolveDynamicVarOnGraph& ex) {
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
             IC(ex);
 #endif
@@ -118,6 +126,25 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 #endif
             return {};
         } // Failed if other exceptions.
+
+        // Early algebra checks.
+        for (const auto& kernel: net_specs->kernel_specs) {
+            auto specs = Merge(global_specs, kernel);
+            for (const auto& t: graph->tensors) {
+                if (not t->shape.IsStatic())
+                    continue;
+                if (algebra_checked.count(t))
+                    continue;
+                algebra_checked.insert(t);
+                if (not (t->shape.FillToStaticShape(specs)).IsValid()) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+                    static int can_not_pass_algebra_check = 0;
+                    IC(can_not_pass_algebra_check ++);
+#endif
+                    return {};
+                }
+            }
+        }
     }
 
     // FC constraints.
@@ -129,46 +156,35 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
-    // Pruning: channel shuffle must cooperate with grouping.
-    if (graph->PrimitiveCount<ChannelShufflePrimitive>() > 0 and graph->PrimitiveCount<GroupPrimitive>() == 0) {
+    // TODO: may check the number of involving neighbors, using a bitmap-like algorithm.
+
+    // Filter by user options.
+    if (options.Filter(graph)) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
-        static int can_not_cooperate_channel_group = 0;
-        IC(can_not_cooperate_channel_group ++);
+        static int can_pass_option_filter = 0;
+        IC(can_pass_option_filter ++);
 #endif
         return {};
     }
-
-    // Filter by user options.
-    if (options.Filter(graph))
-        return {};
-
-    // For debug (filter primitives).
-    // if (graph->PrimitiveCount<ReorderPrimitive>() == 0)
-    //     return {};
 
 #ifdef CANVAS_DEBUG_PRINT_STATISTICS
     static int n_total_sampled = 0, n_out_with_variable = 0;
     n_total_sampled ++;
 #endif
     auto out = graph->Out();
-    if (not out->shape.IsAllStatic()) {
-        if (out->shape.H().Empty() or out->shape.W().Empty()) {
+    if (not out->shape.IsStatic()) {
+        auto pi = out->shape.Pi();
+        auto var_sol = VarSolution::Solve(pi, Variable::CHW());
+        if (pi.DynamicVarCount() > 1 or not var_sol.has_value()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
-            static int illegal_output_shape = 0;
-            IC(illegal_output_shape ++);
+            static int can_not_solve_output_shape = 0;
+            IC(can_not_solve_output_shape ++);
 #endif
             return {};
         }
-        assert(out->shape.H() == Variable::StaticVar(StaticVarPos::VH));
-        assert(out->shape.W() == Variable::StaticVar(StaticVarPos::VW));
-        auto channel = out->shape.GCKK();
-        assert(channel.DynamicVarCount() == 1); // Only C channel could have unsolved variables.
-        assert(channel.SatisfyAssumption());
-        auto v = Variable::StaticVar(StaticVarPos::VC) / channel.StaticFactor();
-        assert(v.IsStatic());
         try {
-            graph->SolveDynamicVar(VarSolution(channel.GetOnlyDynamicVar(), v));
-        } catch (const CanNotSolveDynamicVar& ex) {
+            graph->SolveDynamicVar(var_sol.value());
+        } catch (const CanNotSolveDynamicVarOnGraph& ex) {
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
             IC(ex);
 #endif
@@ -190,15 +206,15 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
     // Add output primitive and fill the budget.
     assert(graph->Width() == 1);
-    assert(out->shape.CouldBeReshapeToCHW());
+    assert(out->shape.CouldBeReshapedToCHW());
     graph->ApplyOutput();
 
     try {
         auto current_vars = graph->DynamicVars();
-        // TODO: better strategies may exist, e.g. with a reduction factor.
+        // TODO: better strategies may exist, e.g. with a reduction factor, and run factor analysis.
         for (int index: current_vars)
             graph->SolveDynamicVar(VarSolution(index, Variable::StaticVar(StaticVarPos::VC)));
-    } catch (const CanNotSolveDynamicVar& ex) {
+    } catch (const CanNotSolveDynamicVarOnGraph& ex) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
         static int can_not_solve_remaining_dynamic_var = 0;
         IC(can_not_solve_remaining_dynamic_var ++);
@@ -206,17 +222,15 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
-    // Sample a grouping factor.
-    std::vector<int> available_g_factors;
-    for (int i = 0; i <= SampleOptions::kMaxGroupFactor; ++ i)
-        if (net_specs->c_gcd % (1 << i) == 0)
-            available_g_factors.push_back(i);
-    auto global_specs = GlobalSpecs(1 << RandomChoose(available_g_factors));
-
     // The final check, fill the solution with concise values.
     for (const auto& kernel: net_specs->kernel_specs)
-        if (not graph->AlgebraCheck(Merge(global_specs, kernel)))
+        if (not graph->AlgebraCheck(Merge(global_specs, kernel))) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+            static int can_not_pass_algebra_check = 0;
+            IC(can_not_pass_algebra_check ++);
+#endif
             return {};
+        }
     return {net_specs, graph, global_specs};
 }
 
