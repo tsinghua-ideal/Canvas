@@ -108,6 +108,8 @@ struct Variable {
 
     [[nodiscard]] int DynamicVarCount() const;
 
+    [[nodiscard]] int GetFirstLinearDynamicVar() const;
+
     [[nodiscard]] int GetOnlyDynamicVar() const;
 
     /// Solve dynamic variable `i` with `x`.
@@ -218,13 +220,30 @@ struct VarSolution {
     Variable substitution;
 
     VarSolution(int index, const Variable& substitution): index(index), substitution(substitution) {}
+
+    static std::optional<VarSolution> Solve(const Variable& lhs, const Variable& rhs) {
+        // Solve variable relationships between `lhs` and `rhs`, returning dynamic variable substitution.
+        auto equ_lhs = lhs.Numerator() * rhs.Denominator();
+        auto equ_rhs = lhs.Denominator() * rhs.Numerator();
+        assert(equ_lhs.Denominator().Empty() and equ_rhs.Denominator().Empty());
+        int linear_dyn_var = equ_lhs.GetFirstLinearDynamicVar();
+        if (linear_dyn_var == kInvalidIndex) {
+            std::swap(equ_lhs, equ_rhs);
+            linear_dyn_var = equ_lhs.GetFirstLinearDynamicVar();
+        }
+        if (linear_dyn_var == kInvalidIndex)
+            return std::nullopt;
+        assert(equ_lhs.dynamic_power[linear_dyn_var] == 1);
+        equ_lhs.dynamic_power[linear_dyn_var] = 0;
+        return std::make_optional<VarSolution>(linear_dyn_var, equ_rhs / equ_lhs);
+    }
 };
 
 using StaticVarPos = Variable::StaticVarPos;
 
-class CanNotSolveDynamicVar: public ExceptionWithInfo {
+class CanNotSolveDynamicVarOnGraph: public ExceptionWithInfo {
 public:
-    explicit CanNotSolveDynamicVar(const VarSolution& s) {
+    explicit CanNotSolveDynamicVarOnGraph(const VarSolution& s) {
         std::stringstream ss;
         ss << "Can not apply \"x_" << s.index << " = " << s.substitution << "\" on the graph";
         info = ss.str();

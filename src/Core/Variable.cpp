@@ -109,6 +109,13 @@ Variable Variable::Reciprocal() const {
     return reciprocal;
 }
 
+int Variable::GetFirstLinearDynamicVar() const {
+    for (int i = 0; i < kDynamicVarCount; ++ i)
+        if (dynamic_power[i] == 1)
+            return i;
+    return kInvalidIndex;
+}
+
 int Variable::GetOnlyDynamicVar() const {
     int index = kInvalidIndex;
     for (int i = 0; i < kDynamicVarCount; ++ i) {
@@ -144,7 +151,7 @@ Variable Variable::Denominator() const {
         denominator.static_power[i] = std::abs(std::min(static_power[i], 0));
     for (int i = 0; i < kDynamicVarCount; ++ i)
         denominator.dynamic_power[i] = std::abs(std::min(dynamic_power[i], 0));
-    denominator.numeric_denominator = numeric_denominator;
+    denominator.numeric_numerator = numeric_denominator;
     return denominator;
 }
 

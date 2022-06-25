@@ -29,7 +29,7 @@ GraphSP RandomGraph(int n_primitives, const PrimitiveOptions& filter=PrimitiveOp
         try {
             ++ try_times;
             graph = TryToGenerate();
-        } catch (const CanNotSolveDynamicVar& _) {}
+        } catch (const CanNotSolveDynamicVarOnGraph& _) {}
     }
     std::cout << "Generate a graph with " << try_times << " tries" << std::endl;
     return graph;
@@ -80,9 +80,9 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
                 ASSERT_EQ(graph->Width(), width - i);
             }
             std::cout << "Final kernel width: " << graph->Width() << std::endl;
-            std::cout << graph->Hash() << std::endl;
+            std::cout << "Graph hash:" << graph->Hash() << std::endl;
             break;
-        } catch (const CanNotSolveDynamicVar& _) {}
+        } catch (const CanNotSolveDynamicVarOnGraph& _) {}
     }
 }
 

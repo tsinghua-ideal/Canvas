@@ -234,13 +234,13 @@ void Graph::SolveDynamicVar(const VarSolution& s) {
         t->shape.SolveDynamicVar(s);
         for (const auto& dim: t->shape.Continuous())
             if (not dim.MaybeInteger())
-                throw CanNotSolveDynamicVar(s);
+                throw CanNotSolveDynamicVarOnGraph(s);
     }
     for (const auto& p: primitives) {
         p->SolveDynamicVar(s);
         for (const auto& dim: p->IntermediateVariables())
             if (not dim.MaybeInteger())
-                throw CanNotSolveDynamicVar(s);
+                throw CanNotSolveDynamicVarOnGraph(s);
     }
 }
 

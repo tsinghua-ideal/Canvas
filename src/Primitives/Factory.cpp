@@ -101,7 +101,8 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // TODO: support flexible FC remapping into C, consider (C, K, K, H, W) five dimensions.
     // TODO: support multiple variable solving.
     // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
-    if (t->shape.IsChannelSpatial() and t->shape.Channel()->G().IsStatic()) {
+    // An edge case to notice: [x_0, 1, H, W] -> [x_0, x_1/x_0, H, W]
+    if (t->shape.IsChannelSpatial()) {
         if (next_index_opt.has_value())
             MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(next_index_opt.value()));
         else

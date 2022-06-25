@@ -116,7 +116,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 #endif
         try {
             graph->Apply(apply);
-        } catch (const CanNotSolveDynamicVar& ex) {
+        } catch (const CanNotSolveDynamicVarOnGraph& ex) {
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
             IC(ex);
 #endif
@@ -156,6 +156,8 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
+    // TODO: may check the number of involving neighbors, using a bitmap-like algorithm.
+
     // Filter by user options.
     if (options.Filter(graph)) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
@@ -172,29 +174,17 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     auto out = graph->Out();
     if (not out->shape.IsStatic()) {
         auto pi = out->shape.Pi();
-        if (pi.DynamicVarCount() > 1) {
+        auto var_sol = VarSolution::Solve(pi, Variable::CHW());
+        if (pi.DynamicVarCount() > 1 or not var_sol.has_value()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
             static int can_not_solve_output_shape = 0;
             IC(can_not_solve_output_shape ++);
 #endif
             return {};
         }
-        int dyn_var_index = pi.GetOnlyDynamicVar();
-        if (std::abs(pi.dynamic_power[dyn_var_index]) != 1) {
-#ifdef CANVAS_DEBUG_FAILED_COUNT
-            static int can_not_solve_output_shape_multipower = 0;
-            IC(can_not_solve_output_shape_multipower ++);
-#endif
-            return {};
-        }
-        Variable repl;
-        if (pi.dynamic_power[dyn_var_index] == 1) // S * x = CHW
-            repl = Variable::CHW() / pi.StaticFactor();
-        else // S / x = CHW
-            repl = pi.StaticFactor() / Variable::CHW();
         try {
-            graph->SolveDynamicVar(VarSolution(dyn_var_index, repl));
-        } catch (const CanNotSolveDynamicVar& ex) {
+            graph->SolveDynamicVar(var_sol.value());
+        } catch (const CanNotSolveDynamicVarOnGraph& ex) {
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
             IC(ex);
 #endif
@@ -221,10 +211,10 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
     try {
         auto current_vars = graph->DynamicVars();
-        // TODO: better strategies may exist, e.g. with a reduction factor.
+        // TODO: better strategies may exist, e.g. with a reduction factor, and run factor analysis.
         for (int index: current_vars)
             graph->SolveDynamicVar(VarSolution(index, Variable::StaticVar(StaticVarPos::VC)));
-    } catch (const CanNotSolveDynamicVar& ex) {
+    } catch (const CanNotSolveDynamicVarOnGraph& ex) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
         static int can_not_solve_remaining_dynamic_var = 0;
         IC(can_not_solve_remaining_dynamic_var ++);
