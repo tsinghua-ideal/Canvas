@@ -114,7 +114,7 @@ class CMakeBuild(build_ext):
 # logic and declaration, and simpler if you include description/version in a file.
 setup(
     name='Canvas',
-    version='0.1',
+    version='0.2',
     author='Chenggang Zhao',
     author_email='lyricz@yeah.net',
     description='A kernel architecture search implement for convolutions',

@@ -13,6 +13,7 @@
 #include "Canvas/Primitives/Fold.hpp"
 #include "Canvas/Primitives/Group.hpp"
 #include "Canvas/Primitives/Input.hpp"
+#include "Canvas/Primitives/MatrixMultiplication.hpp"
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Primitives/Shift.hpp"
 #include "Canvas/Primitives/Unfold.hpp"

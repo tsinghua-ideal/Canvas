@@ -200,7 +200,6 @@ struct Shape {
 
     Shape(const MetaShapeSP& first, const MetaShapeSP& second) {
         assert(first and second);
-        assert(not (DynamicCast<SpatialShape>(first) and DynamicCast<ChannelShape>(second)));
         dims[0] = first, dims[1] = second;
     }
 

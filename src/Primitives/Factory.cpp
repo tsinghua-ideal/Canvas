@@ -242,6 +242,10 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         if (not all_matches.empty())
             Push(all_matches[0], primitives, options);
     }
+
+    // Batch matrix multiplication.
+    for (const auto& pa: MatrixMultiplicationPrimitive::GetAllPossibleMatches(lhs, rhs))
+        Push(pa, primitives, options);
 }
 
 } // namespace canvas

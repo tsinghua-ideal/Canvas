@@ -223,8 +223,8 @@ struct VarSolution {
 
     static std::optional<VarSolution> Solve(const Variable& lhs, const Variable& rhs) {
         // Solve variable relationships between `lhs` and `rhs`, returning dynamic variable substitution.
-        auto equ_lhs = lhs.Numerator() * rhs.Denominator();
-        auto equ_rhs = lhs.Denominator() * rhs.Numerator();
+        auto simplified = lhs / rhs;
+        auto equ_lhs = simplified.Numerator(), equ_rhs = simplified.Denominator();
         assert(equ_lhs.Denominator().Empty() and equ_rhs.Denominator().Empty());
         int linear_dyn_var = equ_lhs.GetFirstLinearDynamicVar();
         if (linear_dyn_var == kInvalidIndex) {
@@ -235,7 +235,8 @@ struct VarSolution {
             return std::nullopt;
         assert(equ_lhs.dynamic_power[linear_dyn_var] == 1);
         equ_lhs.dynamic_power[linear_dyn_var] = 0;
-        return std::make_optional<VarSolution>(linear_dyn_var, equ_rhs / equ_lhs);
+        auto repl = equ_rhs / equ_lhs;
+        return repl.MaybeInteger() ? std::make_optional<VarSolution>(linear_dyn_var, repl) : std::nullopt;
     }
 };
 

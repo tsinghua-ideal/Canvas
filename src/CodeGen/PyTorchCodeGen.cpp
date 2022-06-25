@@ -168,6 +168,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
             DynamicCast<ElementWisePrimitive>(p) or
             DynamicCast<FoldPrimitive>(p) or
             DynamicCast<GroupPrimitive>(p) or
+            DynamicCast<MatrixMultiplicationPrimitive>(p) or
             DynamicCast<OutputPrimitive>(p) or
             DynamicCast<UnfoldPrimitive>(p)) {
         gen->Write() << "pass" << std::endl;
@@ -201,13 +202,13 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << var_map[broadcast->ins[1]]
                          << std::endl;
         } else { // Broadcasting.
-            gen->Write() << var_map[broadcast->outs[0]] << "_f"
+            gen->Write() << var_map[broadcast->outs[0]] << "_lhs"
                          << " = " << var_map[broadcast->ins[0]]
                          << ".view(self.n, "
                          << TorchStyleBroadcasting(broadcast->prefix, {}, broadcast->lhs_pi, broadcast->suffix)
                          << ")"
                          << std::endl;
-            gen->Write() << var_map[broadcast->outs[0]] << "_t"
+            gen->Write() << var_map[broadcast->outs[0]] << "_rhs"
                          << " = " << var_map[broadcast->ins[1]]
                          << ".view(self.n, "
                          << TorchStyleBroadcasting(broadcast->prefix, broadcast->multiplier, broadcast->lhs_pi, broadcast->suffix)
@@ -215,9 +216,9 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << std::endl;
             gen->Write() << var_map[broadcast->outs[0]]
                          << " = "
-                         << var_map[broadcast->outs[0]] << "_f"
+                         << var_map[broadcast->outs[0]] << "_lhs"
                          << " " << broadcast->sign << " "
-                         << var_map[broadcast->outs[0]] << "_t"
+                         << var_map[broadcast->outs[0]] << "_rhs"
                          << std::endl;
             gen->Write() << var_map[broadcast->outs[0]]
                          << " = " << var_map[broadcast->outs[0]]
@@ -299,6 +300,30 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << "(self.n, self.c, self.h, self.w)"
                      << " == "
                      << "tuple(" << var_map[input->outs[0]] << ".size())"
+                     << std::endl;
+    } else if (auto bmm = DynamicCast<MatrixMultiplicationPrimitive>(p)) {
+        auto ReshapeAndTranspose = [&](const char* suffix, const TensorSP& t, bool transpose) {
+            gen->Write() << var_map[t] << "_" << suffix
+                         << " = "
+                         << var_map[t]
+                         << ".view(self.n, "
+                         << TorchStyleVariable(t->shape.dims[0]->Pi()) << ", "
+                         << TorchStyleVariable(t->shape.dims[1]->Pi())
+                         << ")";
+            if (transpose)
+                gen->Write(false) << ".transpose(1, 2)";
+            gen->Write() << std::endl;
+        };
+        ReshapeAndTranspose("lhs", bmm->ins[0], bmm->transpose_lhs);
+        ReshapeAndTranspose("rhs", bmm->ins[1], bmm->transpose_rhs);
+        gen->Write() << var_map[bmm->outs[0]]
+                     << " = "
+                     << "torch.bmm("
+                     << var_map[bmm->ins[0]] << "_lhs, "
+                     << var_map[bmm->ins[1]] << "_rhs)"
+                     << ".view(self.n, "
+                     << TorchStyleShape(bmm->outs[0]->shape)
+                     << ")"
                      << std::endl;
     } else if (auto output = DynamicCast<OutputPrimitive>(p)) {
         // Reshape and return the output variable.
