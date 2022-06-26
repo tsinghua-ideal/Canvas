@@ -179,6 +179,8 @@ def arg_parse():
                         help='Canvas logging directory')
     parser.add_argument('--canvas-bmm-pct', default=0.5, type=float,
                         help='Possibility to forcibly contain BMM (attention-like)')
+    parser.add_argument('--canvas-checkpoint', default='', type=str,
+                        help='Path to checkpoint file')
 
     # Parse program arguments, and add timestamp information.
     args = parser.parse_args()

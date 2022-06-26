@@ -8,26 +8,35 @@ from base import dataset, device, log, models, parser, trainer
 
 if __name__ == '__main__':
     # Get arguments.
+    logger = log.get_logger()
     args = parser.arg_parse()
+    logger.info(f'Program arguments: {args}')
 
     # Check available devices and set distributed.
+    logger.info(f'Initializing devices ...')
     device.initialize(args)
     assert not args.distributed, 'Search mode does not support distributed training'
 
     # Training utils.
+    logger.info(f'Configuring model {args.model} ...')
     model = models.get_model(args)
     train_loader, eval_loader = dataset.get_loaders(args)
 
     # Set up Canvas randomness seed.
+    logger.info(f'Configuring Canvas ...')
     canvas.seed(random.SystemRandom().randint(0, 0x7fffffff) if args.canvas_seed == 'pure' else args.seed)
 
-    # Initialization.
+    # Initialization of search.
     example_input = torch.zeros((1, ) + args.input_size).to(args.device)
     canvas.get_placeholders(model, example_input)
     best_score, best_clone = 0, canvas.get_state_dict(model, remove_placeholders=True)
+    if args.canvas_checkpoint:
+        logger.info(f'Loading checkpoint from {args.canvas_checkpoint}')
+        checkpoint = torch.load(args.canvas_checkpoint)
+        model.load_state_dict(checkpoint['state_dict'], strict=False)
+        best_score, best_clone = 100, canvas.get_state_dict(model, remove_placeholders=True)
 
     # Search.
-    logger = log.get_logger()
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
     logger.info(f'Start Canvas kernel search ({args.canvas_rounds if args.canvas_rounds else "infinite"} rounds)')
     for i in round_range:
