@@ -1,3 +1,4 @@
+import atexit
 import importlib
 import os
 import re
@@ -59,6 +60,10 @@ def remove_cache_dir():
             shutil.rmtree(cache_dir)
     except Exception as _:
         pass
+
+
+# Remove all caches before exit.
+# atexit.register(remove_cache_dir)
 
 
 class KernelPack:

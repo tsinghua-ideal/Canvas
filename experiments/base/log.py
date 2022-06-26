@@ -26,10 +26,8 @@ def save(args, kernel_pack: canvas.KernelPack,
         if os.path.exists(args.canvas_log_dir):
             assert os.path.isdir(args.canvas_log_dir), 'Canvas logging path must be a directory'
         if exception_info:
-            if 'memory' in exception_info:
-                error_type = 'OOM'
-            elif 'NaN' in exception_info:
-                error_type = 'NaN'
+            if 'memory' or 'NaN' in exception_info:  # Do not record these types.
+                return
             else:
                 error_type = 'Error'
             dir_name = f'Canvas_{error_type}_{kernel_pack.hash}'
