@@ -115,7 +115,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // Convolution: the channel could be a new variable.
     // We do not put too much convolution primitives in kernel, as much as possible to use FC.
     if (t->shape.IsChannelSpatial() and not unused_indices.empty() and
-        not options.kernel_sizes.empty() and not options.dilated_sizes.empty()) {
+        not options.kernel_sizes.empty() and not options.dilated_sizes.empty() and
+        t->shape.Channel()->KH().Empty() and t->shape.Channel()->KW().Empty() and
+        not (t->shape.Spatial()->H().Empty() and t->shape.Spatial()->W().Empty())) {
         int kh = RandomChoose(options.kernel_sizes), kw = RandomChoose(options.kernel_sizes);
         int dh = RandomChoose(options.dilated_sizes), dw = RandomChoose(options.dilated_sizes);
         MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
