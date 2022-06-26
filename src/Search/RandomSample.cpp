@@ -210,10 +210,43 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     graph->ApplyOutput();
 
     try {
+        std::vector<int> available_reduction_factors;
+        for (int i = 0; i <= SampleOptions::kMaxReductionFactor; ++ i)
+            if (net_specs->c_gcd % (1 << i) == 0)
+                available_reduction_factors.push_back(1 << i);
+        assert(not available_reduction_factors.empty());
+        int reduction_factor = RandomChoose(available_reduction_factors);
         auto current_vars = graph->DynamicVars();
-        // TODO: better strategies may exist, e.g. with a reduction factor, and run factor analysis.
-        for (int index: current_vars)
-            graph->SolveDynamicVar(VarSolution(index, Variable::StaticVar(StaticVarPos::VC)));
+        for (int index: current_vars) {
+            auto related_vars = graph->GetRelatedVariables(index);
+            bool has_numerator_gcd = false;
+            Variable numerator_gcd, denominator_lcm;
+            for (const auto& related: related_vars) {
+                assert(related.dynamic_power[index] != 0);
+                if (std::abs(related.dynamic_power[index]) != 1) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+                    static int can_not_solve_remaining_dynamic_var_not_linear = 0;
+                    IC(can_not_solve_remaining_dynamic_var_not_linear ++);
+#endif
+                    return {};
+                }
+                if (related.dynamic_power[index] == 1) {
+                    denominator_lcm = Variable::Lcm(denominator_lcm, related.Denominator());
+                } else {
+                    assert(related.dynamic_power[index] == -1);
+                    if (not has_numerator_gcd)
+                        has_numerator_gcd = true, numerator_gcd = related.Numerator();
+                    else
+                        numerator_gcd = Variable::Gcd(numerator_gcd, related.Numerator());
+                }
+            }
+            Variable repl = Variable::StaticVar(StaticVarPos::VC) / Variable::Number(reduction_factor);
+            if (has_numerator_gcd)
+                repl = numerator_gcd;
+            else if (not denominator_lcm.Empty())
+                repl = denominator_lcm;
+            graph->SolveDynamicVar(VarSolution(index, repl));
+        }
     } catch (const CanNotSolveDynamicVarOnGraph& ex) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
         static int can_not_solve_remaining_dynamic_var = 0;

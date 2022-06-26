@@ -9,6 +9,7 @@ namespace canvas {
 struct SampleOptions {
     // Temporarily not visible to users.
     static constexpr int kMaxGroupFactor = 10;
+    static constexpr int kMaxReductionFactor = 3;
 
     const std::string allowed_filter, forbidden_filter, necessary_filter;
     std::vector<std::string> necessaries;

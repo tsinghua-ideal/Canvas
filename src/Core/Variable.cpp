@@ -284,4 +284,36 @@ std::string Variable::Format(const char** info, const std::string& mul, const st
     return ss.str();
 }
 
+Variable Variable::Lcm(const Variable& lhs, const Variable& rhs) {
+    assert(lhs.Denominator().Empty() and rhs.Denominator().Empty());
+    Variable lcm;
+    lcm.numeric_numerator = std::lcm(lhs.numeric_numerator, rhs.numeric_numerator);
+    assert(lhs.numeric_denominator == 1 and rhs.numeric_denominator == 1);
+    for (int i = 0; i < kStaticVarCount; ++ i) {
+        assert(lhs.static_power[i] >= 0 and rhs.static_power[i] >= 0);
+        lcm.static_power[i] = std::max(lhs.static_power[i], rhs.static_power[i]);
+    }
+    for (int i = 0; i < kDynamicVarCount; ++ i) {
+        assert(lhs.dynamic_power[i] >= 0 and rhs.dynamic_power[i] >= 0);
+        lcm.dynamic_power[i] = std::max(lhs.dynamic_power[i], rhs.dynamic_power[i]);
+    }
+    return lcm;
+}
+
+Variable Variable::Gcd(const Variable& lhs, const Variable& rhs) {
+    assert(lhs.Denominator().Empty() and rhs.Denominator().Empty());
+    Variable lcm;
+    lcm.numeric_numerator = std::gcd(lhs.numeric_numerator, rhs.numeric_numerator);
+    assert(lhs.numeric_denominator == 1 and rhs.numeric_denominator == 1);
+    for (int i = 0; i < kStaticVarCount; ++ i) {
+        assert(lhs.static_power[i] >= 0 and rhs.static_power[i] >= 0);
+        lcm.static_power[i] = std::min(lhs.static_power[i], rhs.static_power[i]);
+    }
+    for (int i = 0; i < kDynamicVarCount; ++ i) {
+        assert(lhs.dynamic_power[i] >= 0 and rhs.dynamic_power[i] >= 0);
+        lcm.dynamic_power[i] = std::min(lhs.dynamic_power[i], rhs.dynamic_power[i]);
+    }
+    return lcm;
+}
+
 } // namespace canvas

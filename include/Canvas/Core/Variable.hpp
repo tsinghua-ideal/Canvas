@@ -213,6 +213,10 @@ struct Variable {
     friend std::ostream& operator << (std::ostream& os, const Variable& rhs) {
         return os << rhs.Format(var_info, "*", "/");
     }
+
+    static Variable Lcm(const Variable& lhs, const Variable& rhs);
+
+    static Variable Gcd(const Variable& lhs, const Variable& rhs);
 };
 
 struct VarSolution {

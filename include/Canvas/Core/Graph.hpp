@@ -49,6 +49,8 @@ struct Graph {
 
     [[nodiscard]] bool AlgebraCheck(const Variable::VarSpecs& specs) const;
 
+    [[nodiscard]] std::vector<Variable> GetRelatedVariables(int index) const;
+
     void LegalityCheck() const;
 
     [[nodiscard]] bool IsTopologicalFinished() const;

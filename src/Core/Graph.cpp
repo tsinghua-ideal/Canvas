@@ -71,6 +71,19 @@ bool Graph::AlgebraCheck(const Variable::VarSpecs& specs) const {
     return true;
 }
 
+std::vector<Variable> Graph::GetRelatedVariables(int index) const {
+    std::vector<Variable> collections;
+    for (const auto& t: tensors)
+        for (const auto& var: t->shape.Continuous())
+            if (var.dynamic_power[index] != 0)
+                collections.push_back(var);
+    for (const auto& p: primitives)
+        for (const auto& var: p->IntermediateVariables())
+            if (var.dynamic_power[index] != 0)
+                collections.push_back(var);
+    return collections;
+}
+
 void Graph::LegalityCheck() const {
     // Topology checks.
     std::set<TensorSP> t_set(tensors.begin(), tensors.end());
