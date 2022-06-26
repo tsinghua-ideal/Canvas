@@ -59,9 +59,9 @@ struct BroadcastPrimitive: Primitive {
 
     void InferShapes(const TensorSP& lhs, const TensorSP& rhs);
 
-    void SolveDynamicVar(const VarSolution& s) override;
+    void SolveDynamicVar(const VarSolution& s) final;
 
-    [[nodiscard]] std::vector<Variable> IntermediateVariables() const override;
+    [[nodiscard]] std::vector<Variable> IntermediateVariables() const final;
 
     CanvasPrimitiveCopyTemplate(BroadcastPrimitive);
 };

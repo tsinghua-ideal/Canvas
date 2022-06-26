@@ -65,7 +65,7 @@ struct Graph {
 
     [[nodiscard]] std::vector<int> DynamicVars() const;
 
-    [[nodiscard]] std::optional<int> NextUnusedDynamicVarIndex() const;
+    [[nodiscard]] std::vector<int> UnusedDynamicVarIndices() const;
 
     [[nodiscard]] GraphSP Copy() const { return std::make_shared<Graph>(*this); }
 

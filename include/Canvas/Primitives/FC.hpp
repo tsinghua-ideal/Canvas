@@ -15,7 +15,7 @@ struct FCPrimitive: Primitive {
 
     FCPrimitive(const TensorSP& t, const Variable& nc);
 
-    [[nodiscard]] std::vector<Variable> IntermediateVariables() const override;
+    [[nodiscard]] std::vector<Variable> IntermediateVariables() const final;
 
     CanvasPrimitiveCopyTemplate(FCPrimitive);
 };

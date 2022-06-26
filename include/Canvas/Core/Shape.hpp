@@ -30,6 +30,11 @@ struct MetaShape {
 
     [[nodiscard]] virtual std::string IndexToName(int i) const = 0;
 
+    void Reset() {
+        for (auto& var: dims)
+            var.Reset();
+    }
+
     [[nodiscard]] bool IsStatic() const {
         return std::all_of(dims, dims + kMaxMetaDims, [](const Variable& dim) -> bool {
             return dim.IsStatic();
@@ -162,7 +167,6 @@ struct SpatialShape: MetaShape {
 
 struct Shape {
     struct ShapeSpecs {
-
         static constexpr size_t kPredefinedMaxBatchSize = 128;
 
         std::vector<size_t> dims;
@@ -223,6 +227,10 @@ struct Shape {
     [[nodiscard]] SpatialShapeSP Spatial() {
         assert(IsChannelSpatial());
         return DynamicCast<SpatialShape>(dims[1]);
+    }
+
+    void Reset() {
+        dims[0]->Reset(), dims[1]->Reset();
     }
 
     [[nodiscard]] ShapeSpecs FillToStaticShape(const Variable::VarSpecs& specs) const {

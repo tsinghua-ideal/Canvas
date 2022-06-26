@@ -8,6 +8,7 @@
 
 #include "Canvas/Primitives/Activation.hpp"
 #include "Canvas/Primitives/Broadcast.hpp"
+#include "Canvas/Primitives/Convolution.hpp"
 #include "Canvas/Primitives/ElementWise.hpp"
 #include "Canvas/Primitives/FC.hpp"
 #include "Canvas/Primitives/Fold.hpp"

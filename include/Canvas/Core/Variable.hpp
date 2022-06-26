@@ -21,7 +21,7 @@ struct VarSolution;
 
 struct Variable {
     static constexpr int kStaticVarCount = 4;
-    static constexpr int kDynamicVarCount = 8;
+    static constexpr int kDynamicVarCount = 16;
     static constexpr int kFactorThreshold = 1000;
 
     struct VarSpecs {

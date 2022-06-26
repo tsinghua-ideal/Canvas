@@ -98,22 +98,37 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                                            const PrimitiveOptions& options) {
     assert(t->producer);
     // The next variable index.
-    auto next_index_opt = graph->NextUnusedDynamicVarIndex();
+    auto unused_indices = graph->UnusedDynamicVarIndices();
 
     // TODO: add einsum primitive for matrix multiplication, a simplified version: original dot primitive.
 
-    // FC: The channel could be a new variable.
+    // FC: the channel could be a new variable.
     // Could not have dynamic variables in G, consider grouping-all primitive.
     // Norm/ReLU optimization will be added in the filter.
     // TODO: support flexible FC remapping into C, consider (C, K, K, H, W) five dimensions.
     // TODO: support multiple variable solving.
     // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
     // An edge case to notice: [x_0, 1, H, W] -> [x_0, x_1/x_0, H, W]
-    if (t->shape.IsChannelSpatial()) {
-        if (next_index_opt.has_value())
-            MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(next_index_opt.value()));
-        else
-            MakeAndPush<FCPrimitive>(primitives, options, t); // By default, we retain the channel number and fold spatial information.
+    if (t->shape.IsChannelSpatial() and not unused_indices.empty())
+        MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(unused_indices.front()));
+
+    // Convolution: the channel could be a new variable.
+    // We do not put too much convolution primitives in kernel, as much as possible to use FC.
+    if (t->shape.IsChannelSpatial() and not unused_indices.empty() and
+        not options.kernel_sizes.empty() and not options.dilated_sizes.empty()) {
+        int kh = RandomChoose(options.kernel_sizes), kw = RandomChoose(options.kernel_sizes);
+        int dh = RandomChoose(options.dilated_sizes), dw = RandomChoose(options.dilated_sizes);
+        MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
+                                          Variable::DynamicVar(unused_indices[0]),
+                                          Variable(), kh, kw, dh, dw);
+        if (unused_indices.size() > 1) {
+            kh = RandomChoose(options.kernel_sizes), kw = RandomChoose(options.kernel_sizes);
+            dh = RandomChoose(options.dilated_sizes), dw = RandomChoose(options.dilated_sizes);
+            MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
+                                              Variable::DynamicVar(unused_indices[0]),
+                                              Variable::DynamicVar(unused_indices[1]),
+                                              kh, kw, dh, dw);
+        }
     }
 
     // Activation: no new variables, pruning: no double ReLU.
@@ -189,7 +204,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     }
 
     // Group: no new variables.
-    for (int d = 0; d < 2; ++ d)
+    for (int d = 0; d < 2; ++ d) {
         if (auto channel = DynamicCast<ChannelShape>(t->shape.dims[d])) {
             if (not channel->G().Empty())
                 continue;
@@ -198,6 +213,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
             if (not channel->CKK().Empty())
                 MakeAndPush<GroupPrimitive>(primitives, options, t, d, GroupType::GroupAllChannels);
         }
+    }
 
     // Shift: no new variables.
     for (int s: options.shift_sizes) {

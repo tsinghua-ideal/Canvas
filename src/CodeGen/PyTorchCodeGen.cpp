@@ -133,19 +133,33 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
     // Handled different operators.
     auto primitive_var = (var_map[p] = "p_" + std::to_string(var_map.PrimitiveSize()));
     gen->Write() << "# " << p->name << ": " << primitive_var << std::endl;
-
-    if (auto fc = DynamicCast<FCPrimitive>(p)) {
+    if (auto conv = DynamicCast<ConvolutionPrimitive>(p)) {
+        auto& in_shape = p->ins[0]->shape;
+        auto& out_shape = p->outs[0]->shape;
+        assert(in_shape.IsChannelSpatial() and out_shape.IsChannelSpatial());
+        int ph = conv->dh * (conv->kh - 1) / 2;
+        int pw = conv->dw * (conv->kw - 1) / 2;
+        gen->Write() << "self." << primitive_var
+                     << " = nn.Conv2d("
+                     << TorchStyleVariable(in_shape.Channel()->Pi()) << ", "
+                     << TorchStyleVariable(out_shape.Channel()->Pi()) << ", "
+                     << "(" << conv->kh << ", " << conv->kw << "), "
+                     << "dilation=(" << conv->dh << ", " << conv->dw << "), "
+                     << "padding=(" << ph << ", " << pw << "), "
+                     << "groups=" << TorchStyleVariable(conv->g) << ", "
+                     << "bias=False)"
+                     << std::endl;
+    } else if (auto fc = DynamicCast<FCPrimitive>(p)) {
         auto& in_shape = p->ins[0]->shape;
         auto& out_shape = p->outs[0]->shape;
         assert(in_shape.IsChannelSpatial() and out_shape.IsChannelSpatial());
         gen->Write() << "self." << primitive_var
                      << " = nn.Conv2d("
-                     << TorchStyleVariable(in_shape.Channel()->Pi()) // Input channels.
-                     << ", "
-                     << TorchStyleVariable(out_shape.Channel()->Pi()) // Output channels.
-                     << ", 1, padding=0"
-                     << ", groups=" << TorchStyleVariable(in_shape.Channel()->G())
-                     << ", bias=False)"
+                     << TorchStyleVariable(in_shape.Channel()->Pi()) << ", " // Input channels.
+                     << TorchStyleVariable(out_shape.Channel()->Pi()) << ", " // Output channels.
+                     << "1, padding=0, "
+                     << "groups=" << TorchStyleVariable(in_shape.Channel()->G()) << ", "
+                     << "bias=False)"
                      << std::endl;
         if (fc->with_norm)
             gen->Write() << "self." << primitive_var << "_bn"
@@ -227,6 +241,18 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << ")"
                          << std::endl;
         }
+    } else if (auto conv = DynamicCast<ConvolutionPrimitive>(p)) {
+        auto reference = PyTorchReshapeToNCHW(gen, var_map, conv->ins[0], conv->outs[0]);
+        gen->Write() << var_map[conv->outs[0]]
+                     << " = self." << primitive_var
+                     << "(" << reference << ")"
+                     << std::endl;
+        gen->Write() << var_map[conv->outs[0]]
+                     << " = " << var_map[conv->outs[0]]
+                     << ".view(self.n, "
+                     << TorchStyleShape(conv->outs[0]->shape)
+                     << ")"
+                     << std::endl;
     } else if (auto element_wise = DynamicCast<ElementWisePrimitive>(p)) {
         gen->Write() << var_map[element_wise->outs[0]]
                      << " = "
@@ -354,7 +380,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << reference
                          << std::endl;
     } else if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {
-        // PyTorch's `Unfold` only support [N, C, ...] format (C may be empty, 1).
         auto reference = PyTorchReshapeToNCHW(gen, var_map, unfold->ins[0], unfold->outs[0]);
         int dilation = unfold->d, kernel_size = unfold->k;
         int padding = dilation * (kernel_size - 1) / 2;

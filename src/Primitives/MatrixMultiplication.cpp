@@ -5,7 +5,8 @@ namespace canvas {
 
 MatrixMultiplicationPrimitive::MatrixMultiplicationPrimitive(const TensorSP& lhs, const TensorSP& rhs,
                                                              bool transpose_lhs, bool transpose_rhs):
-        Primitive("BMM", {lhs, rhs}, false), transpose_lhs(transpose_lhs), transpose_rhs(transpose_rhs) {
+        Primitive(MatrixMultiplicationToName(transpose_lhs, transpose_rhs), {lhs, rhs}, false),
+        transpose_lhs(transpose_lhs), transpose_rhs(transpose_rhs) {
     // No checks during construction, dynamic variable solving may occur before code generation.
     auto shape = Shape(lhs->shape.dims[transpose_lhs]->Copy(), rhs->shape.dims[not transpose_rhs]->Copy());
     outs.push_back(std::make_shared<Tensor>(shape));

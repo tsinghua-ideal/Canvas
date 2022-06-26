@@ -119,6 +119,11 @@ std::vector<int> Graph::DynamicVars() const {
             for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
                 if (dim.dynamic_power[i] != 0)
                     used[i] = true;
+    for (const auto& p: primitives)
+        for (const auto& var: p->IntermediateVariables())
+            for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
+                if (var.dynamic_power[i] != 0)
+                    used[i] = true;
     std::vector<int> used_indices;
     for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
         if (used[i])
@@ -126,17 +131,18 @@ std::vector<int> Graph::DynamicVars() const {
     return used_indices;
 }
 
-std::optional<int> Graph::NextUnusedDynamicVarIndex() const {
+std::vector<int> Graph::UnusedDynamicVarIndices() const {
     bool used[Variable::kDynamicVarCount] = {false};
     for (const auto& t: tensors)
         for (const auto& dim: t->shape.Continuous())
             for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
                 if (dim.dynamic_power[i] != 0)
                     used[i] = true;
+    std::vector<int> collections;
     for (int i = 0; i < Variable::kDynamicVarCount; ++ i)
         if (not used[i])
-            return i;
-    return std::nullopt;
+            collections.push_back(i);
+    return collections;
 }
 
 TensorSP Graph::Out() const {
