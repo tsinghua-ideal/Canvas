@@ -12,7 +12,9 @@ void PrimitiveOptions::BuildFilters(const std::string& allowed_str, const std::s
         Split(forbidden_str, forbidden_filter);
 }
 
-bool PrimitiveOptions::Filter(const PrimitiveSP& p) const {
+bool PrimitiveOptions::Filter(const PrimitiveApply& pa) const {
+    auto p = pa.primitive;
+
     // Filter by width.
     int delta_width = static_cast<int>(p->outs.size());
     for (const auto& t: ToUnorderedSet(p->ins))
@@ -35,8 +37,13 @@ bool PrimitiveOptions::Filter(const PrimitiveSP& p) const {
             fc->with_norm = fc->with_relu = true;
 
     // Filter by output.
-    if (output_filter and p->outs[0]->shape.IsStatic() and not p->outs[0]->shape.CouldBeReshapedToCHW())
-        return true;
+    if (output_filter) {
+        auto pi = p->outs[0]->shape;
+        if (pa.solution.has_value())
+            pi.SolveDynamicVar(pa.solution.value());
+        if (pi.IsStatic() and not pi.CouldBeReshapedToCHW())
+            return true;
+    }
 
     // Filter by type name.
     auto name = ToLowerCopy(p->name);

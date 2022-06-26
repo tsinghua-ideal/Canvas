@@ -63,7 +63,7 @@ struct PrimitiveOptions {
 
     void BuildFilters(const std::string& allowed_str="", const std::string& forbidden_str="");
 
-    [[nodiscard]] bool Filter(const PrimitiveSP& p) const;
+    [[nodiscard]] bool Filter(const PrimitiveApply& pa) const;
 };
 
 /// Register all primitive constructions here.
@@ -91,7 +91,7 @@ struct PrimitiveFactory {
 static void Push(const PrimitiveApply& pa,
                  std::vector<PrimitiveApply>& vec,
                  const PrimitiveOptions& options) {
-    if (not options.Filter(pa.primitive))
+    if (not options.Filter(pa))
         vec.push_back(pa);
 }
 
@@ -99,9 +99,9 @@ template <typename PrimitiveType, class ... Args>
 static void MakeAndPush(std::vector<PrimitiveApply>& vec,
                         const PrimitiveOptions& options,
                         Args&&... args) {
-    auto p = std::make_shared<PrimitiveType>(args...);
-    if (not options.Filter(p))
-        vec.push_back(PrimitiveApply(p));
+    auto pa = PrimitiveApply(std::make_shared<PrimitiveType>(args...));
+    if (not options.Filter(pa))
+        vec.push_back(pa);
 }
 
 } // namespace canvas
