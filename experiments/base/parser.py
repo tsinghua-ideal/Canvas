@@ -181,6 +181,10 @@ def arg_parse():
                         help='Possibility to forcibly contain BMM (attention-like)')
     parser.add_argument('--canvas-checkpoint', default='', type=str,
                         help='Path to checkpoint file')
+    parser.add_argument('--canvas-proxy-root', default='', metavar='DIR', type=str,
+                        help='Path to proxy dataset')
+    parser.add_argument('--canvas-proxy-threshold', default=70.0, type=float,
+                        help='Proxy dataset threshold for real training')
 
     # Parse program arguments, and add timestamp information.
     args = parser.parse_args()

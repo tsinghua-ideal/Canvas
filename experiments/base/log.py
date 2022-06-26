@@ -16,7 +16,7 @@ def get_logger():
 
 
 def save(args, kernel_pack: canvas.KernelPack,
-         train_metrics, eval_metrics, exception_info):
+         train_metrics, eval_metrics, extra):
     if args.canvas_log_dir:
         # Logging info.
         logger = get_logger()
@@ -25,8 +25,9 @@ def save(args, kernel_pack: canvas.KernelPack,
         # Make directory (may overwrite).
         if os.path.exists(args.canvas_log_dir):
             assert os.path.isdir(args.canvas_log_dir), 'Canvas logging path must be a directory'
-        if exception_info:
-            if 'memory' or 'NaN' in exception_info:  # Do not record these types.
+        if 'exception' in extra:
+            exception_info = extra['exception']
+            if 'memory' in exception_info or 'NaN' in exception_info:  # Do not record these types.
                 return
             else:
                 error_type = 'Error'
@@ -48,5 +49,5 @@ def save(args, kernel_pack: canvas.KernelPack,
         with open(os.path.join(path, kernel_name + '.json'), 'w') as file:
             json.dump({'args': vars(args), 'timestamp': kernel_pack.timestamp,
                        'train_metrics': train_metrics, 'eval_metrics': eval_metrics,
-                       'exception': exception_info},
+                       'extra': extra},
                       fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)

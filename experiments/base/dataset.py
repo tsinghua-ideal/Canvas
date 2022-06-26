@@ -1,10 +1,18 @@
 from timm.data import create_dataset, FastCollateMixup, create_loader
 
+from .log import get_logger
 
-def get_loaders(args):
+
+def get_loaders(args, proxy: bool = False):
+    # Whether proxy.
+    root = args.canvas_proxy_root if proxy else args.root
+    if root == '':
+        return None, None
+
     # Get dataset.
-    dataset_train = create_dataset(name='', root=args.root, split=args.train_split, batch_size=args.batch_size)
-    dataset_eval = create_dataset(name='', root=args.root, split=args.val_split, batch_size=args.batch_size)
+    get_logger().info(f'Preparing data loaders in {root} (proxy={proxy})')
+    dataset_train = create_dataset(name='', root=root, split=args.train_split, batch_size=args.batch_size)
+    dataset_eval = create_dataset(name='', root=root, split=args.val_split, batch_size=args.batch_size)
 
     # Setup mixup / cutmix.
     collate_fn = None

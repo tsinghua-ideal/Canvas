@@ -21,6 +21,7 @@ if __name__ == '__main__':
     logger.info(f'Configuring model {args.model} ...')
     model = models.get_model(args)
     train_loader, eval_loader = dataset.get_loaders(args)
+    proxy_train_loader, proxy_eval_loader = dataset.get_loaders(args, proxy=True)
 
     # Set up Canvas randomness seed.
     logger.info(f'Configuring Canvas ...')
@@ -52,8 +53,19 @@ if __name__ == '__main__':
         logger.info('Sampled kernel hash: {}'.format(kernel_pack.hash))
 
         # Train.
-        train_metrics, eval_metrics, exception_info = None, None, None
+        proxy_score, train_metrics, eval_metrics, exception_info = 0, None, None, None
         try:
+            if proxy_train_loader and proxy_eval_loader:
+                logger.info('Training on proxy dataset ...')
+                _, proxy_eval_metrics = \
+                    trainer.train(args, model=model, train_loader=proxy_train_loader, eval_loader=proxy_eval_loader)
+                proxy_score = max([item['top1'] for item in proxy_eval_metrics])
+                canvas.restore_from_state_dict(model, best_clone)
+                logger.info(f'Proxy dataset score: {proxy_score}')
+                if proxy_score < args.canvas_proxy_threshold:
+                    logger.info(f'Under proxy threshold {args.canvas_proxy_threshold}, skip main dataset training')
+                    continue
+            logger.info('Training on main dataset ...')
             train_metrics, eval_metrics = \
                 trainer.train(args, model=model, train_loader=train_loader, eval_loader=eval_loader)
             score = max([item['top1'] for item in eval_metrics])
@@ -72,4 +84,7 @@ if __name__ == '__main__':
                 canvas.restore_from_state_dict(model, best_clone)
 
         # Save into logging directory.
-        log.save(args, kernel_pack, train_metrics, eval_metrics, exception_info)
+        extra = {'proxy_score': proxy_score}
+        if exception_info:
+            extra['exception'] = exception_info
+        log.save(args, kernel_pack, train_metrics, eval_metrics, extra)
