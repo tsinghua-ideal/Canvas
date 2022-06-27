@@ -2,6 +2,7 @@
 #include <boost/range/adaptor/reversed.hpp>
 
 #include "Canvas/Search/RandomSample.hpp"
+#include "Canvas/Passes/InplacePass.hpp"
 #include "Canvas/Primitives/Factory.hpp"
 #include "Canvas/Utils/Exceptions.hpp"
 
@@ -264,6 +265,11 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 #endif
             return {};
         }
+
+    // Optimize.
+    graph = InplacePass().Optimize(graph);
+
+    // Successfully sampled!
     return {net_specs, graph, global_specs};
 }
 
