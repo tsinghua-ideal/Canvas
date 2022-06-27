@@ -27,7 +27,6 @@ PYBIND11_MODULE(cpp_canvas, m) {
     pybind11::class_<canvas::KernelPack>(m, "KernelPackImpl")
             .def_readwrite("torch_code", &canvas::KernelPack::torch_code)
             .def_readwrite("graphviz_code", &canvas::KernelPack::graphviz_code)
-            .def_readwrite("hash", &canvas::KernelPack::hash)
             .def_readwrite("exception_info", &canvas::KernelPack::exception_info);
 
     // The sample options.
@@ -46,7 +45,7 @@ PYBIND11_MODULE(cpp_canvas, m) {
                   auto solution = canvas::RandomSample(net_specs, options);
                   auto torch_code = canvas::PyTorchCodeGen().Gen(solution);
                   auto graphviz_code = canvas::DotCodeGen().Gen(solution);
-                  return {torch_code.ToString(), graphviz_code.ToString(), std::to_string(solution.Hash())};
+                  return canvas::KernelPack(torch_code.ToString(), graphviz_code.ToString());
               } catch (const std::exception& exception) {
                   return canvas::KernelPack(std::string(exception.what()));
               }

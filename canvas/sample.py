@@ -132,7 +132,7 @@ def empty_sample(allowed_filter: str = '',
     pack = cpp_canvas.sample([], options)
 
     # Load generated code into Python class.
-    return kernel_pack.KernelPack(pack)
+    return kernel_pack.KernelPack.load_from_cpp(pack)
 
 
 # TODO: fix options of FLOPs and params.
@@ -233,7 +233,7 @@ def sample(m: nn.Module,
     pack = cpp_canvas.sample(kernel_specs, options)
 
     # Load generated code into Python class.
-    return kernel_pack.KernelPack(pack)
+    return kernel_pack.KernelPack.load_from_cpp(pack)
 
 
 def replace(m: nn.Module, module: Type[nn.Module], device: str = 'cuda:0'):
@@ -267,7 +267,7 @@ def replace(m: nn.Module, module: Type[nn.Module], device: str = 'cuda:0'):
     assert module is not None, 'Module to replace should not be None.'
 
     # Check placeholders.
-    if not hasattr(m, 'canvas_cached_placeholders') or len(m.canvas_cached_placeholders) == 0:
+    if not hasattr(m, 'canvas_cached_placeholders'):
         raise AttributeError('The module has been not initialized with `canvas.Placeholder`, '
                              'you may run `canvas.sample` or `canvas.get_placeholders` '
                              'before using `canvas.replace`.')

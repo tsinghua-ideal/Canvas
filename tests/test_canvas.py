@@ -33,8 +33,9 @@ def test_seed():
     pack_1 = canvas.sample(net, torch.zeros(1, 3, 32, 32))
     canvas.seed(1998)
     pack_2 = canvas.sample(net, torch.zeros(1, 3, 32, 32))
-    assert pack_1.code == pack_2.code
-    assert pack_1.graphviz == pack_2.graphviz
+    assert pack_1.torch_code == pack_2.torch_code
+    assert pack_1.graphviz_code == pack_2.graphviz_code
+    assert hash(pack_1) == hash(pack_2)
 
 
 def test_sample():
@@ -42,7 +43,7 @@ def test_sample():
     canvas.sample(net, torch.zeros(1, 3, 32, 32))
     for _ in range(10):
         pack = canvas.sample(net)
-        print(pack.code)
+        print(pack.torch_code)
         net = canvas.replace(net, pack.module, 'cpu')
         t = net(torch.zeros(1, 3, 32, 32))
 

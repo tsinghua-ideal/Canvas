@@ -1,5 +1,8 @@
 import atexit
+import ctypes
+import glob
 import importlib
+import json
 import os
 import re
 import shutil
@@ -71,30 +74,73 @@ class KernelPack:
 
         Attributes
         ----------
-        code : str
+        torch_code: str
             The generated PyTorch code, implemented in a `torch.nn.Module`.
-
-        module : torch.nn.Module
+        module: torch.nn.Module
             The class type of the code, you can directly use this to make
             kernel instances.
-
-        graphviz : str
+        graphviz_code: str
             The generated GraphViz code, you may use some tool to visualize.
+        detail: json
+            The details of the kernel.
     """
 
-    def __init__(self, kernel_pack_impl: cpp_canvas.KernelPackImpl):
+    def __init__(self, timestamp: int = 0,
+                 torch_code: str = '', graphviz_code: str = '', detail=None):
+        self.timestamp = timestamp
+        self.torch_code = torch_code.strip()
+        self.module = load_from_code(torch_code)
+        self.graphviz_code = graphviz_code
+        self.detail = detail
+
+    def __hash__(self):
+        return ctypes.c_size_t(hash(self.torch_code)).value
+
+    def save_torch_code(self, path: str):
+        assert self.torch_code, 'No PyTorch code exists in the pack'
+        with open(path, 'w') as file:
+            file.write(self.torch_code)
+
+    def save_graphviz_code(self, path: str):
+        assert self.graphviz_code, 'No graphviz code exists in the pack'
+        with open(path, 'w') as file:
+            file.write(self.graphviz_code)
+
+    @staticmethod
+    def load_from_cpp(kernel_pack_impl: cpp_canvas.KernelPackImpl):
         if kernel_pack_impl.exception_info:
             raise RuntimeError(kernel_pack_impl.exception_info)
-        self.timestamp = time.time_ns()
-        self.code = kernel_pack_impl.torch_code
-        self.module = load_from_code(kernel_pack_impl.torch_code)
-        self.graphviz = kernel_pack_impl.graphviz_code
-        self.hash = kernel_pack_impl.hash
+        return KernelPack(timestamp=time.time_ns(),
+                          torch_code=kernel_pack_impl.torch_code,
+                          graphviz_code=kernel_pack_impl.graphviz_code)
 
-    def save_code(self, path: str):
-        with open(path, 'w') as file:
-            file.write(self.code)
+    @staticmethod
+    def load_from_dir(path: str):
+        assert os.path.exists(path) and os.path.isdir(path), f'{path} should be a directory'
 
-    def save_graphviz(self, path: str):
-        with open(path, 'w') as file:
-            file.write(self.graphviz)
+        # Read all context from file.
+        def read(suffix: str, required=False):
+            files = glob.glob(os.path.join(path, f'*.{suffix}'))
+            assert not (required and len(files) != 1), 'Error while loading files, multiple/none files found'
+            if len(files) != 1:
+                return ''
+            with open(files[0], 'r') as file:
+                return file.read()
+
+        j = read('json')
+        detail = json.loads(j) if j else None
+        return KernelPack(torch_code=read('py', True),
+                          graphviz_code=read('dot'),
+                          detail=detail)
+
+    @staticmethod
+    def load_from_file(path: str):
+        assert os.path.exists(path) and os.path.isfile(path), f'{path} should be a file'
+        with open(path, 'r') as file:
+            return KernelPack(torch_code=file.read())
+
+    @staticmethod
+    def load(file_or_dir: str):
+        assert os.path.exists(file_or_dir), f'{file_or_dir} does not exist'
+        return KernelPack.load_from_dir(file_or_dir) if os.path.isdir(file_or_dir) \
+            else KernelPack.load_from_file(file_or_dir)

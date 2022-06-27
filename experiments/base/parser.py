@@ -31,6 +31,8 @@ def arg_parse():
                         help='Drop path rate (default: None)')
     parser.add_argument('--drop-block', type=float, default=None, metavar='PCT',
                         help='Drop block rate (default: None)')
+    parser.add_argument('--load-checkpoint', default='', type=str,
+                        help='Path to checkpoint file (after replacing the kernel)')
 
     # Dataset.
     parser.add_argument('--seed', type=int, default=42, metavar='S',
@@ -171,20 +173,21 @@ def arg_parse():
 
     # Canvas preferences.
     parser.add_argument('--canvas-rounds', default=0, type=int,
-                        help='Search rounds for Canvas')
+                        help='Search rounds for Canvas (only for search)')
     parser.add_argument('--canvas-seed', default='pure', type=str,
                         help='Canvas seed settings (one of "global" and "pure"), '
-                             '"global" means same with training, "pure" means purely random')
+                             '"global" means same with training, "pure" means purely random '
+                             '(only for search)')
     parser.add_argument('--canvas-log-dir', default='', type=str,
                         help='Canvas logging directory')
     parser.add_argument('--canvas-bmm-pct', default=0.5, type=float,
-                        help='Possibility to forcibly contain BMM (attention-like)')
-    parser.add_argument('--canvas-checkpoint', default='', type=str,
-                        help='Path to checkpoint file')
+                        help='Possibility to forcibly contain BMM (attention-like, only for search)')
     parser.add_argument('--canvas-proxy-root', default='', metavar='DIR', type=str,
-                        help='Path to proxy dataset')
+                        help='Path to proxy dataset (only for search)')
     parser.add_argument('--canvas-proxy-threshold', default=70.0, type=float,
-                        help='Proxy dataset threshold for real training')
+                        help='Proxy dataset threshold for real training (only for search)')
+    parser.add_argument('--canvas-kernel', default='', type=str,
+                        help='Path to the replaced kernel (only for training)')
 
     # Parse program arguments, and add timestamp information.
     args = parser.parse_args()

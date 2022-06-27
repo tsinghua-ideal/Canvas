@@ -19,7 +19,7 @@ if __name__ == '__main__':
 
     # Training utils.
     logger.info(f'Configuring model {args.model} ...')
-    model = models.get_model(args)
+    model = models.get_model(args, search_mode=True)
     train_loader, eval_loader = dataset.get_loaders(args)
     proxy_train_loader, proxy_eval_loader = dataset.get_loaders(args, proxy=True)
 
@@ -28,14 +28,9 @@ if __name__ == '__main__':
     canvas.seed(random.SystemRandom().randint(0, 0x7fffffff) if args.canvas_seed == 'pure' else args.seed)
 
     # Initialization of search.
-    example_input = torch.zeros((1, ) + args.input_size).to(args.device)
-    canvas.get_placeholders(model, example_input)
     best_score, best_clone = 0, canvas.get_state_dict(model, remove_placeholders=True)
-    if args.canvas_checkpoint:
-        logger.info(f'Loading checkpoint from {args.canvas_checkpoint}')
-        checkpoint = torch.load(args.canvas_checkpoint)
-        model.load_state_dict(checkpoint['state_dict'], strict=False)
-        best_score, best_clone = 100, canvas.get_state_dict(model, remove_placeholders=True)
+    if args.load_checkpoint:
+        best_score = 100  # Always re-train from checkpoint if specified.
 
     # Search.
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
@@ -44,13 +39,13 @@ if __name__ == '__main__':
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
         try:
-            kernel_pack = canvas.sample(model, example_input, force_bmm_possibility=args.canvas_bmm_pct)
+            kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct)
             canvas.replace(model, kernel_pack.module, args.device)
         except RuntimeError as ex:
             # Out of memory or timeout.
             logger.warning(f'Exception: {ex}')
             continue
-        logger.info('Sampled kernel hash: {}'.format(kernel_pack.hash))
+        logger.info('Sampled kernel hash: {}'.format(hash(kernel_pack)))
 
         # Train.
         proxy_score, train_metrics, eval_metrics, exception_info = 0, None, None, None
