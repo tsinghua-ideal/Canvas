@@ -1,8 +1,8 @@
-import math
 import torch
 from torch import nn
 
 from .modules import Identity
+from .utils import init_weights
 
 
 class Placeholder(nn.Module):
@@ -40,22 +40,7 @@ class Placeholder(nn.Module):
         self.id = None
         self.c, self.h, self.w = c, 0, 0
         self.canvas_placeholder_kernel = Identity(c, 0, 0)
-        self.apply(self._init_weights)
-
-    def _init_weights(self, m):
-        if isinstance(m, nn.Linear):
-            nn.init.trunc_normal_(m.weight, std=.02)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
-        elif isinstance(m, nn.Conv2d):
-            fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-            fan_out //= m.groups
-            m.weight.data.normal_(0, math.sqrt(2.0 / fan_out))
-            if m.bias is not None:
-                m.bias.data.zero_()
+        self.apply(init_weights)
 
     def clear(self):
         r"""Reset the information of `h` and `w`, which is
@@ -76,7 +61,7 @@ class Placeholder(nn.Module):
         """
 
         self.canvas_placeholder_kernel = kernel_cls(self.c, self.h, self.w).to(device)
-        self.canvas_placeholder_kernel.apply(self._init_weights)
+        self.canvas_placeholder_kernel.apply(init_weights)
 
     def forward(self, x: torch.Tensor):
         r"""Forward propagation of the kernel.

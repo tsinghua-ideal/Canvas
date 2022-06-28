@@ -1,5 +1,8 @@
+import math
+
 from collections.abc import Iterable
 from typing import Tuple
+from torch import nn
 
 
 def int_range_check(r: Tuple[int, int],
@@ -35,3 +38,19 @@ def is_type_range(r, type_cls):
         if type(item) != type_cls:
             return False
     return True
+
+
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.trunc_normal_(m.weight, std=.02)
+        if isinstance(m, nn.Linear) and m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.LayerNorm):
+        nn.init.constant_(m.bias, 0)
+        nn.init.constant_(m.weight, 1.0)
+    elif isinstance(m, nn.Conv2d):
+        fan_out = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+        fan_out //= m.groups
+        m.weight.data.normal_(0, math.sqrt(2.0 / fan_out))
+        if m.bias is not None:
+            m.bias.data.zero_()

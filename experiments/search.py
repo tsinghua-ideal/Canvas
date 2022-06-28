@@ -28,9 +28,13 @@ if __name__ == '__main__':
     canvas.seed(random.SystemRandom().randint(0, 0x7fffffff) if args.canvas_seed == 'pure' else args.seed)
 
     # Initialization of search.
-    best_score, best_clone = 0, canvas.get_state_dict(model, remove_placeholders=True)
-    if args.load_checkpoint:
-        best_score = 100  # Always re-train from checkpoint if specified.
+    checkpoint_clone = canvas.get_state_dict(model, remove_placeholders=True) if args.load_checkpoint else None
+
+    def restore_model_params():
+        if checkpoint_clone:
+            canvas.restore_from_state_dict(model, checkpoint_clone)
+        else:
+            model.apply(canvas.init_weights)
 
     # Search.
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
@@ -39,7 +43,7 @@ if __name__ == '__main__':
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
         try:
-            kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct)
+            kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct, forbidden_filter="shift")
             canvas.replace(model, kernel_pack.module, args.device)
         except RuntimeError as ex:
             # Out of memory or timeout.
@@ -55,7 +59,7 @@ if __name__ == '__main__':
                 _, proxy_eval_metrics = \
                     trainer.train(args, model=model, train_loader=proxy_train_loader, eval_loader=proxy_eval_loader)
                 proxy_score = max([item['top1'] for item in proxy_eval_metrics])
-                canvas.restore_from_state_dict(model, best_clone)
+                restore_model_params()
                 logger.info(f'Proxy dataset score: {proxy_score}')
                 if proxy_score < args.canvas_proxy_threshold:
                     logger.info(f'Under proxy threshold {args.canvas_proxy_threshold}, skip main dataset training')
@@ -65,18 +69,13 @@ if __name__ == '__main__':
                 trainer.train(args, model=model, train_loader=train_loader, eval_loader=eval_loader)
             score = max([item['top1'] for item in eval_metrics])
             logger.info(f'Solution score: {score}')
-            if score > best_score:
-                best_score, best_clone = score, canvas.get_state_dict(model, remove_placeholders=True)
-                logger.info(f'Best score has been updated to {best_score}')
-            else:
-                logger.warning('Restoring to best model parameters')
-                canvas.restore_from_state_dict(model, best_clone)
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
             if 'NaN' in exception_info:
                 logger.warning('Restoring to best model parameters')
-                canvas.restore_from_state_dict(model, best_clone)
+
+        restore_model_params()
 
         # Save into logging directory.
         extra = {'proxy_score': proxy_score}
