@@ -4,9 +4,9 @@
 
 namespace canvas {
 
-static std::string ConvolutionToName(const Variable& g, int kh, int kw, int dh, int dw) {
+static std::string ConvolutionToName(int kh, int kw, int dh, int dw) {
     std::stringstream ss;
-    ss << "Convolution_" << g << "_" << kh << "_" << kw << "_" << dh << "_" << dw;
+    ss << "Convolution_" << kh << "_" << kw << "_" << dh << "_" << dw;
     return ss.str();
 }
 

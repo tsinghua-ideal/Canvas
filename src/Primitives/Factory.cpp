@@ -136,7 +136,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // Activation: no new variables, pruning: no double ReLU.
     for (const auto &type: {GeLU, ReLU, Sigmoid, TanH}) {
         if (auto last_activation = DynamicCast<ActivationPrimitive>(t->producer))
-            if (type == ReLU and last_activation->type == ReLU)
+            if (type == ReLU and (last_activation->type == ReLU or last_activation->type == Sigmoid))
                 continue;
         MakeAndPush<ActivationPrimitive>(primitives, options, t, type);
     }
@@ -154,6 +154,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
             if (type == Abs and (last_element_wise->type == Exp or last_element_wise->type == Neg))
                 continue;
         }
+        if (auto last_activation = DynamicCast<ActivationPrimitive>(t->producer))
+            if (type == Abs and (last_activation->type == Sigmoid or last_activation->type == ReLU))
+                continue;
         MakeAndPush<ElementWisePrimitive>(primitives, options, t, type);
     }
 

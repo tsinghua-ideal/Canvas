@@ -6,7 +6,7 @@ namespace canvas {
 ConvolutionPrimitive::ConvolutionPrimitive(const TensorSP& t,
                                            const Variable& oc, const Variable& g,
                                            int kh, int kw, int dh, int dw):
-        Primitive(ConvolutionToName(g, kh, kw, dh, dw), {t}, false),
+        Primitive(ConvolutionToName(kh, kw, dh, dw), {t}, false),
         oc(oc), g(g), kh(kh), kw(kw), dh(dh), dw(dw) {
     assert(t->shape.IsChannelSpatial());
     assert(kh >= 1 and kh % 2 == 1 and kw >= 1 and kw % 2 == 1);

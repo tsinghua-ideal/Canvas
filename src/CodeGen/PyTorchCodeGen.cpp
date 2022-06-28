@@ -448,7 +448,7 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         Write() << "# Configurations" << std::endl;
         Write() << "super(" << name << ", self).__init__()" << std::endl;
         Write() << "self.g = " << global_specs.g << std::endl;
-        Write() << "self.c, self.h, self.w = c, h, w" << std::endl;
+        Write() << "self.n, self.c, self.h, self.w = None, c, h, w" << std::endl;
         Write() << std::endl;
 
         // Define kernels.
