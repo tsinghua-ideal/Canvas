@@ -1,6 +1,7 @@
 import torch
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
+import ptflops
 import timm
 from timm import data
 
@@ -53,6 +54,11 @@ def get_model(args, search_mode: bool = False):
         logger.info(f'Loading checkpoint from {args.load_checkpoint}')
         checkpoint = torch.load(args.load_checkpoint)
         model.load_state_dict(checkpoint['state_dict'], strict=False)
+
+    # Count FLOPs and params.
+    macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
+                                                     print_per_layer_stat=False, verbose=False)
+    logger.info(f'MACs: {macs}, params: {params}')
 
     if args.distributed:
         if args.local_rank == 0:

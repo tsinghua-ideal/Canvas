@@ -186,8 +186,18 @@ def arg_parse():
                         help='Proxy dataset threshold for real training (only for search)')
     parser.add_argument('--canvas-kernel', default='', type=str,
                         help='Path to the replaced kernel (only for training)')
+    parser.add_argument('--canvas-min-macs', default=0, type=float,
+                        help='Minimum MACs for searched kernels (in G-unit, only for search)')
+    parser.add_argument('--canvas-max-macs', default=0, type=float,
+                        help='Maximum MACs for searched kernels (in G-unit, only for search)')
+    parser.add_argument('--canvas-min-params', default=0, type=float,
+                        help='Minimum params for searched kernels (in M-unit, only for search)')
+    parser.add_argument('--canvas-max-params', default=0, type=float,
+                        help='Maximum params for searched kernels (in M-unit, only for search)')
 
-    # Parse program arguments, and add timestamp information.
+    # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()
     setattr(args, 'timestamp', time.time_ns())
+    assert args.canvas_min_macs <= args.canvas_max_macs, 'Minimum FLOPs should be lower than maximum'
+    assert args.canvas_min_params <= args.canvas_max_params, 'Minimum params should be lower than maximum'
     return args

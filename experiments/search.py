@@ -1,4 +1,7 @@
 import itertools
+
+import ptflops
+
 import canvas
 import random
 import torch
@@ -42,14 +45,29 @@ if __name__ == '__main__':
     for i in round_range:
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
+        g_macs, m_flops = 0, 0
         try:
             kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct, forbidden_filter="shift")
             canvas.replace(model, kernel_pack.module, args.device)
+            g_macs, m_params = ptflops.get_model_complexity_info(model, args.input_size,
+                                                                 as_strings=False, print_per_layer_stat=False)
+            g_macs, m_params = g_macs / 1e9, m_params / 1e6
         except RuntimeError as ex:
-            # Out of memory or timeout.
-            logger.warning(f'Exception: {ex}')
+            # Early exception: out of memory or timeout.
+            logger.info(f'Exception: {ex}')
+            log.save(args, None, None, None, {'exception': f'{ex}'})
             continue
-        logger.info('Sampled kernel hash: {}'.format(hash(kernel_pack)))
+        logger.info(f'Sampled kernel hash: {hash(kernel_pack)}')
+        logger.info(f'MACs: {g_macs} G, params: {m_params} M')
+        macs_not_satisfied = (args.canvas_min_macs > 0 or args.canvas_max_macs > 0) and \
+                             (g_macs < args.canvas_min_macs or g_macs > args.canvas_max_macs)
+        params_not_satisfied = (args.canvas_min_params > 0 or args.canvas_max_params > 0) and \
+                               (m_params < args.canvas_min_params or m_params > args.canvas_max_params)
+        if macs_not_satisfied or params_not_satisfied:
+            logger.info(f'MACs ({args.canvas_min_macs}, {args.canvas_max_macs}) or '
+                        f'params ({args.canvas_min_params}, {args.canvas_max_params}) '
+                        f'requirements do not satisfy')
+            continue
 
         # Train.
         proxy_score, train_metrics, eval_metrics, exception_info = 0, None, None, None
