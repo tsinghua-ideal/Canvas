@@ -117,24 +117,24 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
         for batch_idx, (image, target) in enumerate(eval_loader):
             with amp_autocast():
                 output = model(image)
-            if isinstance(output, (tuple, list)):
-                output = output[0]
+                if isinstance(output, (tuple, list)):
+                    output = output[0]
 
-            # Augmentation reduction.
-            reduce_factor = args.tta
-            if reduce_factor > 1:
-                output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
-                target = target[0:target.size(0):reduce_factor]
+                # Augmentation reduction.
+                reduce_factor = args.tta
+                if reduce_factor > 1:
+                    output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
+                    target = target[0:target.size(0):reduce_factor]
 
-            loss_value = loss_func(output, target)
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
+                loss_value = loss_func(output, target)
+                acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
-            if args.distributed:
-                reduced_loss = reduce_tensor(loss_value.data, args.world_size)
-                acc1 = reduce_tensor(acc1, args.world_size)
-                acc5 = reduce_tensor(acc5, args.world_size)
-            else:
-                reduced_loss = loss_value.data
+                if args.distributed:
+                    reduced_loss = reduce_tensor(loss_value.data, args.world_size)
+                    acc1 = reduce_tensor(acc1, args.world_size)
+                    acc5 = reduce_tensor(acc5, args.world_size)
+                else:
+                    reduced_loss = loss_value.data
 
             torch.cuda.synchronize()
 

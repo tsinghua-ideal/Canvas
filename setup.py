@@ -62,7 +62,6 @@ class CMakeBuild(build_ext):
             if not cmake_generator:
                 try:
                     import ninja  # noqa: F401
-
                     cmake_args += ['-GNinja']
                 except ImportError:
                     pass

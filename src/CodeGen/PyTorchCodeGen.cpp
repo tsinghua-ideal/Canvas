@@ -27,9 +27,10 @@ static std::string TorchStyleVariable(const Variable& var) {
 static std::string TorchStyleShape(const Shape& shape) {
     bool displayed = false;
     std::stringstream ss;
-    for (const auto& dim: shape.Continuous())
-        if (not dim.Empty())
-            ss << (displayed ? ", " : "") << TorchStyleVariable(dim), displayed = true;
+    for (const auto& dim: shape.Continuous()) {
+        assert(not dim.Empty());
+        ss << (displayed ? ", " : "") << TorchStyleVariable(dim), displayed = true;
+    }
     return ss.str();
 }
 
@@ -176,6 +177,32 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
         for (const auto& index: shift->indices)
             gen->Write() << "self." << primitive_var << "_" << index.d << "_" << index.k
                          << " = random.randint(-" << k << ", " << k << ")" << std::endl;
+    } else if (auto scale = DynamicCast<ScalePrimitive>(p)) {
+        auto sorted = scale->indices;
+        std::sort(sorted.begin(), sorted.end(),
+                  [](const auto& lhs, const auto& rhs) -> bool {
+                      return lhs.d == rhs.d ? lhs.k < rhs.k : lhs.d < rhs.d;
+                  });
+        auto t_shape = p->ins[0]->shape;
+        std::stringstream shape_str;
+        int next = 0;
+        for (int d = 0; d < 2; ++ d) {
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
+                auto index = Shape::Index(d, k);
+                if (t_shape[index].Empty())
+                    continue;
+                if (next < sorted.size() and index == sorted[next])
+                    shape_str << ", " << TorchStyleVariable(t_shape[index]), next ++;
+                else
+                    shape_str << ", 1";
+            }
+        }
+        // TODO: initialization.
+        gen->Write() << "self." << primitive_var << "_w"
+                     << " = nn.Parameter(torch.normal(0, 0.02, size="
+                     << "(1" << shape_str.str() << ",)"
+                     << "), requires_grad=True)"
+                     << std::endl;
     } else if (DynamicCast<InputPrimitive>(p) or
             DynamicCast<ActivationPrimitive>(p) or
             DynamicCast<BroadcastPrimitive>(p) or
@@ -357,7 +384,14 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << var_map[output->ins[0]]
                      << ".view(self.n, self.c, self.h, self.w)"
                      << std::endl;
-    }  else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
+    } else if (auto scale = DynamicCast<ScalePrimitive>(p)) {
+        gen->Write() << var_map[scale->outs[0]]
+                     << " = "
+                     << "self." << primitive_var << "_w"
+                     << " * "
+                     << var_map[scale->ins[0]]
+                     << std::endl;
+    } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         auto reference = var_map[shift->ins[0]];
         bool shifted = false;
         auto shape = shift->ins[0]->shape;

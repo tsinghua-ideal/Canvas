@@ -194,7 +194,11 @@ struct Shape {
             assert(0 <= k and k < MetaShape::kMaxMetaDims);
         }
 
-        Index(const Index& rhs) = default;
+        Index(const Index& index) = default;
+
+        friend bool operator == (const Index& lhs, const Index& rhs) {
+            return lhs.d == rhs.d and lhs.k == rhs.k;
+        }
     };
 
     MetaShapeSP dims[2];
