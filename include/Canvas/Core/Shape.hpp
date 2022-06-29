@@ -187,12 +187,14 @@ struct Shape {
     };
 
     struct Index {
-        const int d, k;
+        int d, k;
 
         Index(int d, int k): d(d), k(k) {
             assert(0 <= d and d < 2);
             assert(0 <= k and k < MetaShape::kMaxMetaDims);
         }
+
+        Index(const Index& rhs) = default;
     };
 
     MetaShapeSP dims[2];

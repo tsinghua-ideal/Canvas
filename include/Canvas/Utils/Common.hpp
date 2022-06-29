@@ -133,6 +133,16 @@ static bool MakeChoice(double p) {
     return global_uniform_random() <= p;
 }
 
+/// Random subset.
+template <typename VecType>
+static VecType RandomSubset(const VecType& vector, double p=0.5) {
+    VecType subset;
+    for (const auto& t: vector)
+        if (MakeChoice(p))
+            subset.push_back(t);
+    return subset;
+}
+
 /// Range: [`min`, `max`].
 template <typename RangeType=int>
 struct Range {

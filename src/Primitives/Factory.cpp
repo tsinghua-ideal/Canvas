@@ -220,6 +220,29 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         }
     }
 
+    // Scale: no new variables.
+    {
+        std::vector<Shape::Index> dims[2];
+        for (int d = 0; d < 2; ++ d) {
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
+                auto index = Shape::Index(d, k);
+                if (not t->shape[index].Empty())
+                    dims[d].push_back(index);
+            }
+        }
+        // Scale first, second, all and random of them.
+        if (not dims[0].empty())
+            MakeAndPush<ScalePrimitive>(primitives, options, t, dims[0]);
+        if (not dims[1].empty())
+            MakeAndPush<ScalePrimitive>(primitives, options, t, dims[1]);
+        auto merged = Merge(dims[0], dims[1]);
+        if (not dims[0].empty() and not dims[1].empty())
+            MakeAndPush<ScalePrimitive>(primitives, options, t, merged);
+        auto subset = RandomSubset(merged);
+        if (not subset.empty())
+            MakeAndPush<ScalePrimitive>(primitives, options, t, subset);
+    }
+
     // Shift: no new variables.
     for (int s: options.shift_sizes) {
         for (int d = 0; d < 2; ++ d) {

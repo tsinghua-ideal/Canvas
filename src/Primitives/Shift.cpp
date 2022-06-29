@@ -8,7 +8,7 @@ ShiftPrimitive::ShiftPrimitive(const TensorSP& t, const std::vector<Shape::Index
     assert(not indices.empty());
     auto& s = t->shape;
     for (const auto& index: indices)
-        assert (not s[index].Empty());
+        assert(not s[index].Empty());
     outs.push_back(std::make_shared<Tensor>(s));
 }
 
