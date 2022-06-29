@@ -26,7 +26,7 @@ def initialize(args):
         logger.info('Training in distributed mode with multiple processes, 1 GPU per process. Process {}, total {}.'
                     .format(args.rank, args.world_size))
     else:
-        logger.info('Training with a single process on 1 GPUs.')
+        logger.info('Training with a single process on 1 GPU.')
     assert args.rank >= 0
 
     # Set seed.

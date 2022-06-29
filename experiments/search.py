@@ -96,7 +96,7 @@ if __name__ == '__main__':
         restore_model_params()
 
         # Save into logging directory.
-        extra = {'proxy_score': proxy_score}
+        extra = {'proxy_score': proxy_score, 'g_macs': g_macs, 'm_params': m_params}
         if exception_info:
             extra['exception'] = exception_info
         log.save(args, kernel_pack, train_metrics, eval_metrics, extra)

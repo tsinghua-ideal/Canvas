@@ -159,6 +159,7 @@ def arg_parse():
                         help='LR decay rate (default: 0.1)')
 
     # Misc.
+    parser.add_argument('--amp', action='store_true', help='Whether to use PyTorch native AMP')
     parser.add_argument('--eval-metric', default='top1', type=str, metavar='EVAL_METRIC',
                         help='Best metric (default: "top1"')
     parser.add_argument('--log-interval', default=100, type=int, metavar='INTERVAL',

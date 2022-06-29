@@ -2,14 +2,17 @@ import math
 import time
 import torch
 from collections import OrderedDict
+from contextlib import suppress
 
 from timm.models import model_parameters
-from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
+from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor, NativeScaler
 
 from . import log, loss, optim, sche
 
 
-def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_scheduler, logger):
+def train_one_epoch(args, epoch, model, train_loader,
+                    loss_func, optimizer, lr_scheduler,
+                    amp_autocast, loss_scaler, logger):
     # Second order optimizer.
     second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
 
@@ -30,19 +33,27 @@ def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_s
         data_time_m.update(time.time() - end)
 
         # Calculate loss.
-        output = model(image)
-        loss_value = loss_func(output, target)
+        with amp_autocast():
+            output = model(image)
+            loss_value = loss_func(output, target)
 
         if not args.distributed:
             losses_m.update(loss_value.item(), image.size(0))
 
         optimizer.zero_grad()
-        loss_value.backward(create_graph=second_order)
-        if args.clip_grad is not None:
-            dispatch_clip_grad(
-                model_parameters(model, exclude_head='agc' in args.clip_mode),
-                value=args.clip_grad, mode=args.clip_mode)
-        optimizer.step()
+        if loss_scaler is not None:
+            loss_scaler(
+                loss_value, optimizer,
+                clip_grad=args.clip_grad, clip_mode=args.clip_mode,
+                parameters=model_parameters(model, exclude_head='agc' in args.clip_mode),
+                create_graph=second_order)
+        else:
+            loss_value.backward(create_graph=second_order)
+            if args.clip_grad is not None:
+                dispatch_clip_grad(
+                    model_parameters(model, exclude_head='agc' in args.clip_mode),
+                    value=args.clip_grad, mode=args.clip_mode)
+            optimizer.step()
 
         # Sync.
         torch.cuda.synchronize()
@@ -92,7 +103,7 @@ def train_one_epoch(args, epoch, model, train_loader, loss_func, optimizer, lr_s
     return OrderedDict([('loss', losses_m.avg)])
 
 
-def validate(args, model, eval_loader, loss_func, logger):
+def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
     model.eval()
 
     batch_time_m = AverageMeter()
@@ -104,7 +115,8 @@ def validate(args, model, eval_loader, loss_func, logger):
     last_idx = len(eval_loader) - 1
     with torch.no_grad():
         for batch_idx, (image, target) in enumerate(eval_loader):
-            output = model(image)
+            with amp_autocast():
+                output = model(image)
             if isinstance(output, (tuple, list)):
                 output = output[0]
 
@@ -164,6 +176,13 @@ def train(args, model, train_loader, eval_loader):
     if args.local_rank == 0:
         logger.info('Begin training ...')
 
+    # AMP automatic cast.
+    if args.amp:
+        logger.info('Training with native PyTorch AMP')
+        amp_autocast, loss_scaler = torch.cuda.amp.autocast, NativeScaler()
+    else:
+        amp_autocast, loss_scaler = suppress, None
+
     # Iterate over epochs.
     all_train_metrics, all_eval_metrics = [], []
     for epoch in range(sched_epochs):
@@ -172,7 +191,7 @@ def train(args, model, train_loader, eval_loader):
 
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
-                                        optimizer, lr_scheduler, logger)
+                                        optimizer, lr_scheduler, amp_autocast, loss_scaler, logger)
         all_train_metrics.append(train_metrics)
 
         # Check NaN errors.
@@ -186,7 +205,7 @@ def train(args, model, train_loader, eval_loader):
             distribute_bn(model, args.world_size, args.dist_bn == 'reduce')
 
         # Evaluate.
-        eval_metrics = validate(args, model, eval_loader, eval_loss_func, logger)
+        eval_metrics = validate(args, model, eval_loader, eval_loss_func, amp_autocast, logger)
         all_eval_metrics.append(eval_metrics)
 
         # Update LR scheduler.
