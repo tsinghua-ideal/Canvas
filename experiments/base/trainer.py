@@ -5,7 +5,8 @@ from collections import OrderedDict
 from contextlib import suppress
 
 from timm.models import model_parameters
-from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor, NativeScaler
+from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
+from timm.utils import NativeScaler, ApexScaler
 
 from . import log, loss, optim, sche
 
@@ -117,24 +118,24 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
         for batch_idx, (image, target) in enumerate(eval_loader):
             with amp_autocast():
                 output = model(image)
-                if isinstance(output, (tuple, list)):
-                    output = output[0]
+            if isinstance(output, (tuple, list)):
+                output = output[0]
 
-                # Augmentation reduction.
-                reduce_factor = args.tta
-                if reduce_factor > 1:
-                    output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
-                    target = target[0:target.size(0):reduce_factor]
+            # Augmentation reduction.
+            reduce_factor = args.tta
+            if reduce_factor > 1:
+                output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
+                target = target[0:target.size(0):reduce_factor]
 
-                loss_value = loss_func(output, target)
-                acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            loss_value = loss_func(output, target)
+            acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
-                if args.distributed:
-                    reduced_loss = reduce_tensor(loss_value.data, args.world_size)
-                    acc1 = reduce_tensor(acc1, args.world_size)
-                    acc5 = reduce_tensor(acc5, args.world_size)
-                else:
-                    reduced_loss = loss_value.data
+            if args.distributed:
+                reduced_loss = reduce_tensor(loss_value.data, args.world_size)
+                acc1 = reduce_tensor(acc1, args.world_size)
+                acc5 = reduce_tensor(acc5, args.world_size)
+            else:
+                reduced_loss = loss_value.data
 
             torch.cuda.synchronize()
 
@@ -177,9 +178,16 @@ def train(args, model, train_loader, eval_loader):
         logger.info('Begin training ...')
 
     # AMP automatic cast.
-    if args.amp:
+    if args.native_amp:
         logger.info('Training with native PyTorch AMP')
         amp_autocast, loss_scaler = torch.cuda.amp.autocast, NativeScaler()
+    elif args.apex_amp:
+        logger.info(f'Training with native Apex AMP (loss scale: {args.apex_amp_loss_scale})')
+        amp_autocast, loss_scaler = suppress, ApexScaler()
+        # noinspection PyUnresolvedReferences
+        from apex import amp
+        model, optimizer = amp.initialize(model, optimizer, opt_level='O1', verbosity=0,
+                                          loss_scale=args.apex_amp_loss_scale)
     else:
         amp_autocast, loss_scaler = suppress, None
 

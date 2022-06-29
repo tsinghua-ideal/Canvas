@@ -1,11 +1,12 @@
+import gc
 import itertools
 
 import ptflops
 
 import canvas
 import random
-import torch
 
+from copy import deepcopy
 from base import dataset, device, log, models, parser, trainer
 
 
@@ -31,18 +32,20 @@ if __name__ == '__main__':
     canvas.seed(random.SystemRandom().randint(0, 0x7fffffff) if args.canvas_seed == 'pure' else args.seed)
 
     # Initialization of search.
-    checkpoint_clone = canvas.get_state_dict(model, remove_placeholders=True) if args.load_checkpoint else None
+    cpu_clone = deepcopy(model).cpu()
 
     def restore_model_params():
-        if checkpoint_clone:
-            canvas.restore_from_state_dict(model, checkpoint_clone)
-        else:
-            model.apply(canvas.init_weights)
+        global model
+        model = None
+        gc.collect()
+        model = deepcopy(cpu_clone).to(args.device)
 
     # Search.
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
     logger.info(f'Start Canvas kernel search ({args.canvas_rounds if args.canvas_rounds else "infinite"} rounds)')
     for i in round_range:
+        restore_model_params()
+
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
         g_macs, m_flops = 0, 0
@@ -92,8 +95,6 @@ if __name__ == '__main__':
             logger.warning(f'Exception: {exception_info}')
             if 'NaN' in exception_info:
                 logger.warning('Restoring to best model parameters')
-
-        restore_model_params()
 
         # Save into logging directory.
         extra = {'proxy_score': proxy_score, 'g_macs': g_macs, 'm_params': m_params}

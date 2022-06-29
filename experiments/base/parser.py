@@ -159,7 +159,10 @@ def arg_parse():
                         help='LR decay rate (default: 0.1)')
 
     # Misc.
-    parser.add_argument('--amp', action='store_true', help='Whether to use PyTorch native AMP')
+    parser.add_argument('--native-amp', action='store_true', help='Whether to use PyTorch native AMP')
+    parser.add_argument('--apex-amp', action='store_true', help='Whether to use NVIDIA Apex AMP')
+    parser.add_argument('--apex-amp-loss-scale', default=0.0, type=float,
+                        help='Loss scale for Apex AMP (0 for dynamic scaling)')
     parser.add_argument('--eval-metric', default='top1', type=str, metavar='EVAL_METRIC',
                         help='Best metric (default: "top1"')
     parser.add_argument('--log-interval', default=100, type=int, metavar='INTERVAL',
@@ -201,4 +204,7 @@ def arg_parse():
     setattr(args, 'timestamp', time.time_ns())
     assert args.canvas_min_macs <= args.canvas_max_macs, 'Minimum FLOPs should be lower than maximum'
     assert args.canvas_min_params <= args.canvas_max_params, 'Minimum params should be lower than maximum'
+    assert not (args.apex_amp and args.native_amp), 'Can not enable both native/Apex AMP'
+    if args.apex_amp_loss_scale == 0:
+        args.apex_amp_loss_scale = None
     return args

@@ -63,6 +63,11 @@ def get_model(args, search_mode: bool = False):
     if args.distributed:
         if args.local_rank == 0:
             logger.info("Using native Torch DistributedDataParallel.")
-        model = NativeDDP(model, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb)
+        if args.apex_amp:
+            # noinspection PyUnresolvedReferences
+            from apex.parallel import DistributedDataParallel as ApexDDP
+            model = ApexDDP(model, delay_allreduce=True)
+        else:
+            model = NativeDDP(model, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb)
 
     return model
