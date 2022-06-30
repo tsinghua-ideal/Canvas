@@ -49,12 +49,6 @@ def get_model(args, search_mode: bool = False):
         pack = canvas.KernelPack.load(args.canvas_kernel)
         model = canvas.replace(model, pack.module, args.device)
 
-    # Load checkpoint.
-    if args.load_checkpoint:
-        logger.info(f'Loading checkpoint from {args.load_checkpoint}')
-        checkpoint = torch.load(args.load_checkpoint)
-        model.load_state_dict(checkpoint['state_dict'], strict=False)
-
     # Count FLOPs and params.
     macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
                                                      print_per_layer_stat=False, verbose=False)

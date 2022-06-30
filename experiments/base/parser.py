@@ -31,8 +31,6 @@ def arg_parse():
                         help='Drop path rate (default: None)')
     parser.add_argument('--drop-block', type=float, default=None, metavar='PCT',
                         help='Drop block rate (default: None)')
-    parser.add_argument('--load-checkpoint', default='', type=str,
-                        help='Path to checkpoint file (after replacing the kernel)')
 
     # Dataset.
     parser.add_argument('--seed', type=int, default=42, metavar='S',
@@ -159,6 +157,8 @@ def arg_parse():
                         help='LR decay rate (default: 0.1)')
 
     # Misc.
+    parser.add_argument('--resume', metavar='PATH', type=str, default='',
+                        help='Path to the checkpoint for resuming (only for training)')
     parser.add_argument('--native-amp', action='store_true', help='Whether to use PyTorch native AMP')
     parser.add_argument('--apex-amp', action='store_true', help='Whether to use NVIDIA Apex AMP')
     parser.add_argument('--apex-amp-loss-scale', default=0.0, type=float,
@@ -174,6 +174,9 @@ def arg_parse():
                         help='Force broadcast buffers for native DDP to off')
 
     # Canvas preferences.
+    parser.add_argument('--canvas-load-checkpoint', default='', type=str,
+                        help='Path to checkpoint file (after replacing the kernel, only for search, '
+                             'use `resume` for training)')
     parser.add_argument('--canvas-rounds', default=0, type=int,
                         help='Search rounds for Canvas (only for search)')
     parser.add_argument('--canvas-seed', default='pure', type=str,

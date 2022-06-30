@@ -4,7 +4,7 @@ import torch
 from collections import OrderedDict
 from contextlib import suppress
 
-from timm.models import model_parameters
+from timm.models import model_parameters, resume_checkpoint
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
 from timm.utils import NativeScaler, ApexScaler
 
@@ -191,9 +191,21 @@ def train(args, model, train_loader, eval_loader):
     else:
         amp_autocast, loss_scaler = suppress, None
 
+    # Resume from checkpoint.
+    resume_epoch = None
+    if args.resume:
+        logger.info(f'Resuming from checkpoint {args.resume}')
+        resume_epoch = resume_checkpoint(
+            model, args.resume, optimizer=optimizer, loss_scaler=loss_scaler,
+            log_info=(args.local_rank == 0)
+        )
+    start_epoch = resume_epoch if resume_epoch else 0
+    if lr_scheduler is not None and start_epoch > 0:
+        lr_scheduler.step(start_epoch)
+
     # Iterate over epochs.
     all_train_metrics, all_eval_metrics = [], []
-    for epoch in range(sched_epochs):
+    for epoch in range(start_epoch, sched_epochs):
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
 
