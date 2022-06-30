@@ -109,7 +109,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // TODO: support multiple variable solving.
     // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
     // An edge case to notice: [x_0, 1, H, W] -> [x_0, x_1/x_0, H, W]
-    if (t->shape.IsChannelSpatial() and not unused_indices.empty())
+    if (t->shape.IsChannelSpatial() and not unused_indices.empty() and DynamicCast<FCPrimitive>(t->producer) == nullptr)
         MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(unused_indices.front()));
 
     // Convolution: the channel could be a new variable.
