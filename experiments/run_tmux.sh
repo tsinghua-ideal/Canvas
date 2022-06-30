@@ -1,25 +1,38 @@
 #!/bin/bash
 
-current_path=$(pwd)
+# Check power.
+if ! (( $1 > 0 && ($1 & ($1 - 1)) == 0 )); then
+  echo 'Process number should be a power of 2'
+  exit
+fi
+
+# Log2 function.
+function log2 {
+  local x=0
+  for ((y = $1 - 1; y > 0; y >>= 1)); do
+    ((x = x + 1))
+  done
+  echo "$x"
+}
 
 # Create windows.
 tmux new -s "Canvas" -d
-tmux selectp -t 1
-tmux splitw -v -p 50
-tmux selectp -t 1
-tmux splitw -v -p 50
-tmux selectp -t 3
-tmux splitw -v -p 50
+for ((i = 0; i < $(log2 "$1"); i ++)); do
+  for ((j = 0; j < 2 ** i; j ++)) do
+    tmux selectp -t $((j * 2 + 1))
+    tmux splitw -v -p 50
+  done
+done
 
 # Run Canvas.
-for i in {1..4}
-do
+current_path=$(pwd)
+for ((i = 1; i <= $1; i ++)); do
 tmux send-keys -t "$i" "echo TMUX Pane $i" Enter
 # You may change to your personal environment.
 tmux send-keys -t "$i" "source ~/.local/miniconda3/etc/profile.d/conda.sh; conda activate Canvas" Enter
 tmux send-keys -t "$i" "cd ${current_path}" Enter
 # shellcheck disable=SC2004
-tmux send-keys -t "$i" "CUDA_VISIBLE_DEVICES=$(($i-1)) $*" Enter
+tmux send-keys -t "$i" "CUDA_VISIBLE_DEVICES=$(($i-1)) ${*:2}" Enter
 done
 
 # Attach.
