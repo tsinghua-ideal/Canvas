@@ -307,9 +307,8 @@ static Type Power(Type base, int power) {
 
 /// Split a string into vector.
 static void Split(const std::string& str, std::vector<std::string>& vec) {
-    boost::algorithm::split(vec, boost::algorithm::to_lower_copy(str),
-                            boost::is_any_of("\t ,"),
-                            boost::token_compress_on);
+    auto copy = boost::algorithm::to_lower_copy(str);
+    boost::algorithm::split(vec, copy, boost::is_any_of("\t ,"), boost::token_compress_on);
 }
 
 static std::string ToLowerCopy(const std::string& str) {
