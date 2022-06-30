@@ -157,8 +157,12 @@ def arg_parse():
                         help='LR decay rate (default: 0.1)')
 
     # Misc.
+    parser.add_argument('--output', default='', type=str, metavar='PATH',
+                        help='Path to output folder (default: none, current dir, training only)')
     parser.add_argument('--resume', metavar='PATH', type=str, default='',
                         help='Path to the checkpoint for resuming (only for training)')
+    parser.add_argument('--checkpoint-hist', type=int, default=10, metavar='N',
+                        help='Number of checkpoints to keep (default: 10)')
     parser.add_argument('--native-amp', action='store_true', help='Whether to use PyTorch native AMP')
     parser.add_argument('--apex-amp', action='store_true', help='Whether to use NVIDIA Apex AMP')
     parser.add_argument('--apex-amp-loss-scale', default=0.0, type=float,

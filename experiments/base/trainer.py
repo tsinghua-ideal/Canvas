@@ -1,12 +1,15 @@
+import json
 import math
+import os
 import time
 import torch
 from collections import OrderedDict
 from contextlib import suppress
+from datetime import datetime
 
-from timm.models import model_parameters, resume_checkpoint
+from timm.models import model_parameters, resume_checkpoint, safe_model_name
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
-from timm.utils import NativeScaler, ApexScaler
+from timm.utils import NativeScaler, ApexScaler, CheckpointSaver, get_outdir, update_summary
 
 from . import log, loss, optim, sche
 
@@ -163,7 +166,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
     return OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])
 
 
-def train(args, model, train_loader, eval_loader):
+def train(args, model, train_loader, eval_loader, search: bool = False):
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
 
@@ -203,6 +206,22 @@ def train(args, model, train_loader, eval_loader):
     if lr_scheduler is not None and start_epoch > 0:
         lr_scheduler.step(start_epoch)
 
+    # Checkpoint saver.
+    best_metric, best_epoch = None, None
+    saver, output_dir = None, None
+    if args.rank == 0 and not search:
+        name = '-'.join([
+            datetime.now().strftime("%Y%m%d-%H%M%S"),
+            safe_model_name(args.model)
+        ])
+        output_dir = get_outdir(args.output if args.output else './output/train', name)
+        decreasing = True if args.eval_metric == 'loss' else False
+        saver = CheckpointSaver(
+            model=model, optimizer=optimizer, args=args, amp_scaler=loss_scaler,
+            checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
+        with open(os.path.join(output_dir, 'args.json'), 'w') as file:
+            json.dump(vars(args), fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
+
     # Iterate over epochs.
     all_train_metrics, all_eval_metrics = [], []
     for epoch in range(start_epoch, sched_epochs):
@@ -235,5 +254,20 @@ def train(args, model, train_loader, eval_loader):
         # Check NaN errors.
         if math.isnan(eval_metrics['loss']):
             raise RuntimeError('NaN occurs during training')
+
+        # Summary and save checkpoint.
+        if output_dir is not None:
+            logger.info('Updating summary ...')
+            update_summary(
+                epoch, train_metrics, eval_metrics,
+                os.path.join(output_dir, 'summary.csv'),
+                write_header=best_metric is None)
+
+        if saver is not None:
+            logger.info('Saving checkpoint ...')
+            best_metric, best_epoch = saver.save_checkpoint(epoch, metric=eval_metrics[args.eval_metric])
+
+    if best_metric is not None:
+        logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
 
     return all_train_metrics, all_eval_metrics

@@ -78,7 +78,9 @@ if __name__ == '__main__':
             if proxy_train_loader and proxy_eval_loader:
                 logger.info('Training on proxy dataset ...')
                 _, proxy_eval_metrics = \
-                    trainer.train(args, model=model, train_loader=proxy_train_loader, eval_loader=proxy_eval_loader)
+                    trainer.train(args, model=model,
+                                  train_loader=proxy_train_loader, eval_loader=proxy_eval_loader,
+                                  search=True)
                 proxy_score = max([item['top1'] for item in proxy_eval_metrics])
                 restore_model_params()
                 logger.info(f'Proxy dataset score: {proxy_score}')
@@ -87,7 +89,9 @@ if __name__ == '__main__':
                     continue
             logger.info('Training on main dataset ...')
             train_metrics, eval_metrics = \
-                trainer.train(args, model=model, train_loader=train_loader, eval_loader=eval_loader)
+                trainer.train(args, model=model,
+                              train_loader=train_loader, eval_loader=eval_loader,
+                              search=True)
             score = max([item['top1'] for item in eval_metrics])
             logger.info(f'Solution score: {score}')
         except RuntimeError as ex:
