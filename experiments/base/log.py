@@ -3,6 +3,7 @@ import json
 import logging
 import math
 import os
+import oss2
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -13,6 +14,11 @@ _exp_logger.setLevel(logging.INFO)
 def get_logger():
     global _exp_logger
     return _exp_logger
+
+
+def get_oss_bucket():
+    return oss2.Bucket(oss2.Auth('LTAI5tCx79brCnGXxKGTsAst', 'F0IVmA99YzX2x8LWkGrp8WBjVH9qsa'),
+                       'oss-cn-hangzhou.aliyuncs.com', 'canvas-imagenet')
 
 
 def save(args, kernel_pack, train_metrics, eval_metrics, extra):
@@ -57,3 +63,10 @@ def save(args, kernel_pack, train_metrics, eval_metrics, extra):
                        'train_metrics': train_metrics, 'eval_metrics': eval_metrics,
                        'extra': extra},
                       fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
+
+        # Save to OSS buckets.
+        if args.canvas_oss_bucket:
+            logger.info(f'Uploading into OSS bucket {args.canvas_oss_bucket}')
+            prefix = args.canvas_oss_bucket + '/' + dir_name + '/'
+            for filename in os.listdir(path):
+                get_oss_bucket().put_object_from_file(prefix + filename, os.path.join(path, filename))

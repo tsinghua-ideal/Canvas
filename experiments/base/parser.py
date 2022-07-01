@@ -189,6 +189,8 @@ def arg_parse():
                              '(only for search)')
     parser.add_argument('--canvas-log-dir', default='', type=str,
                         help='Canvas logging directory')
+    parser.add_argument('--canvas-oss-bucket', default='', type=str,
+                        help='Log into OSS buckets')
     parser.add_argument('--canvas-bmm-pct', default=0.5, type=float,
                         help='Possibility to forcibly contain BMM (attention-like, only for search)')
     parser.add_argument('--canvas-proxy-root', default='', metavar='DIR', type=str,
