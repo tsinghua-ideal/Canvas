@@ -10,7 +10,8 @@ def get_loaders(args, proxy: bool = False):
         return None, None
 
     # Get dataset.
-    get_logger().info(f'Preparing data loaders in {root} (proxy={proxy})')
+    if args.rank == 0:
+        get_logger().info(f'Preparing data loaders in {root} (proxy={proxy})')
     dataset_train = create_dataset(name='', root=root, split=args.train_split, batch_size=args.batch_size)
     dataset_eval = create_dataset(name='', root=root, split=args.val_split, batch_size=args.batch_size)
 

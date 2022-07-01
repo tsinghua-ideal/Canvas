@@ -12,10 +12,11 @@ add_definitions(-fPIC)
 include(FetchContent)
 
 # Fetch pybind11.
+# TODO: may refer to the official repo.
 FetchContent_Declare(
-        pybind11
-        GIT_REPOSITORY https://github.com/pybind/pybind11
-        GIT_TAG        v2.9.2
+    pybind11
+    GIT_REPOSITORY https://gitee.com/lkhlll/pybind11
+    GIT_TAG        v2.9.2
 )
 
 # Boost.
