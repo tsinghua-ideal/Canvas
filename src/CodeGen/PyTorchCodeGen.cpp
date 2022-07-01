@@ -199,7 +199,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
         }
         // TODO: initialization.
         gen->Write() << "self." << primitive_var << "_w"
-                     << " = nn.Parameter(torch.normal(0, 0.02, size="
+                     << " = nn.Parameter(torch.ones("
                      << "(1" << shape_str.str() << ",)"
                      << "), requires_grad=True)"
                      << std::endl;

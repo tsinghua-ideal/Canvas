@@ -80,6 +80,7 @@ class Block(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
+        # TODO: check scale v.s. MLP.
         x = x + self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.attn(self.norm1(x)))
         x = x + self.drop_path(self.layer_scale_2.unsqueeze(-1).unsqueeze(-1) * self.mlp(self.norm2(x)))
         return x

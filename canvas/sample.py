@@ -135,7 +135,6 @@ def empty_sample(allowed_filter: str = '',
     return kernel_pack.KernelPack.load_from_cpp(pack)
 
 
-# TODO: fix options of FLOPs and params.
 def sample(m: nn.Module,
            example_input: torch.Tensor = None,
            allowed_filter: str = '',

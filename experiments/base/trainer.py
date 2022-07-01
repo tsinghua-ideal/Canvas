@@ -182,10 +182,12 @@ def train(args, model, train_loader, eval_loader, search: bool = False):
 
     # AMP automatic cast.
     if args.native_amp:
-        logger.info('Training with native PyTorch AMP')
+        if args.rank == 0:
+            logger.info('Training with native PyTorch AMP')
         amp_autocast, loss_scaler = torch.cuda.amp.autocast, NativeScaler()
     elif args.apex_amp:
-        logger.info(f'Training with native Apex AMP (loss scale: {args.apex_amp_loss_scale})')
+        if args.rank == 0:
+            logger.info(f'Training with native Apex AMP (loss scale: {args.apex_amp_loss_scale})')
         amp_autocast, loss_scaler = suppress, ApexScaler()
         # noinspection PyUnresolvedReferences
         from apex import amp
