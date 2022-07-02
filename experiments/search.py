@@ -106,8 +106,14 @@ if __name__ == '__main__':
             if 'NaN' in exception_info:
                 logger.warning('Restoring to best model parameters')
 
+        # Kernel scales after training.
+        kernel_scales = None
+        if hasattr(model, 'kernel_scales'):
+            kernel_scales = model.kernel_scales()
+            logger.info(f'Kernel scales after training: {kernel_scales}')
+
         # Save into logging directory.
-        extra = {'proxy_score': proxy_score, 'g_macs': g_macs, 'm_params': m_params}
+        extra = {'proxy_score': proxy_score, 'g_macs': g_macs, 'm_params': m_params, 'kernel_scales': kernel_scales}
         if exception_info:
             extra['exception'] = exception_info
         log.save(args, kernel_pack, train_metrics, eval_metrics, extra)

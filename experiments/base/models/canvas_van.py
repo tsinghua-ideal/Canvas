@@ -80,9 +80,12 @@ class Block(nn.Module):
                 m.bias.data.zero_()
 
     def forward(self, x):
-        # TODO: check scale v.s. MLP.
-        x = x + self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.attn(self.norm1(x)))
-        x = x + self.drop_path(self.layer_scale_2.unsqueeze(-1).unsqueeze(-1) * self.mlp(self.norm2(x)))
+        attn_value = self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.attn(self.norm1(x)))
+        x = x + attn_value
+        mlp_value = self.drop_path(self.layer_scale_2.unsqueeze(-1).unsqueeze(-1) * self.mlp(self.norm2(x)))
+        x = x + mlp_value
+        if not self.training:
+            setattr(self, 'kernel_scale', (torch.abs(attn_value).mean() / torch.abs(mlp_value).mean()).item())
         return x
 
 
@@ -200,6 +203,17 @@ class VAN(nn.Module):
                 x = x.reshape(B, H, W, -1).permute(0, 3, 1, 2).contiguous()
 
         return x.mean(dim=1)
+
+    def kernel_scales(self):
+        scales = []
+        for i in range(self.num_stages):
+            block = getattr(self, f"block{i + 1}")
+            for blk in block:
+                if hasattr(blk, 'kernel_scale'):
+                    scales.append(blk.kernel_scale)
+                else:
+                    return None
+        return scales
 
     def forward(self, x):
         x = self.forward_features(x)
