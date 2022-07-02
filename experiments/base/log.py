@@ -80,7 +80,7 @@ def save(args, kernel_pack, train_metrics, eval_metrics, extra):
                         success = True
                         break
                     except Exception as ex:
-                        logger.info(f'Failed to upload, try {i + 1} times')
+                        logger.info(f'Failed to upload, try {i + 1} time(s)')
                         continue
                 if not success:
-                    logger.info(f'Uploading failed for {oss_try_times} times')
+                    logger.info(f'Uploading failed for {oss_try_times} time(s)')
