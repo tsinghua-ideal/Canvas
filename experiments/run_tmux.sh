@@ -29,7 +29,7 @@ current_path=$(pwd)
 for ((i = 1; i <= $1; i ++)); do
 tmux send-keys -t "$i" "echo TMUX Pane $i" Enter
 # You may change to your personal environment.
-tmux send-keys -t "$i" "source ~/.local/miniconda3/etc/profile.d/conda.sh; conda activate Canvas" Enter
+tmux send-keys -t "$i" "conda activate Canvas" Enter
 tmux send-keys -t "$i" "cd ${current_path}" Enter
 # shellcheck disable=SC2004
 tmux send-keys -t "$i" "CUDA_VISIBLE_DEVICES=$(($i-1)) ${*:2}" Enter
