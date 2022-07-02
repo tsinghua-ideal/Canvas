@@ -9,6 +9,7 @@ import oss2
 logging.basicConfig(level=logging.DEBUG)
 _exp_logger = logging.getLogger()
 _exp_logger.setLevel(logging.INFO)
+oss_try_times = 10
 
 
 def get_logger():
@@ -18,7 +19,7 @@ def get_logger():
 
 def get_oss_bucket():
     return oss2.Bucket(oss2.Auth('LTAI5tCx79brCnGXxKGTsAst', 'F0IVmA99YzX2x8LWkGrp8WBjVH9qsa'),
-                       'oss-cn-hangzhou.aliyuncs.com', 'canvas-imagenet')
+                       'oss-cn-hangzhou.aliyuncs.com', 'canvas-imagenet', connect_timeout=5)
 
 
 def save(args, kernel_pack, train_metrics, eval_metrics, extra):
@@ -69,4 +70,17 @@ def save(args, kernel_pack, train_metrics, eval_metrics, extra):
             logger.info(f'Uploading into OSS bucket {args.canvas_oss_bucket}')
             prefix = args.canvas_oss_bucket + '/' + dir_name + '/'
             for filename in os.listdir(path):
-                get_oss_bucket().put_object_from_file(prefix + filename, os.path.join(path, filename))
+                global oss_try_times
+                success = False
+                for i in range(oss_try_times):
+                    # noinspection PyBroadException
+                    try:
+                        logger.info(f'Uploading {filename} ...')
+                        get_oss_bucket().put_object_from_file(prefix + filename, os.path.join(path, filename))
+                        success = True
+                        break
+                    except Exception as ex:
+                        logger.info(f'Failed to upload, try {i + 1} times')
+                        continue
+                if not success:
+                    logger.info(f'Uploading failed for {oss_try_times} times')
