@@ -57,6 +57,7 @@ def get_model(args, search_mode: bool = False):
         logger.info(f'MACs: {macs}, params: {params}')
 
     if args.distributed:
+        assert not search_mode, 'Search mode does not support distributed training'
         if args.local_rank == 0:
             logger.info("Using native Torch DistributedDataParallel.")
         if args.apex_amp:

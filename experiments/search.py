@@ -1,6 +1,6 @@
 import gc
 import itertools
-
+import torch
 import ptflops
 
 import canvas
@@ -27,6 +27,12 @@ if __name__ == '__main__':
     train_loader, eval_loader = dataset.get_loaders(args)
     proxy_train_loader, proxy_eval_loader = dataset.get_loaders(args, proxy=True)
 
+    # Load checkpoint.
+    if args.canvas_load_checkpoint:
+        logger.info(f'Loading checkpoint from {args.canvas_load_checkpoint}')
+        checkpoint = torch.load(args.canvas_load_checkpoint)
+        model.load_state_dict(checkpoint['state_dict'], strict=False)
+
     # Set up Canvas randomness seed.
     logger.info(f'Configuring Canvas ...')
     canvas.seed(random.SystemRandom().randint(0, 0x7fffffff) if args.canvas_seed == 'pure' else args.seed)
@@ -50,7 +56,7 @@ if __name__ == '__main__':
         logger.info('Sampling a new kernel ...')
         g_macs, m_flops = 0, 0
         try:
-            kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct, forbidden_filter="shift")
+            kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct)
             canvas.replace(model, kernel_pack.module, args.device)
             g_macs, m_params = ptflops.get_model_complexity_info(model, args.input_size,
                                                                  as_strings=False, print_per_layer_stat=False)
