@@ -63,6 +63,7 @@ class Block(nn.Module):
         self.layer_scale_2 = nn.Parameter(
             layer_scale_init_value * torch.ones((dim, )), requires_grad=True)
         self.apply(self._init_weights)
+        self.prev_items, self.kernel_scale = 0, 0
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
@@ -84,8 +85,13 @@ class Block(nn.Module):
         x = x + attn_value
         mlp_value = self.drop_path(self.layer_scale_2.unsqueeze(-1).unsqueeze(-1) * self.mlp(self.norm2(x)))
         x = x + mlp_value
-        if not self.training:
-            setattr(self, 'kernel_scale', (torch.abs(attn_value).mean() / torch.abs(mlp_value).mean()).item())
+        if self.training:
+            self.prev_items, self.kernel_scale = 0, 0
+        else:
+            prev_sum = self.kernel_scale * self.prev_items
+            current_scale = (torch.abs(attn_value).mean() / torch.abs(mlp_value).mean()).item()
+            self.prev_items += x.size(0)
+            self.kernel_scale = (prev_sum + current_scale * x.size(0)) / self.prev_items
         return x
 
 
