@@ -22,7 +22,8 @@ class Kernel_2066129463177083751(nn.Module):
         # Fold_1/0/H_1/1/W_Max: p_3
         pass
         # Scale_1/0/H_1/1/W: p_4
-        self.p_4_w = nn.Parameter(torch.normal(0, 0.02, size=(1, 1, self.h, self.w,)), requires_grad=True)
+        self.p_4_w = nn.Parameter(torch.ones((1, 1, self.h, self.w,)), requires_grad=True)
+        nn.init.trunc_normal_(self.p_4_w, std=.02)
         # Fold_0/1/C_Avg: p_5
         pass
         # UnfoldHW_K5_D3: p_6
@@ -40,7 +41,8 @@ class Kernel_2066129463177083751(nn.Module):
         # BAdd: p_12
         pass
         # Scale_1/0/H_1/1/W: p_13
-        self.p_13_w = nn.Parameter(torch.normal(0, 0.02, size=(1, self.h, self.w,)), requires_grad=True)
+        self.p_13_w = nn.Parameter(torch.ones((1, self.h, self.w,)), requires_grad=True)
+        nn.init.trunc_normal_(self.p_13_w, std=.02)
         # Exp: p_14
         pass
         # UnfoldW_K7_D3: p_15

@@ -197,12 +197,14 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                     shape_str << ", 1";
             }
         }
-        // TODO: initialization.
         gen->Write() << "self." << primitive_var << "_w"
                      << " = nn.Parameter(torch.ones("
                      << "(1" << shape_str.str() << ",)"
                      << "), requires_grad=True)"
                      << std::endl;
+        gen->Write() << "nn.init.trunc_normal_("
+                     << "self." << primitive_var << "_w"
+                     << ", std=.02)" << std::endl;
     } else if (DynamicCast<InputPrimitive>(p) or
             DynamicCast<ActivationPrimitive>(p) or
             DynamicCast<BroadcastPrimitive>(p) or
