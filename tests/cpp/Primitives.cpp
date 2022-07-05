@@ -11,23 +11,23 @@ using namespace canvas;
 
 TEST(Primitives, DuplicatePrimitiveChecking) {
     auto graph = std::make_shared<Graph>();
-    auto group = std::make_shared<GroupPrimitive>(graph->in, 0);
-    graph->Apply(group);
+    auto activation = std::make_shared<ActivationPrimitive>(graph->in, ActivationType::GeLU);
+    graph->Apply(activation);
 
     PrimitiveOptions filter;
-    filter.hash_filter.insert(group->Hash(true));
+    filter.hash_filter.insert(activation->Hash(true));
 
     int count = 0;
     auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, filter);
     for (const auto& apply: applies) {
         if (apply.primitive->ins[0] == graph->in) {
-            if (auto p = DynamicCast<GroupPrimitive>(apply.primitive)) {
+            if (auto p = DynamicCast<ActivationPrimitive>(apply.primitive)) {
                 ++ count;
-                ASSERT_TRUE(p->type == GroupAllChannels);
+                ASSERT_TRUE(p->type != ActivationType::GeLU);
             }
         }
     }
-    ASSERT_EQ(count, 1);
+    ASSERT_EQ(count, 3);
 }
 
 TEST(Primitives, BroadcastDynamicMatching) {

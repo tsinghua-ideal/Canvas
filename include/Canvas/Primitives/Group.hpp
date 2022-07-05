@@ -5,24 +5,14 @@
 
 namespace canvas {
 
-enum GroupType {
-    GroupByFactor,
-    GroupAllChannels,
-};
-
-static std::string GroupTypeToName(int d, GroupType type) {
-    switch (type) {
-        case GroupByFactor: return "GroupByFactor_" + std::to_string(d);
-        case GroupAllChannels: return "GroupAll_" + std::to_string(d);
-    }
-    Unreachable();
+static std::string GroupTypeToName(int d, const Variable& factor) {
+    std::stringstream ss;
+    ss << "Group_" << d << "_" << factor;
+    return ss.str();
 }
 
 struct GroupPrimitive: Primitive {
-    int d;
-    GroupType type;
-
-    explicit GroupPrimitive(const TensorSP& t, int d, GroupType type=GroupByFactor);
+    explicit GroupPrimitive(const TensorSP& t, int d, const Variable& factor);
 
     CanvasPrimitiveCopyTemplate(GroupPrimitive);
 };

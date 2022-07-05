@@ -109,8 +109,11 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // TODO: support multiple variable solving.
     // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
     // An edge case to notice: [x_0, 1, H, W] -> [x_0, x_1/x_0, H, W]
-    if (t->shape.IsChannelSpatial() and not unused_indices.empty() and DynamicCast<FCPrimitive>(t->producer) == nullptr)
-        MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(unused_indices.front()));
+    if (t->shape.IsChannelSpatial()) {
+        MakeAndPush<FCPrimitive>(primitives, options, t, Variable::StaticVar(StaticVarPos::VC));
+        if (not unused_indices.empty())
+            MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(unused_indices.front()));
+    }
 
     // Convolution: the channel could be a new variable.
     // We do not put too much convolution primitives in kernel, as much as possible to use FC.
@@ -123,6 +126,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
                                           Variable::DynamicVar(unused_indices[0]),
                                           Variable(), kh, kw, dh, dw);
+        MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
+                                          Variable::DynamicVar(unused_indices[0]),
+                                          t->shape.Channel()->C(), kh, kw, dh, dw);
         if (unused_indices.size() > 1) {
             kh = RandomChoose(options.kernel_sizes), kw = RandomChoose(options.kernel_sizes);
             dh = RandomChoose(options.dilated_sizes), dw = RandomChoose(options.dilated_sizes);
@@ -213,10 +219,12 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         if (auto channel = DynamicCast<ChannelShape>(t->shape.dims[d])) {
             if (not channel->G().Empty())
                 continue;
-            if ((channel->C() / Variable::StaticVar(StaticVarPos::VG)).MaybeInteger())
-                MakeAndPush<GroupPrimitive>(primitives, options, t, d, GroupType::GroupByFactor);
-            if (not channel->CKK().Empty())
-                MakeAndPush<GroupPrimitive>(primitives, options, t, d, GroupType::GroupAllChannels);
+            for (const auto& factor: channel->C().Numerator().GetAllFactors()) {
+                if (factor.Empty() or not (channel->C() / factor).MaybeInteger())
+                    continue;
+                MakeAndPush<GroupPrimitive>(primitives, options, t, d, factor);
+            }
+            MakeAndPush<GroupPrimitive>(primitives, options, t, d, Variable::DynamicVar(unused_indices.front()));
         }
     }
 
