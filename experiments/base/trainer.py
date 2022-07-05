@@ -162,10 +162,15 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                     'Acc@5: {top5.val:>7.4f} ({top5.avg:>7.4f})'.format(
                         batch_idx, last_idx, batch_time=batch_time_m,
                         loss=losses_m, top1=top1_m, top5=top5_m))
-                if hasattr(model, 'kernel_scales'):
-                    logger.info(f'Kernel scales: {model.kernel_scales()}')
 
-    return OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])
+    # Record kernel scales.
+    kernel_scales = []
+    if hasattr(model, 'kernel_scales'):
+        kernel_scales = model.kernel_scales()
+        logger.info(f'Kernel scales: {kernel_scales}')
+
+    return OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg),
+                        ('top5', top5_m.avg), ('kernel_scales', kernel_scales)])
 
 
 def train(args, model, train_loader, eval_loader, search: bool = False):

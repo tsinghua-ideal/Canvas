@@ -207,6 +207,10 @@ def arg_parse():
                         help='Minimum params for searched kernels (in M-unit, only for search)')
     parser.add_argument('--canvas-max-params', default=0, type=float,
                         help='Maximum params for searched kernels (in M-unit, only for search)')
+    parser.add_argument('--canvas-min-proxy-kernel-scale', default=0.2, type=float,
+                        help='Minimum kernel scale (geometric mean, only for search)')
+    parser.add_argument('--canvas-proxy-kernel-scale-limit', default=0.3, type=float,
+                        help='Minimum/maximum kernel scale (geometric mean, only for search)')
 
     # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()
