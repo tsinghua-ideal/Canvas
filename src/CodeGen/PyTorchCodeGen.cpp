@@ -381,9 +381,41 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << ")"
                      << std::endl;
     } else if (auto output = DynamicCast<OutputPrimitive>(p)) {
-        // Reshape and return the output variable.
+        // Reshape (may permute) and return the output variable.
+        auto continuous = output->ins[0]->shape.Continuous();
+        std::vector<int> permuted(continuous.size());
+        assert(not permuted.empty());
+        for (int i = 0; i < permuted.size(); ++ i)
+            permuted[i] = i;
+        // Move C into the front.
+        bool swapped = false;
+        if (continuous[permuted[0]].static_power[StaticVarPos::VC] == 0) {
+            for (int i = 1; i < permuted.size(); ++ i) {
+                if (continuous[permuted[i]].static_power[StaticVarPos::VC] > 0) {
+                    swapped = true, std::swap(permuted[0], permuted[i]);
+                    break;
+                }
+            }
+        }
+        // Move W into the end.
+        if (continuous[permuted.back()].static_power[StaticVarPos::VW] == 0) {
+            for (int i = 1; i < permuted.size() - 1; ++ i) {
+                if (continuous[permuted[i]].static_power[StaticVarPos::VW] > 0) {
+                    swapped = true, std::swap(permuted[permuted.size() - 1], permuted[i]);
+                    break;
+                }
+            }
+        }
+        std::stringstream ss;
+        if (swapped) {
+            ss << ".permute(0";
+            for (int index: permuted)
+                ss << ", " << index + 1;
+            ss << ")";
+        }
         gen->Write() << "return "
                      << var_map[output->ins[0]]
+                     << ss.str()
                      << ".view(self.n, self.c, self.h, self.w)"
                      << std::endl;
     } else if (auto scale = DynamicCast<ScalePrimitive>(p)) {
