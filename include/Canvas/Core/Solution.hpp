@@ -15,6 +15,11 @@ struct Solution {
 
     Solution() = default;
 
+    Solution(GraphSP graph, GlobalSpecs global_specs=GlobalSpecs()):
+        net_specs(std::make_shared<NetSpecs>()), graph(std::move(graph)), global_specs(global_specs) {
+        assert(this->graph);
+    }
+
     Solution(NetSpecsSP specs, GraphSP graph, GlobalSpecs global_specs=GlobalSpecs()):
             net_specs(std::move(specs)), graph(std::move(graph)), global_specs(global_specs) {
         assert(this->net_specs and this->graph);

@@ -51,6 +51,8 @@ public:
     std::vector<size_t> c_gcd_factors;
     std::vector<KernelSpecs> kernel_specs;
 
+    NetSpecs() = default;
+
     explicit NetSpecs(std::vector<KernelSpecs> kernel_specs);
 
     [[nodiscard]] size_t Hash() {
