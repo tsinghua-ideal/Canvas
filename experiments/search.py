@@ -100,7 +100,6 @@ if __name__ == '__main__':
                 if proxy_score < args.canvas_proxy_threshold:
                     logger.info(f'Under proxy threshold {args.canvas_proxy_threshold}, skip main dataset training')
                     continue
-
                 if len(kernel_scales) > 0 and args.canvas_proxy_kernel_scale_limit > 0:
                     g_mean = np.exp(np.log(kernel_scales).mean())
                     if g_mean < args.canvas_proxy_kernel_scale_limit or \

@@ -82,10 +82,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         else if (could_not_expand_width)
             primitive_options.max_delta_width = 0;
 
-        // Grouping number filters.
-        if (net_specs->c_gcd == 1)
-            primitive_options.forbidden_filter.emplace_back("GroupByFactor");
-
         // Must be output next step.
         if (n_steps_remaining == 1)
             primitive_options.output_filter = true;

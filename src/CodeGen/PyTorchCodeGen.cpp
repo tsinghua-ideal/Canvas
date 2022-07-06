@@ -411,7 +411,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
             ss << ".permute(0";
             for (int index: permuted)
                 ss << ", " << index + 1;
-            ss << ")";
+            ss << ").contiguous()";
         }
         gen->Write() << "return "
                      << var_map[output->ins[0]]
