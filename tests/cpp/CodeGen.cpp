@@ -15,9 +15,13 @@ TEST(CodeGen, LKA) {
     graph->Apply(proj_1);
     auto activation = std::make_shared<ActivationPrimitive>(proj_1->outs[0], ActivationType::GeLU);
     graph->Apply(activation);
-    auto lka_conv0 = std::make_shared<ConvolutionPrimitive>(activation->outs[0], c, c, 5, 5, 1, 1);
-    graph->Apply(lka_conv0);
-    auto lka_conv_spatial = std::make_shared<ConvolutionPrimitive>(lka_conv0->outs[0], c, c, 7, 7, 3, 3);
+    auto lka_conv0_unfold = std::make_shared<UnfoldPrimitive>(activation->outs[0], 5, 1);
+    graph->Apply(lka_conv0_unfold);
+    auto lka_conv0_group = std::make_shared<GroupPrimitive>(lka_conv0_unfold->outs[0], 0, c);
+    graph->Apply(lka_conv0_group);
+    auto lka_conv0_fc = std::make_shared<FCPrimitive>(lka_conv0_group->outs[0], c);
+    graph->Apply(lka_conv0_fc);
+    auto lka_conv_spatial = std::make_shared<ConvolutionPrimitive>(lka_conv0_fc->outs[0], c, c, 7, 7, 3, 3);
     graph->Apply(lka_conv_spatial);
     auto lka_conv1 = std::make_shared<FCPrimitive>(lka_conv_spatial->outs[0], c);
     graph->Apply(lka_conv1);

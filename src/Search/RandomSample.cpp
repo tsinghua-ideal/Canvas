@@ -87,10 +87,13 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
             primitive_options.output_filter = true;
 
         // FC selectivity filter.
-        if (MakeChoice(fc_sample_possibility))
-            primitive_options.allowed_filter = {"fc"};
-        else
+        if (MakeChoice(fc_sample_possibility)) {
+            primitive_options.allowed_filter = {"fc", "conv", "scale"};
+        } else {
             primitive_options.forbidden_filter.emplace_back("fc");
+            primitive_options.forbidden_filter.emplace_back("conv");
+            primitive_options.forbidden_filter.emplace_back("scale");
+        }
 
         // Get all available applies.
         auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, primitive_options);

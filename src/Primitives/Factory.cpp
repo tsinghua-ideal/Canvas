@@ -121,22 +121,31 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         not options.kernel_sizes.empty() and not options.dilated_sizes.empty() and
         t->shape.Channel()->KH().Empty() and t->shape.Channel()->KW().Empty() and
         not (t->shape.Spatial()->H().Empty() and t->shape.Spatial()->W().Empty())) {
-        int kh = RandomChoose(options.kernel_sizes), kw = RandomChoose(options.kernel_sizes);
-        int dh = RandomChoose(options.dilated_sizes), dw = RandomChoose(options.dilated_sizes);
-        MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
-                                          Variable::DynamicVar(unused_indices[0]),
-                                          Variable(), kh, kw, dh, dw);
-        MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
-                                          Variable::DynamicVar(unused_indices[0]),
-                                          t->shape.Channel()->C(), kh, kw, dh, dw);
-        if (unused_indices.size() > 1) {
-            kh = RandomChoose(options.kernel_sizes), kw = RandomChoose(options.kernel_sizes);
-            dh = RandomChoose(options.dilated_sizes), dw = RandomChoose(options.dilated_sizes);
+        auto PushConv = [&](int kh, int kw, int dh, int dw) {
             MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
                                               Variable::DynamicVar(unused_indices[0]),
-                                              Variable::DynamicVar(unused_indices[1]),
-                                              kh, kw, dh, dw);
-        }
+                                              Variable(), kh, kw, dh, dw);
+            MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
+                                              Variable::DynamicVar(unused_indices[0]),
+                                              t->shape.Channel()->C(), kh, kw, dh, dw);
+            MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
+                                              Variable::StaticVar(StaticVarPos::VC),
+                                              Variable(), kh, kw, dh, dw);
+            // if ((Variable::StaticVar(StaticVarPos::VC) / t->shape.Channel()->C()).MaybeInteger()) {
+            //     MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
+            //                                       Variable::StaticVar(StaticVarPos::VC),
+            //                                       t->shape.Channel()->C(), kh, kw, dh, dw);
+            // }
+            if (unused_indices.size() > 1) {
+                MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
+                                                  Variable::DynamicVar(unused_indices[0]),
+                                                  Variable::DynamicVar(unused_indices[1]),
+                                                  kh, kw, dh, dw);
+            }
+        };
+        for (int k: options.kernel_sizes)
+            for (int d: options.dilated_sizes)
+                PushConv(k, 1, d, 1), PushConv(1, k, 1, d), PushConv(k, k, 1, 1);
     }
 
     // Activation: no new variables, pruning: no double ReLU.
@@ -224,7 +233,8 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                     continue;
                 MakeAndPush<GroupPrimitive>(primitives, options, t, d, factor);
             }
-            MakeAndPush<GroupPrimitive>(primitives, options, t, d, Variable::DynamicVar(unused_indices.front()));
+            if (not unused_indices.empty())
+                MakeAndPush<GroupPrimitive>(primitives, options, t, d, Variable::DynamicVar(unused_indices.front()));
         }
     }
 

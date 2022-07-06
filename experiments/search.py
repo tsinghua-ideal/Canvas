@@ -57,7 +57,8 @@ if __name__ == '__main__':
         logger.info('Sampling a new kernel ...')
         g_macs, m_flops = 0, 0
         try:
-            kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct)
+            kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct,
+                                        forbidden_filter="shift", num_primitive_range=(8, 30))
             canvas.replace(model, kernel_pack.module, args.device)
             g_macs, m_params = ptflops.get_model_complexity_info(model, args.input_size,
                                                                  as_strings=False, print_per_layer_stat=False)

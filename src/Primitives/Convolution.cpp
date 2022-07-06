@@ -11,6 +11,7 @@ ConvolutionPrimitive::ConvolutionPrimitive(const TensorSP& t,
     assert(t->shape.IsChannelSpatial());
     assert(kh >= 1 and kh % 2 == 1 and kw >= 1 and kw % 2 == 1);
     assert(dh >= 1 and dw >= 1);
+    assert((oc / g).MaybeInteger());
     auto new_shape = t->shape;
     auto channel = new_shape.Channel();
     channel->Reset();
