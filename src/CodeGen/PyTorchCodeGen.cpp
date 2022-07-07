@@ -450,12 +450,18 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << reference
                          << std::endl;
     } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
-        gen->Write() << var_map[softmax->outs[0]]
-                     << " = F.softmax("
-                     << var_map[softmax->ins[0]] << ", "
-                     << "dim=" << softmax->ins[0]->shape.GetRelativeIndex(softmax->index) + 1
-                     << ")"
-                     << std::endl;
+        if (softmax->ins[0]->shape[softmax->index].Empty())
+            gen->Write() << var_map[softmax->outs[0]]
+                         << " = "
+                         << var_map[softmax->ins[0]]
+                         << std::endl;
+        else
+            gen->Write() << var_map[softmax->outs[0]]
+                         << " = F.softmax("
+                         << var_map[softmax->ins[0]] << ", "
+                         << "dim=" << softmax->ins[0]->shape.GetRelativeIndex(softmax->index) + 1
+                         << ")"
+                         << std::endl;
     } else if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {
         auto reference = PyTorchReshapeToNCHW(gen, var_map, unfold->ins[0], unfold->outs[0]);
         int dilation = unfold->d, kernel_size = unfold->k;
