@@ -1,5 +1,6 @@
 #include "Canvas/Primitives/Scale.hpp"
 
+
 namespace canvas {
 
 ScalePrimitive::ScalePrimitive(const TensorSP& t, const std::vector<Shape::Index>& indices):

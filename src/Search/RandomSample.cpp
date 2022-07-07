@@ -99,7 +99,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, primitive_options);
 
         // Rescale possibilities.
-        applies = PrimitiveFactory::RescalePossibilities(applies);
+        // applies = PrimitiveFactory::RescalePossibilities(applies);
 
         if (applies.empty()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT

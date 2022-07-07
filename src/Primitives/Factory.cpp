@@ -110,7 +110,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
     // An edge case to notice: [x_0, 1, H, W] -> [x_0, x_1/x_0, H, W]
     if (t->shape.IsChannelSpatial()) {
-        MakeAndPush<FCPrimitive>(primitives, options, t, Variable::StaticVar(StaticVarPos::VC));
+        auto c = Variable::StaticVar(StaticVarPos::VC);
+        if ((c / t->shape.Channel()->G()).MaybeInteger())
+            MakeAndPush<FCPrimitive>(primitives, options, t, c);
         if (not unused_indices.empty())
             MakeAndPush<FCPrimitive>(primitives, options, t, Variable::DynamicVar(unused_indices.front()));
     }
@@ -124,28 +126,21 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         auto PushConv = [&](int kh, int kw, int dh, int dw) {
             MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
                                               Variable::DynamicVar(unused_indices[0]),
-                                              Variable(), kh, kw, dh, dw);
-            MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
-                                              Variable::DynamicVar(unused_indices[0]),
-                                              t->shape.Channel()->C(), kh, kw, dh, dw);
-            MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
-                                              Variable::StaticVar(StaticVarPos::VC),
-                                              Variable(), kh, kw, dh, dw);
-            // if ((Variable::StaticVar(StaticVarPos::VC) / t->shape.Channel()->C()).MaybeInteger()) {
-            //     MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
-            //                                       Variable::StaticVar(StaticVarPos::VC),
-            //                                       t->shape.Channel()->C(), kh, kw, dh, dw);
-            // }
-            if (unused_indices.size() > 1) {
+                                              kh, kw, dh, dw, false);
+            auto c = Variable::StaticVar(StaticVarPos::VC);
+            if ((c / t->shape.Channel()->G()).MaybeInteger())
+                MakeAndPush<ConvolutionPrimitive>(primitives, options, t, c, kh, kw, dh, dw, false);
+            if (t->shape.Channel()->G().Empty()) {
                 MakeAndPush<ConvolutionPrimitive>(primitives, options, t,
                                                   Variable::DynamicVar(unused_indices[0]),
-                                                  Variable::DynamicVar(unused_indices[1]),
-                                                  kh, kw, dh, dw);
+                                                  kh, kw, dh, dw, true);
+                if ((c / t->shape.Channel()->C()).MaybeInteger())
+                    MakeAndPush<ConvolutionPrimitive>(primitives, options, t, c, kh, kw, dh, dw, true);
             }
+
         };
-        for (int k: options.kernel_sizes)
-            for (int d: options.dilated_sizes)
-                PushConv(k, 1, d, 1), PushConv(1, k, 1, d), PushConv(k, k, 1, 1);
+        int k = RandomChoose(options.kernel_sizes), d = RandomChoose(options.dilated_sizes);
+        PushConv(k, 1, d, 1), PushConv(1, k, 1, d), PushConv(k, k, d, d);
     }
 
     // Activation: no new variables, pruning: no double ReLU.
@@ -291,6 +286,17 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                     MakeAndPush<ShiftPrimitive>(primitives, options, t, indices, s);
                 }
             }
+        }
+    }
+
+    // Softmax: no new variables.
+    for (int d = 0; d < 2; ++ d) {
+        int max_dims = DynamicCast<ChannelShape>(t->shape.dims[d]) ?
+                       ChannelShape::kMaxChannelDims : SpatialShape::kMaxSpatialDims;
+        for (int k = 0; k < max_dims; ++ k) {
+            auto index = Shape::Index(d, k);
+            if (not t->shape[index].Empty())
+                MakeAndPush<SoftmaxPrimitive>(primitives, options, t, index);
         }
     }
 }

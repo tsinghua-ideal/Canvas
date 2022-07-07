@@ -18,6 +18,7 @@
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Primitives/Scale.hpp"
 #include "Canvas/Primitives/Shift.hpp"
+#include "Canvas/Primitives/Softmax.hpp"
 #include "Canvas/Primitives/Unfold.hpp"
 #include "Canvas/Utils/Common.hpp"
 

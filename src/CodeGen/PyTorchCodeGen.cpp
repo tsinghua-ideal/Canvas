@@ -140,6 +140,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
         assert(in_shape.IsChannelSpatial() and out_shape.IsChannelSpatial());
         int ph = conv->dh * (conv->kh - 1) / 2;
         int pw = conv->dw * (conv->kw - 1) / 2;
+        auto groups = conv->depth_wise ? in_shape.Channel()->C() : in_shape.Channel()->G();
         gen->Write() << "self." << primitive_var
                      << " = nn.Conv2d("
                      << TorchStyleVariable(in_shape.Channel()->Pi()) << ", "
@@ -147,7 +148,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << "(" << conv->kh << ", " << conv->kw << "), "
                      << "dilation=(" << conv->dh << ", " << conv->dw << "), "
                      << "padding=(" << ph << ", " << pw << "), "
-                     << "groups=" << TorchStyleVariable(conv->g) << ", "
+                     << "groups=" << TorchStyleVariable(groups) << ", "
                      << "bias=False)"
                      << std::endl;
     } else if (auto fc = DynamicCast<FCPrimitive>(p)) {
@@ -212,6 +213,7 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
             DynamicCast<FoldPrimitive>(p) or
             DynamicCast<GroupPrimitive>(p) or
             DynamicCast<MatrixMultiplicationPrimitive>(p) or
+            DynamicCast<SoftmaxPrimitive>(p) or
             DynamicCast<OutputPrimitive>(p) or
             DynamicCast<UnfoldPrimitive>(p)) {
         gen->Write() << "pass" << std::endl;
@@ -447,6 +449,13 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << " = "
                          << reference
                          << std::endl;
+    } else if (auto softmax = DynamicCast<SoftmaxPrimitive>(p)) {
+        gen->Write() << var_map[softmax->outs[0]]
+                     << " = F.softmax("
+                     << var_map[softmax->ins[0]] << ", "
+                     << "dim=" << softmax->ins[0]->shape.GetRelativeIndex(softmax->index) + 1
+                     << ")"
+                     << std::endl;
     } else if (auto unfold = DynamicCast<UnfoldPrimitive>(p)) {
         auto reference = PyTorchReshapeToNCHW(gen, var_map, unfold->ins[0], unfold->outs[0]);
         int dilation = unfold->d, kernel_size = unfold->k;
