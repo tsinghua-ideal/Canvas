@@ -388,8 +388,11 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << var_map[bmm->ins[1]] << "_rhs)"
                      << ".view(self.n, "
                      << TorchStyleShape(bmm->outs[0]->shape)
-                     << ")"
-                     << std::endl;
+                     << ")";
+        auto scale = bmm->ins[0]->shape.dims[not bmm->transpose_lhs]->Pi();
+        if (not scale.Empty())
+            gen->Write(false) << " / math.sqrt(" << TorchStyleVariable(scale) << ")";
+        gen->Write(false) << std::endl;
     } else if (auto output = DynamicCast<OutputPrimitive>(p)) {
         // Reshape (may permute) and return the output variable.
         auto continuous = output->ins[0]->shape.Continuous();
