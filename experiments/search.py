@@ -41,24 +41,24 @@ if __name__ == '__main__':
     # Initialization of search.
     cpu_clone = deepcopy(model).cpu()
 
-    def restore_model_params():
+    def restore_model_params_and_replace(pack=None):
         global model
         model = None
         gc.collect()
         model = deepcopy(cpu_clone).to(args.device)
+        if pack is not None:
+            canvas.replace(model, pack.module, args.device)
 
     # Search.
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
     logger.info(f'Start Canvas kernel search ({args.canvas_rounds if args.canvas_rounds else "infinite"} rounds)')
     for i in round_range:
-        restore_model_params()
-
         # Sample a new kernel.
         logger.info('Sampling a new kernel ...')
         g_macs, m_flops = 0, 0
         try:
             kernel_pack = canvas.sample(model, force_bmm_possibility=args.canvas_bmm_pct, num_primitive_range=(8, 50))
-            canvas.replace(model, kernel_pack.module, args.device)
+            restore_model_params_and_replace(kernel_pack)
             g_macs, m_params = ptflops.get_model_complexity_info(model, args.input_size,
                                                                  as_strings=False, print_per_layer_stat=False)
             g_macs, m_params = g_macs / 1e9, m_params / 1e6
@@ -95,7 +95,7 @@ if __name__ == '__main__':
                         best_epoch = e
                 proxy_score = proxy_eval_metrics[best_epoch]['top1']
                 kernel_scales = proxy_eval_metrics[best_epoch]['kernel_scales']
-                restore_model_params()
+                restore_model_params_and_replace(kernel_pack)
                 logger.info(f'Proxy dataset score: {proxy_score}')
                 if proxy_score < args.canvas_proxy_threshold:
                     logger.info(f'Under proxy threshold {args.canvas_proxy_threshold}, skip main dataset training')
