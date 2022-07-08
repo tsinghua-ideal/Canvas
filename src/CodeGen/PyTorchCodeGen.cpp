@@ -122,6 +122,17 @@ static std::string PyTorchReshapeToNCHW(CodeGen* gen, VarMap& var_map, const Ten
     }
 }
 
+static std::string PyTorchBroadcastExpr(const std::string& lhs, const std::string& rhs, const PrimitiveSP& p) {
+    auto broadcast = DynamicCast<BroadcastPrimitive>(p);
+    assert(broadcast);
+    switch (broadcast->type) {
+        case BMax:
+            return "torch.maximum(" + lhs + ", " + rhs + ")";
+        default:
+            return lhs + " " + broadcast->TypeToSign() + " " + rhs;
+    }
+}
+
 void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
     // Create variables' mapping.
     for (const auto& t: p->ins)
@@ -242,9 +253,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         if (broadcast->aligned) { // Not really broadcasting.
             gen->Write() << var_map[broadcast->outs[0]]
                          << " = "
-                         << var_map[broadcast->ins[0]]
-                         << " " << broadcast->sign << " "
-                         << var_map[broadcast->ins[1]]
+                         << PyTorchBroadcastExpr(var_map[broadcast->ins[0]], var_map[broadcast->ins[1]], broadcast)
                          << std::endl;
         } else { // Broadcasting.
             gen->Write() << var_map[broadcast->outs[0]] << "_lhs"
@@ -259,11 +268,10 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << TorchStyleBroadcasting(broadcast->prefix, broadcast->multiplier, broadcast->lhs_pi, broadcast->suffix)
                          << ")"
                          << std::endl;
+            auto lhs = var_map[broadcast->outs[0]] + "_lhs", rhs = var_map[broadcast->outs[0]] + "_rhs";
             gen->Write() << var_map[broadcast->outs[0]]
                          << " = "
-                         << var_map[broadcast->outs[0]] << "_lhs"
-                         << " " << broadcast->sign << " "
-                         << var_map[broadcast->outs[0]] << "_rhs"
+                         << PyTorchBroadcastExpr(lhs, rhs, broadcast)
                          << std::endl;
             gen->Write() << var_map[broadcast->outs[0]]
                          << " = " << var_map[broadcast->outs[0]]

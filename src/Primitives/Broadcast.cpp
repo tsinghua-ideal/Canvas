@@ -77,7 +77,7 @@ void BroadcastPrimitive::InferShapes(const TensorSP& lhs, const TensorSP& rhs) {
 BroadcastPrimitive::BroadcastPrimitive(const TensorSP& lhs, const TensorSP& rhs,
                                        BroadcastType type):
         Primitive(BroadcastTypeToName(type), {lhs, rhs}, false),
-        aligned(false), sign(BroadcastTypeToSign(type)), type(type) {
+        aligned(false), type(type) {
     InferShapes(lhs, rhs);
     outs.push_back(std::make_shared<Tensor>(rhs->shape));
 }
@@ -87,7 +87,7 @@ BroadcastPrimitive::BroadcastPrimitive(const TensorSP& lhs, const TensorSP& rhs,
                                        const Variable& lhs_pi, const Variable& rhs_pi, const Variable& multiplier,
                                        std::vector<Variable> prefix, std::vector<Variable> suffix):
         Primitive(BroadcastTypeToName(type), {lhs, rhs}, false),
-        aligned(aligned), sign(BroadcastTypeToSign(type)), type(type),
+        aligned(aligned), type(type),
         lhs_pi(lhs_pi), rhs_pi(rhs_pi), multiplier(multiplier),
         prefix(std::move(prefix)), suffix(std::move(suffix)) {
     outs.push_back(std::make_shared<Tensor>(rhs->shape));

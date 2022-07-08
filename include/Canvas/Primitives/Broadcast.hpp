@@ -11,7 +11,8 @@ namespace canvas {
 enum BroadcastType {
     BAdd,
     BMul,
-    BSub
+    BSub,
+    BMax
 };
 
 static constexpr const char* BroadcastTypeToName(BroadcastType type) {
@@ -19,17 +20,9 @@ static constexpr const char* BroadcastTypeToName(BroadcastType type) {
         case BAdd: return "BAdd";
         case BMul: return "BMul";
         case BSub: return "BSub";
+        case BMax: return "BMax";
     }
     return "";
-}
-
-static constexpr char BroadcastTypeToSign(BroadcastType type) {
-    switch (type) {
-        case BAdd: return '+';
-        case BMul: return '*';
-        case BSub: return '-';
-    }
-    return '?';
 }
 
 /// Broadcasting primitives (add, sub, mul)
@@ -43,7 +36,6 @@ struct BroadcastPrimitive: Primitive {
 
     bool aligned;
     BroadcastType type;
-    char sign;
     Variable lhs_pi, rhs_pi, multiplier;
     std::vector<Variable> prefix, suffix;
 
@@ -62,6 +54,16 @@ struct BroadcastPrimitive: Primitive {
     void SolveDynamicVar(const VarSolution& s) final;
 
     [[nodiscard]] std::vector<Variable> IntermediateVariables() const final;
+
+    [[nodiscard]] char TypeToSign() const {
+        switch (type) {
+            case BAdd: return '+';
+            case BMul: return '*';
+            case BSub: return '-';
+            case BMax: Unreachable();
+        }
+        Unreachable();
+    }
 
     CanvasPrimitiveCopyTemplate(BroadcastPrimitive);
 };

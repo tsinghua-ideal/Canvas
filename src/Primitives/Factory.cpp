@@ -306,12 +306,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                                            const TensorSP& lhs, const TensorSP& rhs,
                                            const PrimitiveOptions& options) {
     // Element-wise broadcasting operations.
-    for (const auto& type: {BAdd, BSub, BMul}) {
-        // Pruning for subtraction to zero.
-        if (lhs == rhs and type == BSub)
-            continue;
-        // Pruning for multiplying 2.
-        if (lhs == rhs and type == BAdd)
+    for (const auto& type: {BAdd, BSub, BMul, BMax}) {
+        // Pruning.
+        if (lhs == rhs and (type == BSub or type == BMax or type == BAdd))
             continue;
         auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type, 1);
         if (not all_matches.empty())
