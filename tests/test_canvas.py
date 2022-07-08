@@ -51,3 +51,10 @@ def test_sample():
 def test_empty_sample():
     for _ in range(10):
         pack = canvas.empty_sample()
+
+
+def test_kernel_pack_hash():
+    # Debug sampling produces the same kernel.
+    hash_value = hash(canvas.debug_sample())
+    for i in range(5):
+        assert hash_value == hash(canvas.debug_sample())

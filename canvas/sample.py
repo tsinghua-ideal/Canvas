@@ -277,3 +277,15 @@ def replace(m: nn.Module, module: Type[nn.Module], device: str = 'cuda:0'):
         kernel.reload(module, device)
 
     return m
+
+
+def debug_sample():
+    r"""An API for debugging.
+
+    Returns
+    -------
+    kernel: canvas.KernelPack
+        The generated kernel class specified by the debugger.
+
+"""
+    return kernel_pack.KernelPack.load_from_cpp(cpp_canvas.debug_sample())

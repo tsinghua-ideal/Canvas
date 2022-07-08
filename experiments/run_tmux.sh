@@ -28,7 +28,7 @@ done
 current_path=$(pwd)
 machine_name=$(uname -a)
 for ((i = 1; i <= $1; i ++)); do
-if [[ $machine_name == *"longjing-2"* && $i == 1 ]]; then
+if [[ $machine_name == *"longjing-2"* && ($i == 1 || $i == 2) ]]; then
   continue
 fi
 tmux send-keys -t "$i" "echo TMUX Pane $i" Enter

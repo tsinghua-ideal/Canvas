@@ -53,7 +53,7 @@ def load_from_code(code: str, overwrite: bool = True):
 
     # Load kernel and specs.
     cls = load_from_cache_dir(name)
-    return cls
+    return name, cls
 
 
 def remove_cache_dir():
@@ -89,12 +89,9 @@ class KernelPack:
                  torch_code: str = '', graphviz_code: str = '', detail=None):
         self.timestamp = timestamp
         self.torch_code = torch_code.strip()
-        self.module = load_from_code(torch_code)
+        self.name, self.module = load_from_code(torch_code)
         self.graphviz_code = graphviz_code
         self.detail = detail
-
-    def __hash__(self):
-        return ctypes.c_size_t(hash(self.torch_code)).value
 
     def save_torch_code(self, path: str):
         assert self.torch_code, 'No PyTorch code exists in the pack'

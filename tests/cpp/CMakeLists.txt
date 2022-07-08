@@ -1,4 +1,4 @@
-add_canvas_test(code_tests CodeGen.cpp "SearchLib;CodeGenLib;PassLib;CoreLib;PrimitiveLib;UtilsLib")
+add_canvas_test(code_gen_tests CodeGen.cpp "SearchLib;CodeGenLib;PassLib;ImplLib;CoreLib;PrimitiveLib;UtilsLib")
 add_canvas_test(core_tests Core.cpp "CoreLib")
 add_canvas_test(primitive_tests Primitives.cpp "CoreLib;PrimitiveLib;UtilsLib")
 add_canvas_test(pass_tests Passes.cpp "CoreLib;PrimitiveLib;PassLib")

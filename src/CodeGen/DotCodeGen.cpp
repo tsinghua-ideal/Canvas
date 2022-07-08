@@ -12,7 +12,7 @@ Code DotCodeGen::GenImpl(const Solution& solution, std::string name) {
     // Title label.
     if (name.empty())
         name = "OpGraph";
-    Write() << "label = \"" << name << " [" << graph->Hash() << "]\"" << std::endl;
+    Write() << "label = \"" << name << "\"" << std::endl;
 
     // Font name.
     Write() << "fontname = \"Graphik\";" << std::endl;

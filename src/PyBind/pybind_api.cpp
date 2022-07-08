@@ -7,6 +7,7 @@
 #include "Canvas/Core/Specs.hpp"
 #include "Canvas/CodeGen/DotCodeGen.hpp"
 #include "Canvas/CodeGen/PyTorchCodeGen.hpp"
+#include "Canvas/Impls/Impls.hpp"
 #include "Canvas/PyBind/KernelPack.hpp"
 #include "Canvas/Search/RandomSample.hpp"
 #include "Canvas/Utils/Common.hpp"
@@ -33,7 +34,8 @@ PYBIND11_MODULE(cpp_canvas, m) {
     pybind11::class_<canvas::SampleOptions>(m, "SampleOptions")
             .def(pybind11::init<std::string, std::string, std::string,
                  std::vector<int>, std::vector<int>, std::vector<int>,
-                 bool, int, int, int, int, int, int, double, double, int>());
+                 bool, int, int, int, int, int, int, double, double, int>()
+    );
 
     // The `canvas.sample` function, sampling a kernel from the search space.
     m.def("sample",
@@ -50,12 +52,25 @@ PYBIND11_MODULE(cpp_canvas, m) {
                   return canvas::KernelPack(std::string(exception.what()));
               }
           },
-          "Sample a kernel from the space specified by the configuration.");
+          "Sample a kernel from the space specified by the configuration."
+    );
+
+    // The `canvas.debug_sample` function, for debugging.
+    m.def("debug_sample",
+          []() -> canvas::KernelPack {
+              auto solution = canvas::ImplLKA();
+              auto torch_code = canvas::PyTorchCodeGen().Gen(solution);
+              auto graphviz_code = canvas::DotCodeGen().Gen(solution);
+              return canvas::KernelPack(torch_code.ToString(), graphviz_code.ToString());
+          },
+          "Return a specific kernel (LKA) for debugging."
+    );
 
     // The `canvas.seed` function, setting seed for the random engine.
     m.def("seed",
           [](uint32_t seed) -> void {
               canvas::ResetRandomSeed(false, seed);
           },
-          "Set the global seed for the C++ random engine.");
+          "Set the global seed for the C++ random engine."
+    );
 }
