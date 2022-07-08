@@ -17,8 +17,8 @@ struct SampleOptions {
     const std::vector<int> kernel_sizes, dilated_sizes, shift_sizes;
 
     const bool add_relu_bn_after_fc;
-    const Range<int> np_range, mw_range, fc_range;
-    double max_fc_ratio, force_bmm_possibility;
+    const Range<int> np_range, mw_range, weighted_range;
+    double max_weighted_ratio, force_bmm_possibility;
 
     const canvas_timeval_t timeout;
 
@@ -26,8 +26,8 @@ struct SampleOptions {
             necessary_filter("unfold"),
             kernel_sizes({3, 5, 7}), dilated_sizes({1, 2, 3}), shift_sizes({1, 2, 3}),
             add_relu_bn_after_fc(false),
-            np_range(3, 25), mw_range(2, 8), fc_range(1, 8),
-            max_fc_ratio(0.6), force_bmm_possibility(0),
+            np_range(3, 25), mw_range(2, 8), weighted_range(1, 8),
+            max_weighted_ratio(0.6), force_bmm_possibility(0),
             timeout(std::chrono::seconds::zero()) {
         BuildNecessaryFilters();
     }
@@ -41,22 +41,22 @@ struct SampleOptions {
                   bool add_relu_bn_after_fc,
                   int np_range_min, int np_range_max,
                   int mw_range_min, int mw_range_max,
-                  int fc_range_min, int fc_range_max,
-                  double max_fc_ratio, double force_bmm_possibility,
+                  int weighted_range_min, int weighted_range_max,
+                  double max_weighted_ratio, double force_bmm_possibility,
                   int timeout):
-        allowed_filter(std::move(allowed_filter)),
-        forbidden_filter(std::move(forbidden_filter)),
-        necessary_filter(std::move(necessary_filter)),
-        kernel_sizes(std::move(kernel_sizes)),
-        dilated_sizes(std::move(dilated_sizes)),
-        shift_sizes(std::move(shift_sizes)),
-        add_relu_bn_after_fc(add_relu_bn_after_fc),
-        np_range(np_range_min, np_range_max),
-        mw_range(mw_range_min, mw_range_max),
-        fc_range(fc_range_min, fc_range_max),
-        max_fc_ratio(max_fc_ratio),
-        force_bmm_possibility(force_bmm_possibility),
-        timeout(std::chrono::seconds(timeout)) {
+            allowed_filter(std::move(allowed_filter)),
+            forbidden_filter(std::move(forbidden_filter)),
+            necessary_filter(std::move(necessary_filter)),
+            kernel_sizes(std::move(kernel_sizes)),
+            dilated_sizes(std::move(dilated_sizes)),
+            shift_sizes(std::move(shift_sizes)),
+            add_relu_bn_after_fc(add_relu_bn_after_fc),
+            np_range(np_range_min, np_range_max),
+            mw_range(mw_range_min, mw_range_max),
+            weighted_range(weighted_range_min, weighted_range_max),
+            max_weighted_ratio(max_weighted_ratio),
+            force_bmm_possibility(force_bmm_possibility),
+            timeout(std::chrono::seconds(timeout)) {
         for (int k: this->kernel_sizes)
             assert(k > 0 and k % 2 == 1);
         for (int d: this->dilated_sizes)
@@ -64,7 +64,7 @@ struct SampleOptions {
         for (int k: this->shift_sizes)
             assert(k > 0);
         assert(timeout > 0);
-        assert(0 <= max_fc_ratio and max_fc_ratio <= 1.0);
+        assert(0 <= max_weighted_ratio and max_weighted_ratio <= 1.0);
         assert(0 <= force_bmm_possibility and force_bmm_possibility <= 1.0);
         BuildNecessaryFilters();
     }

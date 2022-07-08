@@ -20,17 +20,17 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     // Random graph settings.
     int n_primitives = options.np_range.Random();
     int max_width = options.mw_range.Random();
-    int expected_fc_count = std::min(options.fc_range.Random(), n_primitives);
-    assert(expected_fc_count > 0 and expected_fc_count <= n_primitives);
-    double fc_sample_possibility = static_cast<double>(expected_fc_count) / n_primitives;
+    int expected_weighted_count = std::min(options.weighted_range.Random(), n_primitives);
+    assert(expected_weighted_count > 0 and expected_weighted_count <= n_primitives);
+    double weighted_sample_possibility = static_cast<double>(expected_weighted_count) / n_primitives;
 #ifdef CANVAS_DEBUG_PRINT_RANDOM_SAMPLE_STEPS
     IC();
-    IC(n_primitives, max_width, expected_fc_count);
+    IC(n_primitives, max_width, expected_weighted_count);
 #endif
-    if (expected_fc_count > options.max_fc_ratio * n_primitives) {
+    if (expected_weighted_count > options.max_weighted_ratio * n_primitives) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
-        static int too_many_fc_primitives = 0;
-        IC(too_many_fc_primitives ++);
+        static int too_many_weighted_primitives = 0;
+        IC(too_many_weighted_primitives ++);
 #endif
         return {};
     }
@@ -88,7 +88,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
             primitive_options.output_filter = true;
 
         // FC selectivity filter.
-        if (MakeChoice(fc_sample_possibility)) {
+        if (MakeChoice(weighted_sample_possibility)) {
             primitive_options.allowed_filter = {"fc", "conv", "scale"};
         } else {
             primitive_options.forbidden_filter.emplace_back("fc");
@@ -148,11 +148,14 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         }
     }
 
-    // FC constraints.
-    if (not options.fc_range.Contains(graph->PrimitiveCount<FCPrimitive>())) {
+    // Weighted constraints.
+    auto weighted_count = graph->PrimitiveCount<FCPrimitive>();
+    weighted_count += graph->PrimitiveCount<ScalePrimitive>();
+    weighted_count += graph->PrimitiveCount<ConvolutionPrimitive>();
+    if (not options.weighted_range.Contains(weighted_count)) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
-        static int can_not_satisfy_fc_count = 0;
-        IC(can_not_satisfy_fc_count ++);
+        static int can_not_satisfy_weighted_count = 0;
+        IC(can_not_satisfy_weighted_count ++);
 #endif
         return {};
     }

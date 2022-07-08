@@ -15,8 +15,8 @@ def build_sample_options(allowed_filter: str = '',
                          shift_sizes: [int] = (1, 2, 3),
                          num_primitive_range: Tuple[int, int] = (5, 25),
                          num_max_width_range: Tuple[int, int] = (2, 8),
-                         num_fc_range: Tuple[int, int] = (1, 8),
-                         max_fc_ratio: float = 0.6,
+                         num_weighted_range: Tuple[int, int] = (1, 8),
+                         max_weighted_ratio: float = 0.6,
                          force_bmm_possibility: float = 0.0,
                          timeout: int = 0):
     # Check option types.
@@ -40,11 +40,11 @@ def build_sample_options(allowed_filter: str = '',
     if not utils.int_range_check(num_max_width_range):
         raise ValueError('Tuple `num_max_width_range` should be a tuple of'
                          'two positive ints [L, R], where L <= R.')
-    if not utils.int_range_check(num_fc_range):
-        raise ValueError('Tuple `num_fc_range` should be a tuple of'
+    if not utils.int_range_check(num_weighted_range):
+        raise ValueError('Tuple `num_weighted_range` should be a tuple of'
                          'two positive ints [L, R], where L <= R.')
-    if type(max_fc_ratio) != float or not (0 <= max_fc_ratio <= 1):
-        raise ValueError('The variable `max_fc_ratio` should be a float between [0.0, 1.0].')
+    if type(max_weighted_ratio) != float or not (0 <= max_weighted_ratio <= 1):
+        raise ValueError('The variable `max_weighted_ratio` should be a float between [0.0, 1.0].')
     if type(force_bmm_possibility) != float or not (0 <= force_bmm_possibility <= 1):
         raise ValueError('The variable `force_bmm_possibility` should be a float between [0.0, 1.0].')
     if not (type(timeout) == int and timeout >= 0):
@@ -56,8 +56,8 @@ def build_sample_options(allowed_filter: str = '',
                                     add_relu_bn_after_fc,
                                     num_primitive_range[0], num_primitive_range[1],
                                     num_max_width_range[0], num_max_width_range[1],
-                                    num_fc_range[0], num_fc_range[1],
-                                    max_fc_ratio,
+                                    num_weighted_range[0], num_weighted_range[1],
+                                    max_weighted_ratio,
                                     force_bmm_possibility,
                                     timeout)
 
@@ -71,8 +71,8 @@ def empty_sample(allowed_filter: str = '',
                  shift_sizes: [int] = (1, 2, 3),
                  num_primitive_range: Tuple[int, int] = (5, 25),
                  num_max_width_range: Tuple[int, int] = (2, 8),
-                 num_fc_range: Tuple[int, int] = (1, 8),
-                 max_fc_ratio: float = 0.6,
+                 num_weighted_range: Tuple[int, int] = (1, 8),
+                 max_weighted_ratio: float = 0.6,
                  force_bmm_possibility: float = 0.0,
                  timeout: int = 0):
     r"""Sample an available kernel from the search space, without network reference.
@@ -99,9 +99,9 @@ def empty_sample(allowed_filter: str = '',
             The range limitation of the primitive count.
         num_max_width_range: Tuple[int, int]
             The range limitation of the graph width during a search.
-        num_fc_range: Tuple[int, int]
-            The range limitation of the FC (Fully-Connected) primitive count.
-        max_fc_ratio: float
+        num_weighted_range: Tuple[int, int]
+            The range limitation of the weighted primitive count.
+        max_weighted_ratio: float
             Maximum FC primitive ratio out of all primitives.
         force_bmm_possibility: float
             The possibility to forcibly contain BMM (attention like) primitive.
@@ -125,8 +125,8 @@ def empty_sample(allowed_filter: str = '',
                                    kernel_sizes, dilated_sizes, shift_sizes,
                                    num_primitive_range,
                                    num_max_width_range,
-                                   num_fc_range,
-                                   max_fc_ratio,
+                                   num_weighted_range,
+                                   max_weighted_ratio,
                                    force_bmm_possibility,
                                    timeout)
     pack = cpp_canvas.sample([], options)
@@ -146,8 +146,8 @@ def sample(m: nn.Module,
            shift_sizes: [int] = (1, 2, 3),
            num_primitive_range: Tuple[int, int] = (5, 25),
            num_max_width_range: Tuple[int, int] = (2, 8),
-           num_fc_range: Tuple[int, int] = (1, 8),
-           max_fc_ratio: float = 0.6,
+           num_weighted_range: Tuple[int, int] = (1, 8),
+           max_weighted_ratio: float = 0.6,
            force_bmm_possibility: float = 0.0,
            timeout: int = 0):
     r"""Sample an available kernel for a module from the search space.
@@ -185,9 +185,9 @@ def sample(m: nn.Module,
             The range limitation of the primitive count.
         num_max_width_range: Tuple[int, int]
             The range limitation of the graph width during a search.
-        num_fc_range: Tuple[int, int]
-            The range limitation of the FC (Fully-Connected) primitive count.
-        max_fc_ratio: float
+        num_weighted_range: Tuple[int, int]
+            The range limitation of the weighted primitive count.
+        max_weighted_ratio: float
             Maximum FC primitive ratio out of all primitives.
         force_bmm_possibility: float
             The possibility to forcibly contain BMM (attention like) primitive.
@@ -225,8 +225,8 @@ def sample(m: nn.Module,
                                    kernel_sizes, dilated_sizes, shift_sizes,
                                    num_primitive_range,
                                    num_max_width_range,
-                                   num_fc_range,
-                                   max_fc_ratio,
+                                   num_weighted_range,
+                                   max_weighted_ratio,
                                    force_bmm_possibility,
                                    timeout)
     pack = cpp_canvas.sample(kernel_specs, options)
