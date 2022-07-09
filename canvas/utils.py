@@ -48,8 +48,6 @@ def init_weights(m):
         nn.init.constant_(m.bias, 0)
         nn.init.constant_(m.weight, 1.0)
     elif isinstance(m, nn.Conv2d):
-        fan_in = m.kernel_size[0] * m.kernel_size[1] * m.in_channels
-        fan_in //= m.groups
-        m.weight.data.uniform_(-math.sqrt(3.0 / fan_in), math.sqrt(3.0 / fan_in))
+        nn.init.trunc_normal_(m.weight.data, std=.1)
         if m.bias is not None:
             m.bias.data.zero_()

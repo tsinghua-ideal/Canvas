@@ -112,7 +112,7 @@ if __name__ == '__main__':
             train_metrics, eval_metrics = \
                 trainer.train(args, model=model,
                               train_loader=train_loader, eval_loader=eval_loader,
-                              search=True)
+                              search_mode=True)
             score = max([item['top1'] for item in eval_metrics])
             logger.info(f'Solution score: {score}')
         except RuntimeError as ex:
