@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 _, proxy_eval_metrics = \
                     trainer.train(args, model=model,
                                   train_loader=proxy_train_loader, eval_loader=proxy_eval_loader,
-                                  search=True)
+                                  search_mode=True)
                 assert len(proxy_eval_metrics) > 0
                 best_epoch = 0
                 for e in range(1, len(proxy_eval_metrics)):

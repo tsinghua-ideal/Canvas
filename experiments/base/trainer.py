@@ -190,11 +190,11 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False):
 
     # AMP automatic cast.
     if args.native_amp:
-        if args.rank == 0:
+        if args.local_rank == 0:
             logger.info('Training with native PyTorch AMP')
         amp_autocast, loss_scaler = torch.cuda.amp.autocast, NativeScaler()
     elif args.apex_amp:
-        if args.rank == 0:
+        if args.local_rank == 0:
             logger.info(f'Training with native Apex AMP (loss scale: {args.apex_amp_loss_scale})')
         amp_autocast, loss_scaler = suppress, ApexScaler()
         # noinspection PyUnresolvedReferences
@@ -232,7 +232,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False):
     # Checkpoint saver.
     best_metric, best_epoch = None, None
     saver, output_dir = None, None
-    if args.rank == 0 and not search_mode:
+    if args.local_rank == 0 and not search_mode:
         name = '-'.join([
             datetime.now().strftime("%Y%m%d-%H%M%S"),
             safe_model_name(args.model)

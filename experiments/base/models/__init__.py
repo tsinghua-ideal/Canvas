@@ -42,13 +42,13 @@ def get_model(args, search_mode: bool = False):
 
     # Replace kernel.
     if not search_mode and args.canvas_kernel:
-        if args.rank == 0:
+        if args.local_rank == 0:
             logger.info(f'Replacing kernel from {args.canvas_kernel}')
         pack = canvas.KernelPack.load(args.canvas_kernel)
         model = canvas.replace(model, pack.module, args.device)
 
     # Count FLOPs and params.
-    if args.rank == 0:
+    if args.local_rank == 0:
         macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
                                                          print_per_layer_stat=False, verbose=False)
         logger.info(f'MACs: {macs}, params: {params}')
