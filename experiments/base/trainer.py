@@ -7,6 +7,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 
+from torch.nn.parallel import DistributedDataParallel as NativeDDP
 from timm.models import model_parameters, resume_checkpoint, safe_model_name
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
 from timm.utils import NativeScaler, ApexScaler, CheckpointSaver, get_outdir, update_summary
@@ -173,7 +174,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                         ('top5', top5_m.avg), ('kernel_scales', kernel_scales)])
 
 
-def train(args, model, train_loader, eval_loader, search: bool = False):
+def train(args, model, train_loader, eval_loader, search_mode: bool = False):
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
 
@@ -206,7 +207,8 @@ def train(args, model, train_loader, eval_loader, search: bool = False):
     # Resume from checkpoint.
     resume_epoch = None
     if args.resume:
-        logger.info(f'Resuming from checkpoint {args.resume}')
+        if args.local_rank == 0:
+            logger.info(f'Resuming from checkpoint {args.resume}')
         resume_epoch = resume_checkpoint(
             model, args.resume, optimizer=optimizer, loss_scaler=loss_scaler,
             log_info=(args.local_rank == 0)
@@ -215,10 +217,22 @@ def train(args, model, train_loader, eval_loader, search: bool = False):
     if lr_scheduler is not None and start_epoch > 0:
         lr_scheduler.step(start_epoch)
 
+    # Distributed training.
+    if args.distributed:
+        assert not search_mode, 'Search mode does not support distributed training'
+        if args.local_rank == 0:
+            logger.info("Using native Torch DistributedDataParallel.")
+        if args.apex_amp:
+            # noinspection PyUnresolvedReferences
+            from apex.parallel import DistributedDataParallel as ApexDDP
+            model = ApexDDP(model, delay_allreduce=True)
+        else:
+            model = NativeDDP(model, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb)
+
     # Checkpoint saver.
     best_metric, best_epoch = None, None
     saver, output_dir = None, None
-    if args.rank == 0 and not search:
+    if args.rank == 0 and not search_mode:
         name = '-'.join([
             datetime.now().strftime("%Y%m%d-%H%M%S"),
             safe_model_name(args.model)

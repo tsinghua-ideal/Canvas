@@ -1,11 +1,8 @@
+import canvas
 import torch
-from torch.nn.parallel import DistributedDataParallel as NativeDDP
-
 import ptflops
 import timm
 from timm import data
-
-import canvas
 
 from .canvas_van import canvas_van_tiny, canvas_van_small, canvas_van_base, canvas_van_large
 from .van import van_tiny, van_small, van_base, van_large
@@ -55,16 +52,5 @@ def get_model(args, search_mode: bool = False):
         macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
                                                          print_per_layer_stat=False, verbose=False)
         logger.info(f'MACs: {macs}, params: {params}')
-
-    if args.distributed:
-        assert not search_mode, 'Search mode does not support distributed training'
-        if args.local_rank == 0:
-            logger.info("Using native Torch DistributedDataParallel.")
-        if args.apex_amp:
-            # noinspection PyUnresolvedReferences
-            from apex.parallel import DistributedDataParallel as ApexDDP
-            model = ApexDDP(model, delay_allreduce=True)
-        else:
-            model = NativeDDP(model, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb)
 
     return model
