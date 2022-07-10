@@ -196,6 +196,10 @@ struct Shape {
 
         Index(const Index& index) = default;
 
+        friend bool operator < (const Index& lhs, const Index& rhs) {
+            return lhs.d == rhs.d ? lhs.k < rhs.k : lhs.d < rhs.d;
+        }
+
         friend bool operator == (const Index& lhs, const Index& rhs) {
             return lhs.d == rhs.d and lhs.k == rhs.k;
         }

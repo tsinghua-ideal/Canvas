@@ -174,6 +174,20 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << "groups=" << TorchStyleVariable(in_shape.Channel()->G()) << ", "
                      << "bias=False)"
                      << std::endl;
+    } else if (auto mix = DynamicCast<MixPrimitive>(p)) {
+        std::stringstream shape_ss;
+        for (const auto& index: mix->indices)
+            shape_ss << TorchStyleVariable(mix->ins[0]->shape[index]) << ", ";
+        for (const auto& index: mix->indices)
+            shape_ss << TorchStyleVariable(mix->outs[0]->shape[index]) << ", ";
+        gen->Write() << "self." << primitive_var << "_w"
+                     << " = nn.Parameter(torch.ones("
+                     << "(" << shape_ss.str() << ")"
+                     << "), requires_grad=True)"
+                     << std::endl;
+        gen->Write() << "nn.init.trunc_normal_("
+                     << "self." << primitive_var << "_w"
+                     << ", std=.1)" << std::endl;
     } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         int k = shift->k;
         for (const auto& index: shift->indices)
@@ -371,6 +385,85 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         if (not scale.Empty())
             gen->Write(false) << " / math.sqrt(" << TorchStyleVariable(scale) << ")";
         gen->Write(false) << std::endl;
+    } else if (auto mix = DynamicCast<MixPrimitive>(p)) {
+        std::set<Shape::Index> mapping_indices;
+        for (const auto& index: mix->indices)
+            mapping_indices.insert(index);
+        char next_unused_iterator = 'b';
+        // Pattern of the input tensor.
+        std::stringstream pattern_in;
+        pattern_in << "a";
+        std::map<Shape::Index, char> input_iterator_mapping, reused_iterator_mapping;
+        for (int d = 0; d < 2; ++ d) {
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
+                auto index = Shape::Index(d, k);
+                if (mix->ins[0]->shape[index].Empty() and not mapping_indices.count(index))
+                    continue;
+                assert(next_unused_iterator <= 'z');
+                pattern_in << next_unused_iterator;
+                if (mapping_indices.count(index))
+                    input_iterator_mapping[index] = next_unused_iterator;
+                else
+                    reused_iterator_mapping[index] = next_unused_iterator;
+                next_unused_iterator ++;
+            }
+        }
+        // Pattern of the output tensor.
+        std::stringstream pattern_out;
+        pattern_out << "a";
+        std::map<Shape::Index, char> output_iterator_mapping;
+        for (int d = 0; d < 2; ++ d) {
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
+                auto index = Shape::Index(d, k);
+                if (mix->outs[0]->shape[index].Empty() and not mapping_indices.count(index))
+                    continue;
+                if (mapping_indices.count(index)) {
+                    assert(next_unused_iterator <= 'z');
+                    pattern_out << next_unused_iterator;
+                    output_iterator_mapping[index] = next_unused_iterator;
+                    next_unused_iterator ++;
+                } else {
+                    assert(reused_iterator_mapping.count(index));
+                    pattern_out << reused_iterator_mapping[index];
+                }
+            }
+        }
+        // Pattern of the weight tensor.
+        std::stringstream pattern_weight;
+        for (const auto& index: mix->indices) {
+            assert(input_iterator_mapping.count(index));
+            pattern_weight << input_iterator_mapping[index];
+        }
+        for (const auto& index: mix->indices) {
+            assert(output_iterator_mapping.count(index));
+            pattern_weight << output_iterator_mapping[index];
+        }
+        // Code generation, may reshape before calculation.
+        std::stringstream reference_ss;
+        reference_ss << var_map[mix->ins[0]];
+        std::vector<Variable> in_shape;
+        for (int d = 0; d < 2; ++ d) {
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
+                auto index = Shape::Index(d, k);
+                if (not mix->ins[0]->shape[index].Empty() or mapping_indices.count(index))
+                    in_shape.push_back(mix->ins[0]->shape[index]);
+            }
+        }
+        if (in_shape.size() != mix->ins[0]->shape.Continuous().size()) {
+            reference_ss << ".view(self.n, ";
+            for (const auto& var: in_shape)
+                reference_ss << TorchStyleVariable(var) << ", ";
+            reference_ss << ")";
+        }
+        gen->Write() << var_map[mix->outs[0]]
+                     << " = "
+                     << "torch.einsum(\'"
+                     << pattern_in.str() << "," << pattern_weight.str() << "->" << pattern_out.str()
+                     << "\', "
+                     << "[" << reference_ss.str() << ", self." << primitive_var << "_w])"
+                     << ".view(self.n, "
+                     << TorchStyleShape(mix->outs[0]->shape)
+                     << ")" << std::endl;
     } else if (auto output = DynamicCast<OutputPrimitive>(p)) {
         // Reshape (may permute) and return the output variable.
         auto continuous = output->ins[0]->shape.Continuous();
