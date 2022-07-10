@@ -176,8 +176,11 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << std::endl;
     } else if (auto mix = DynamicCast<MixPrimitive>(p)) {
         std::stringstream shape_ss;
-        for (const auto& index: mix->indices)
+        auto fan_in = Variable();
+        for (const auto& index: mix->indices) {
             shape_ss << TorchStyleVariable(mix->ins[0]->shape[index]) << ", ";
+            fan_in = fan_in * mix->ins[0]->shape[index];
+        }
         for (const auto& index: mix->indices)
             shape_ss << TorchStyleVariable(mix->outs[0]->shape[index]) << ", ";
         gen->Write() << "self." << primitive_var << "_w"
@@ -185,9 +188,13 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << "(" << shape_ss.str() << ")"
                      << "), requires_grad=True)"
                      << std::endl;
-        gen->Write() << "nn.init.trunc_normal_("
+        gen->Write() << "bound = math.sqrt(3.0 / ("
+                     << TorchStyleVariable(fan_in)
+                     << "))"
+                     << std::endl;
+        gen->Write() << "nn.init.uniform_("
                      << "self." << primitive_var << "_w"
-                     << ", std=.1)" << std::endl;
+                     << ", a=-bound, b=bound)" << std::endl;
     } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         int k = shift->k;
         for (const auto& index: shift->indices)

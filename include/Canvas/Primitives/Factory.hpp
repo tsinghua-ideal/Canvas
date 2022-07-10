@@ -67,9 +67,9 @@ struct PrimitiveOptions {
 
 /// Register all primitive constructions here.
 struct PrimitiveFactory {
-    static constexpr int kMixOpportunities = 4;
+    static constexpr int kMixOpportunities = 3;
     static constexpr double kMixPossibility = 0.5;
-    static constexpr int kScaleOpportunities = 4;
+    static constexpr int kScaleOpportunities = 3;
 
     /// Get all primitives for a graph.
     static std::vector<PrimitiveApply> GetPrimitiveApplies(const GraphSP& graph,
