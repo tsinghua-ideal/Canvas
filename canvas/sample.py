@@ -9,7 +9,6 @@ from . import kernel_pack, placeholder, utils
 def build_sample_options(allowed_filter: str = '',
                          forbidden_filter: str = '',
                          necessary_filter: str = 'unfold',
-                         add_relu_bn_after_fc: bool = False,
                          kernel_sizes: [int] = (3, 5, 7),
                          dilated_sizes: [int] = (1, 2, 3),
                          shift_sizes: [int] = (1, 2, 3),
@@ -26,8 +25,6 @@ def build_sample_options(allowed_filter: str = '',
         raise ValueError('The variable `forbidden_filter` should be a string.')
     if type(necessary_filter) != str:
         raise ValueError('The variable `necessary_filter` should be a string.')
-    if type(add_relu_bn_after_fc) != bool:
-        raise ValueError('The variable `add_relu_bn_after_fc` should be a bool.')
     if not utils.is_type_range(kernel_sizes, int):
         raise ValueError('`kernel_sizes` should be a tuple of int.')
     if not utils.is_type_range(dilated_sizes, int):
@@ -53,7 +50,6 @@ def build_sample_options(allowed_filter: str = '',
     # Build options.
     return cpp_canvas.SampleOptions(allowed_filter, forbidden_filter, necessary_filter,
                                     kernel_sizes, dilated_sizes, shift_sizes,
-                                    add_relu_bn_after_fc,
                                     num_primitive_range[0], num_primitive_range[1],
                                     num_max_width_range[0], num_max_width_range[1],
                                     num_weighted_range[0], num_weighted_range[1],
@@ -65,7 +61,6 @@ def build_sample_options(allowed_filter: str = '',
 def empty_sample(allowed_filter: str = '',
                  forbidden_filter: str = '',
                  necessary_filter: str = 'unfold',
-                 add_relu_bn_after_fc: bool = False,
                  kernel_sizes: [int] = (3, 5, 7),
                  dilated_sizes: [int] = (1, 2, 3),
                  shift_sizes: [int] = (1, 2, 3),
@@ -85,10 +80,6 @@ def empty_sample(allowed_filter: str = '',
             The filter for forbidden primitives, in a comma-seperated format.
         necessary_filter: str
             Necessary primitives to be contained.
-        add_relu_bn_after_fc: bool
-            Whether add `nn.ReLU` and `nn.BatchNorm2d` primitive after every FC
-            primitive. It may lead to a worse performance but worth for
-            accuracy improvements.
         kernel_sizes: [int]
             The candidates for kernel sizes.
         dilated_sizes: [int]
@@ -121,7 +112,6 @@ def empty_sample(allowed_filter: str = '',
     """
     # Sample a kernel design.
     options = build_sample_options(allowed_filter, forbidden_filter, necessary_filter,
-                                   add_relu_bn_after_fc,
                                    kernel_sizes, dilated_sizes, shift_sizes,
                                    num_primitive_range,
                                    num_max_width_range,
@@ -140,7 +130,6 @@ def sample(m: nn.Module,
            allowed_filter: str = '',
            forbidden_filter: str = '',
            necessary_filter: str = 'unfold',
-           add_relu_bn_after_fc: bool = False,
            kernel_sizes: [int] = (3, 5, 7),
            dilated_sizes: [int] = (1, 2, 3),
            shift_sizes: [int] = (1, 2, 3),
@@ -171,10 +160,6 @@ def sample(m: nn.Module,
             The filter for forbidden primitives, in a comma-seperated format.
         necessary_filter: str
             Necessary primitives to be contained.
-        add_relu_bn_after_fc: bool
-            Whether add `nn.ReLU` and `nn.BatchNorm2d` primitive after every FC
-            primitive. It may lead to a worse performance but worth for
-            accuracy improvements.
         kernel_sizes: [int]
             The candidates for kernel sizes.
         dilated_sizes: [int]
@@ -221,7 +206,6 @@ def sample(m: nn.Module,
     # Sample a kernel design.
     kernel_specs = [cpp_canvas.KernelSpecs(ker.c, ker.h, ker.w) for ker in kernels]
     options = build_sample_options(allowed_filter, forbidden_filter, necessary_filter,
-                                   add_relu_bn_after_fc,
                                    kernel_sizes, dilated_sizes, shift_sizes,
                                    num_primitive_range,
                                    num_max_width_range,

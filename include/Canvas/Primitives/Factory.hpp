@@ -46,19 +46,14 @@ struct PrimitiveOptions {
     /// `max_delta_width` could be -1 (reducing width), 0 (retaining width), 1 (unlimited).
     int max_delta_width = 1;
 
-    // Optimize FC.
-    bool add_relu_bn_after_fc = false;
-
     explicit PrimitiveOptions(const std::string& allowed_str="",
                               const std::string& forbidden_str="",
                               std::vector<int> kernel_sizes={3, 5, 7},
                               std::vector<int> dilated_sizes={1, 2, 3},
-                              std::vector<int> shift_sizes={1, 2, 3},
-                              bool add_relu_bn_after_fc=false):
+                              std::vector<int> shift_sizes={1, 2, 3}):
             kernel_sizes(std::move(kernel_sizes)),
             dilated_sizes(std::move(dilated_sizes)),
-            shift_sizes(std::move(shift_sizes)),
-            add_relu_bn_after_fc(add_relu_bn_after_fc) {
+            shift_sizes(std::move(shift_sizes)) {
         BuildFilters(allowed_str, forbidden_str);
     }
 

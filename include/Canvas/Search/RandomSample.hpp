@@ -16,7 +16,6 @@ struct SampleOptions {
 
     const std::vector<int> kernel_sizes, dilated_sizes, shift_sizes;
 
-    const bool add_relu_bn_after_fc;
     const Range<int> np_range, mw_range, weighted_range;
     double max_weighted_ratio, force_bmm_possibility;
 
@@ -25,7 +24,6 @@ struct SampleOptions {
     SampleOptions():
             necessary_filter("unfold"),
             kernel_sizes({3, 5, 7}), dilated_sizes({1, 2, 3}), shift_sizes({1, 2, 3}),
-            add_relu_bn_after_fc(false),
             np_range(3, 25), mw_range(2, 8), weighted_range(1, 8),
             max_weighted_ratio(0.6), force_bmm_possibility(0),
             timeout(std::chrono::seconds::zero()) {
@@ -38,7 +36,6 @@ struct SampleOptions {
                   std::vector<int> kernel_sizes,
                   std::vector<int> dilated_sizes,
                   std::vector<int> shift_sizes,
-                  bool add_relu_bn_after_fc,
                   int np_range_min, int np_range_max,
                   int mw_range_min, int mw_range_max,
                   int weighted_range_min, int weighted_range_max,
@@ -50,7 +47,6 @@ struct SampleOptions {
             kernel_sizes(std::move(kernel_sizes)),
             dilated_sizes(std::move(dilated_sizes)),
             shift_sizes(std::move(shift_sizes)),
-            add_relu_bn_after_fc(add_relu_bn_after_fc),
             np_range(np_range_min, np_range_max),
             mw_range(mw_range_min, mw_range_max),
             weighted_range(weighted_range_min, weighted_range_max),

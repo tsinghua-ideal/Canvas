@@ -31,11 +31,6 @@ bool PrimitiveOptions::Filter(const PrimitiveApply& pa) const {
     if (hash_filter.count(p->Hash(true)))
         return true;
 
-    // Optimize FC.
-    if (add_relu_bn_after_fc)
-        if (auto fc = DynamicCast<FCPrimitive>(p))
-            fc->with_norm = fc->with_relu = true;
-
     // Filter by output.
     if (output_filter) {
         auto pi = p->outs[0]->shape;
@@ -104,11 +99,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
 
     // FC: the channel could be a new variable.
     // Could not have dynamic variables in G, consider grouping-all primitive.
-    // Norm/ReLU optimization will be added in the filter.
-    // TODO: support flexible FC remapping into C, consider (C, K, K, H, W) five dimensions.
-    // TODO: support multiple variable solving.
     // We may add an extra primitive for only mapping H and W, but remapping into spatial dimensions.
-    // An edge case to notice: [x_0, 1, H, W] -> [x_0, x_1/x_0, H, W]
     if (t->shape.IsChannelSpatial()) {
         auto c = Variable::StaticVar(StaticVarPos::VC);
         if ((c / t->shape.Channel()->G()).MaybeInteger())

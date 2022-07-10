@@ -174,16 +174,6 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << "groups=" << TorchStyleVariable(in_shape.Channel()->G()) << ", "
                      << "bias=False)"
                      << std::endl;
-        if (fc->with_norm)
-            gen->Write() << "self." << primitive_var << "_bn"
-                         << " = nn.BatchNorm2d("
-                         << TorchStyleVariable(out_shape.Channel()->Pi())
-                         << ")"
-                         << std::endl;
-        if (fc->with_relu)
-            gen->Write() << "self." << primitive_var << "_relu"
-                         << " = nn.ReLU(inplace=True)"
-                         << std::endl;
     } else if (auto shift = DynamicCast<ShiftPrimitive>(p)) {
         int k = shift->k;
         for (const auto& index: shift->indices)
@@ -305,18 +295,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << " = self." << primitive_var
                      << "(" << reference << ")"
                      << std::endl;
-        if (fc->with_norm) {
-            gen->Write() << var_map[fc->outs[0]]
-                         << " = self." << primitive_var << "_bn"
-                         << "(" << var_map[fc->outs[0]] << ")"
-                         << std::endl;
-        }
-        if (fc->with_relu) {
-            gen->Write() << var_map[fc->outs[0]]
-                         << " = self." << primitive_var << "_relu"
-                         << "(" << var_map[fc->outs[0]] << ")"
-                         << std::endl;
-        }
         gen->Write() << var_map[fc->outs[0]]
                      << " = " << var_map[fc->outs[0]]
                      << ".view(self.n, "
