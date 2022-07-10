@@ -15,6 +15,7 @@
 #include "Canvas/Primitives/Group.hpp"
 #include "Canvas/Primitives/Input.hpp"
 #include "Canvas/Primitives/MatrixMultiplication.hpp"
+#include "Canvas/Primitives/Mix.hpp"
 #include "Canvas/Primitives/Output.hpp"
 #include "Canvas/Primitives/Scale.hpp"
 #include "Canvas/Primitives/Shift.hpp"
@@ -66,7 +67,9 @@ struct PrimitiveOptions {
 
 /// Register all primitive constructions here.
 struct PrimitiveFactory {
-    static std::vector<PrimitiveApply> RescalePossibilities(const std::vector<PrimitiveApply>& applies);
+    static constexpr int kMixOpportunities = 4;
+    static constexpr double kMixPossibility = 0.5;
+    static constexpr int kScaleOpportunities = 4;
 
     /// Get all primitives for a graph.
     static std::vector<PrimitiveApply> GetPrimitiveApplies(const GraphSP& graph,

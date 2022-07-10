@@ -6,7 +6,7 @@ namespace canvas {
 
 static std::string ConvolutionToName(int kh, int kw, int dh, int dw, bool depth_wise) {
     std::stringstream ss;
-    ss << "Convolution_" << kh << "_" << kw << "_" << dh << "_" << dw << "_DW" << depth_wise;
+    ss << "Convolution_" << kh << "x" << kw << "_" << dh << "x" << dw << "_DW" << depth_wise;
     return ss.str();
 }
 

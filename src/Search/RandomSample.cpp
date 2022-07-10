@@ -88,18 +88,16 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
         // FC selectivity filter.
         if (MakeChoice(weighted_sample_possibility)) {
-            primitive_options.allowed_filter = {"fc", "conv", "scale"};
+            primitive_options.allowed_filter = {"fc", "conv", "scale", "mix"};
         } else {
             primitive_options.forbidden_filter.emplace_back("fc");
             primitive_options.forbidden_filter.emplace_back("conv");
             primitive_options.forbidden_filter.emplace_back("scale");
+            primitive_options.forbidden_filter.emplace_back("mix");
         }
 
         // Get all available applies.
         auto applies = PrimitiveFactory::GetPrimitiveApplies(graph, primitive_options);
-
-        // Rescale possibilities.
-        // applies = PrimitiveFactory::RescalePossibilities(applies);
 
         if (applies.empty()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <tuple>
-
 #include "Canvas/Core/Primitive.hpp"
 #include "Canvas/Core/Variable.hpp"
 

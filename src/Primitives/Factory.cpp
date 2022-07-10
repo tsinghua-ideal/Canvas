@@ -55,22 +55,6 @@ bool PrimitiveOptions::Filter(const PrimitiveApply& pa) const {
     return false;
 }
 
-std::vector<PrimitiveApply> PrimitiveFactory::RescalePossibilities(const std::vector<PrimitiveApply>& applies) {
-    std::vector<PrimitiveApply> applies_copy = applies;
-    RandomShuffle(applies_copy);
-
-    // Push all the first in the shuffle into the candidates.
-    std::vector<PrimitiveApply> new_applies;
-    std::set<std::string> filter;
-    for (const auto& apply: applies_copy) {
-        if (not filter.count(apply.primitive->name)) {
-            filter.insert(apply.primitive->name);
-            new_applies.push_back(apply);
-        }
-    }
-    return new_applies;
-}
-
 std::vector<PrimitiveApply> PrimitiveFactory::GetPrimitiveApplies(const GraphSP& graph,
                                                                   const PrimitiveOptions& options) {
     std::vector<PrimitiveApply> primitives;
@@ -94,8 +78,6 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     assert(t->producer);
     // The next variable index.
     auto unused_indices = graph->UnusedDynamicVarIndices();
-
-    // TODO: add einsum primitive for matrix multiplication, a simplified version: original dot primitive.
 
     // FC: the channel could be a new variable.
     // Could not have dynamic variables in G, consider grouping-all primitive.
@@ -134,6 +116,42 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         PushConv(k, 1, d, 1), PushConv(1, k, 1, d), PushConv(k, k, d, d);
     }
 
+    // Mix: mapping dimensions into dimensions.
+    auto PushMix = [&](const std::vector<Shape::Index>& indices) {
+        if (indices.empty())
+            return;
+        int next_unused = 0;
+        std::vector<Variable> new_dims;
+        for (int i = 0; i < indices.size(); ++ i) {
+            if (next_unused < unused_indices.size() and MakeChoice(kMixPossibility))
+                new_dims.push_back(Variable::DynamicVar(unused_indices[next_unused])), next_unused ++;
+            else
+                new_dims.emplace_back();
+        }
+        MakeAndPush<MixPrimitive>(primitives, options, t, indices, new_dims);
+    };
+
+    // Mix case 1: mapping single meta shape.
+    for (int d = 0; d < 2; ++ d) {
+        std::vector<Shape::Index> indices;
+        for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
+            auto index = Shape::Index(d, k);
+            // TODO: may add group merging primitive or add merging option.
+            if (DynamicCast<ChannelShape>(t->shape.dims[d]) and k == ChannelShape::PG)
+                continue;
+            if (not t->shape[index].Empty())
+                indices.push_back(index);
+        }
+        PushMix(indices);
+    }
+
+    // Mix case 2: randomly select some.
+    {
+        auto non_empty_indices = t->shape.GetNonEmptyIndices();
+        for (int i = 0; i < kMixOpportunities; ++ i)
+            PushMix(RandomSubset(non_empty_indices));
+    }
+
     // Activation: no new variables, pruning: no double ReLU.
     for (const auto &type: {GeLU, ReLU, Sigmoid, TanH}) {
         if (auto last_activation = DynamicCast<ActivationPrimitive>(t->producer))
@@ -164,9 +182,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     // Fold: no new variables.
     for (const auto& type: {FoldAvg, FoldMax}) {
         for (int d = 0; d < 2; ++ d) {
-            int max_dims = DynamicCast<ChannelShape>(t->shape.dims[d]) ?
-                    ChannelShape::kMaxChannelDims : SpatialShape::kMaxSpatialDims;
-            for (int k = 0; k < max_dims; ++ k) {
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
                 auto index = Shape::Index(d, k);
                 if (not t->shape[index].Empty())
                     MakeAndPush<FoldPrimitive>(primitives, options, t, std::vector<Shape::Index>({index}), type);
@@ -242,17 +258,17 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         auto merged = Merge(dims[0], dims[1]);
         if (not dims[0].empty() and not dims[1].empty())
             MakeAndPush<ScalePrimitive>(primitives, options, t, merged);
-        auto subset = RandomSubset(merged);
-        if (not subset.empty())
-            MakeAndPush<ScalePrimitive>(primitives, options, t, subset);
+        for (int i = 0; i < kScaleOpportunities; ++ i) {
+            auto subset = RandomSubset(merged);
+            if (not subset.empty())
+                MakeAndPush<ScalePrimitive>(primitives, options, t, subset);
+        }
     }
 
     // Shift: no new variables.
     for (int s: options.shift_sizes) {
         for (int d = 0; d < 2; ++ d) {
-            int max_dims = DynamicCast<ChannelShape>(t->shape.dims[d]) ?
-                           ChannelShape::kMaxChannelDims : SpatialShape::kMaxSpatialDims;
-            for (int k = 0; k < max_dims; ++ k) {
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
                 auto index = Shape::Index(d, k);
                 if (not t->shape[index].Empty())
                     MakeAndPush<ShiftPrimitive>(primitives, options, t, std::vector<Shape::Index>({index}), s);
@@ -282,9 +298,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
 
     // Softmax: no new variables.
     for (int d = 0; d < 2; ++ d) {
-        int max_dims = DynamicCast<ChannelShape>(t->shape.dims[d]) ?
-                       ChannelShape::kMaxChannelDims : SpatialShape::kMaxSpatialDims;
-        for (int k = 0; k < max_dims; ++ k) {
+        for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
             auto index = Shape::Index(d, k);
             if (not t->shape[index].Empty())
                 MakeAndPush<SoftmaxPrimitive>(primitives, options, t, index);

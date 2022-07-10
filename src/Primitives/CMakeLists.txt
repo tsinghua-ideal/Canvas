@@ -1,1 +1,1 @@
-add_library(PrimitiveLib Factory.cpp Activation.cpp Broadcast.cpp Convolution.cpp ElementWise.cpp FC.cpp Fold.cpp Group.cpp MatrixMultiplication.cpp ScalePrimitive.cpp Shift.cpp Softmax.cpp Unfold.cpp)
+add_library(PrimitiveLib Factory.cpp Activation.cpp Broadcast.cpp Convolution.cpp ElementWise.cpp FC.cpp Fold.cpp Group.cpp MatrixMultiplication.cpp Mix.cpp ScalePrimitive.cpp Shift.cpp Softmax.cpp Unfold.cpp)

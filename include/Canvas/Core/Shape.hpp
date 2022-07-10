@@ -300,6 +300,15 @@ struct Shape {
         return dims[index.d]->IndexToName(index.k);
     }
 
+    [[nodiscard]] std::vector<Index> GetNonEmptyIndices() const {
+        std::vector<Index> indices;
+        for (int d = 0; d < 2; ++ d)
+            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k)
+                if (not dims[d]->dims[k].Empty())
+                    indices.emplace_back(d, k);
+        return indices;
+    }
+
     Variable& operator [] (const Index& index) {
         assert(dims[0] and dims[1]);
         return dims[index.d]->dims[index.k];
