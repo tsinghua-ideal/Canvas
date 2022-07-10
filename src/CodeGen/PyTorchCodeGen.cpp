@@ -463,7 +463,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << "[" << reference_ss.str() << ", self." << primitive_var << "_w])"
                      << ".view(self.n, "
                      << TorchStyleShape(mix->outs[0]->shape)
-                     << ")" << std::endl;
+                     << ").contiguous()" << std::endl;
     } else if (auto output = DynamicCast<OutputPrimitive>(p)) {
         // Reshape (may permute) and return the output variable.
         auto continuous = output->ins[0]->shape.Continuous();
