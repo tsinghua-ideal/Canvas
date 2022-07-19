@@ -157,6 +157,7 @@ def arg_parse():
                         help='LR decay rate (default: 0.1)')
 
     # Misc.
+    parser.add_argument('--forbid-eval-nan', action='store_true', help='Whether to forbid NaN during evaluation')
     parser.add_argument('--output', default='', type=str, metavar='PATH',
                         help='Path to output folder (default: none, current dir, training only)')
     parser.add_argument('--resume', metavar='PATH', type=str, default='',

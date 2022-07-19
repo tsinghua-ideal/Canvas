@@ -147,7 +147,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
             top1_m.update(acc1.item(), output.size(0))
             top5_m.update(acc5.item(), output.size(0))
 
-            if math.isnan(losses_m.avg):
+            if math.isnan(losses_m.avg) and args.forbid_eval_nan:
                 break
 
             batch_time_m.update(time.time() - end)
@@ -275,8 +275,8 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False):
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
 
         # Check NaN errors.
-        if math.isnan(eval_metrics['loss']):
-            raise RuntimeError('NaN occurs during training')
+        if math.isnan(eval_metrics['loss']) and args.forbid_eval_nan:
+            raise RuntimeError('NaN occurs during validation')
 
         # Summary and save checkpoint.
         if output_dir is not None:
