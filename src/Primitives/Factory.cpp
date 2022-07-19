@@ -161,7 +161,7 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
     }
 
     // Element-wise: no new variables, pruning: double abs/neg.
-    for (const auto& type: {Abs, Exp, Neg, Sin}) {
+    for (const auto& type: {Abs, Exp, Neg, Sin, Sqrt, Sqr}) {
         if (auto last_element_wise = DynamicCast<ElementWisePrimitive>(t->producer)) {
             // Double abs.
             if (type == Abs and last_element_wise->type == Abs)
@@ -172,7 +172,13 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
             // Special pruning for absolute.
             if (type == Abs and (last_element_wise->type == Exp or last_element_wise->type == Neg))
                 continue;
+            // Pruning for sqrt/sqr.
+            if (type == Sqrt and last_element_wise->type == Sqr)
+                continue;
+            if (type == Sqr and last_element_wise->type == Sqrt)
+                continue;
         }
+        // Pruning for activation.
         if (auto last_activation = DynamicCast<ActivationPrimitive>(t->producer))
             if (type == Abs and (last_activation->type == Sigmoid or last_activation->type == ReLU))
                 continue;

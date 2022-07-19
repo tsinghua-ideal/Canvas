@@ -9,15 +9,19 @@ enum ElementWiseType {
     Abs,
     Exp,
     Neg,
-    Sin
+    Sin,
+    Sqrt,
+    Sqr
 };
 
 static constexpr const char* ElementWiseTypeToName(ElementWiseType type) {
     switch (type) {
-        case Abs: return "Abs";
-        case Exp: return "Exp";
-        case Neg: return "Neg";
-        case Sin: return "Sin";
+        case Abs:  return "Abs";
+        case Exp:  return "Exp";
+        case Neg:  return "Neg";
+        case Sin:  return "Sin";
+        case Sqrt: return "Sqrt";
+        case Sqr:  return "Sqr";
     }
     return "";
 }

@@ -62,20 +62,24 @@ static constexpr const char* TorchStyleFoldSuffix(FoldType type) {
 
 static constexpr const char* TorchStyleElementWiseFunctionPrefix(ElementWiseType type) {
     switch (type) {
-        case Abs: return "torch.abs(";
-        case Exp: return "torch.exp(";
-        case Neg: return "-";
-        case Sin: return "torch.sin(";
+        case Abs:  return "torch.abs(";
+        case Exp:  return "torch.exp(";
+        case Neg:  return "-";
+        case Sin:  return "torch.sin(";
+        case Sqrt: return "torch.sqrt(torch.abs(";
+        case Sqr:  return "torch.pow(";
     }
     return "";
 }
 
 static constexpr const char* TorchStyleElementWiseFunctionSuffix(ElementWiseType type) {
     switch (type) {
-        case Abs: return ")"; // NOLINT(bugprone-branch-clone)
-        case Exp: return ")";
-        case Neg: return "";
-        case Sin: return " * 1.5707963)";
+        case Abs:  return ")"; // NOLINT(bugprone-branch-clone)
+        case Exp:  return ")";
+        case Neg:  return "";
+        case Sin:  return " * 1.5707963)";
+        case Sqrt: return "))";
+        case Sqr:  return ", 2)";
     }
     return "";
 }
