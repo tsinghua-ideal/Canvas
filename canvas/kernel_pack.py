@@ -117,9 +117,11 @@ class KernelPack:
         # Read all context from file.
         def read(suffix: str, required=False):
             files = glob.glob(os.path.join(path, f'*.{suffix}'))
-            assert not (required and len(files) != 1), 'Error while loading files, multiple/none files found'
-            if len(files) != 1:
+            assert not (required and len(files) == 0), 'Error while loading files, no such file found'
+            if len(files) == 0:
                 return ''
+            elif len(files) > 1:
+                print(f'Multiple files found, loading {files[0]} ...')
             with open(files[0], 'r') as file:
                 return file.read()
 
