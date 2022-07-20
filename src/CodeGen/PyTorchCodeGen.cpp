@@ -371,7 +371,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << std::endl;
     } else if (auto bmm = DynamicCast<MatrixMultiplicationPrimitive>(p)) {
         auto ReshapeAndTranspose = [&](const char* suffix, const TensorSP& t, bool transpose) {
-            gen->Write() << var_map[t] << "_" << suffix
+            gen->Write() << var_map[bmm->outs[0]] << "_" << suffix
                          << " = "
                          << var_map[t]
                          << ".view(self.n, "
@@ -387,8 +387,8 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         gen->Write() << var_map[bmm->outs[0]]
                      << " = "
                      << "torch.bmm("
-                     << var_map[bmm->ins[0]] << "_lhs, "
-                     << var_map[bmm->ins[1]] << "_rhs)"
+                     << var_map[bmm->outs[0]] << "_lhs, "
+                     << var_map[bmm->outs[0]] << "_rhs)"
                      << ".view(self.n, "
                      << TorchStyleShape(bmm->outs[0]->shape)
                      << ")";
