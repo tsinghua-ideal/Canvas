@@ -212,6 +212,8 @@ def arg_parse():
                         help='Minimum kernel scale (geometric mean, only for search)')
     parser.add_argument('--canvas-proxy-kernel-scale-limit', default=0.3, type=float,
                         help='Minimum/maximum kernel scale (geometric mean, only for search)')
+    parser.add_argument('--canvas-selector-address', default='http://43.138.119.173:8000', type=str,
+                        help='Selector server address')
 
     # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()

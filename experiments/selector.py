@@ -7,6 +7,7 @@ import canvas
 
 from copy import deepcopy
 from base import dataset, device, log, models, parser, trainer
+from client import Handler
 
 
 if __name__ == '__main__':
@@ -42,14 +43,20 @@ if __name__ == '__main__':
         if pack is not None:
             canvas.replace(model, pack.module, args.device)
 
+    # Web API.
+    handler = Handler(args)
+
     # Search.
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
     for i in round_range:
         # Sample a new kernel.
         logger.info('Requesting a new kernel ...')
+        kernel_name_on_server = None
         try:
-            # TODO: web API.
-            kernel_pack = None
+            kernel_name_on_server, kernel_pack = handler.get_kernel()
+            if kernel_pack is None:
+                logger.info('No kernel available, break')
+                break
 
             restore_model_params_and_replace(kernel_pack)
             g_macs, m_params = ptflops.get_model_complexity_info(model, args.input_size,
@@ -59,8 +66,9 @@ if __name__ == '__main__':
             # Early exception: out of memory or timeout.
             logger.info(f'Exception: {ex}')
             log.save(args, None, None, None, {'exception': f'{ex}'})
-            # TODO: notify web API (failure).
+            handler.failure(kernel_name_on_server)
             continue
+        logger.info(f'Kernel name on server: {kernel_name_on_server}')
         logger.info(f'Sampled kernel hash: {hash(kernel_pack)}')
         logger.info(f'MACs: {g_macs} G, params: {m_params} M')
 
@@ -74,13 +82,13 @@ if __name__ == '__main__':
                               search_mode=True)
             score = max([item['top1'] for item in eval_metrics])
             logger.info(f'Solution score: {score}')
-            # TODO: notify web API (success).
+            handler.success(kernel_name_on_server)
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
             if 'NaN' in exception_info:
                 logger.warning('Restoring to best model parameters')
-            # TODO: notify web API (failure).
+            handler.failure(kernel_name_on_server)
 
         # Save into logging directory.
         extra = {'g_macs': g_macs, 'm_params': m_params}
