@@ -1,12 +1,26 @@
 import argparse
 import json
 import os
+import time
+
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        print(self)
+        time.sleep(1)
+
+    def do_POST(self):
+        print(self)
+        time.sleep(1)
 
 
 if __name__ == '__main__':
     # Arguments.
     parser = argparse.ArgumentParser(description='Canvas selector server')
     parser.add_argument('--path', type=str, metavar='PATH', required=True)
+    parser.add_argument('--port', type=int, metavar='PORT', default='80')
     args = parser.parse_args()
 
     # Collect files to JSONs.
@@ -39,3 +53,8 @@ if __name__ == '__main__':
 
     jsons = list(map(to_json, dirs))
     print(f'{len(jsons)} kernels collected')
+
+    # Start HTTP server.
+    print(f'Starting listening at localhost:{args.port}')
+    server = HTTPServer(('localhost', args.port), Handler)
+    server.serve_forever()
