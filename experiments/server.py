@@ -24,7 +24,7 @@ class Handler(BaseHTTPRequestHandler):
         # Detect timeout kernels.
         timeout_kernels = []
         for name, pack in training.items():
-            if time.time() - training[name]['time'] > 86400:  # 24 hours: 86400 secs
+            if time.time() - training[name]['time'] > 86400 * 10:  # 24 hours: 86400 secs
                 timeout_kernels.append(name)
         for name in timeout_kernels:
             assert name not in pending
@@ -54,7 +54,7 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         # Response success or failure.
         remote_ip = self.connection.getpeername()[0]
-        print(f'Incoming GET request from {remote_ip}: {self.path}')
+        print(f'Incoming POST request from {remote_ip}: {self.path}')
         assert self.path.startswith('/success?name=') or self.path.startswith('/failure?name=') or \
                self.path.startswith('/test')
         if not self.path.startswith('/test'):
@@ -63,10 +63,10 @@ class Handler(BaseHTTPRequestHandler):
         else:
             name = None
         if self.path.startswith('/success'):
-            assert name not in pending
-            assert name in training
-            assert name not in finished
-            finished[name] = training.pop(name)
+            if name in pending:
+                finished[name] = pending.pop(name)
+            if name in training:
+                finished[name] = training.pop(name)
             print(f' > Successfully trained: {name}')
         elif self.path.startswith('/failure'):
             assert name not in pending
