@@ -18,7 +18,7 @@ Solution ImplLKA() {
     graph->Apply(lka_conv0_group);
     auto lka_conv0_fc = std::make_shared<FCPrimitive>(lka_conv0_group->outs[0], c);
     graph->Apply(lka_conv0_fc);
-    auto lka_conv_spatial = std::make_shared<ConvolutionPrimitive>(lka_conv0_fc->outs[0], c, 7, 7, 3, 3, true);
+    auto lka_conv_spatial = std::make_shared<ConvolutionPrimitive>(lka_conv0_fc->outs[0], c, 5, 5, 3, 3, true);
     graph->Apply(lka_conv_spatial);
     auto lka_conv1 = std::make_shared<FCPrimitive>(lka_conv_spatial->outs[0], c);
     graph->Apply(lka_conv1);

@@ -4,8 +4,10 @@
 #include "Canvas/CodeGen/PyTorchCodeGen.hpp"
 #include "Canvas/Core/Graph.hpp"
 #include "Canvas/Core/Variable.hpp"
+#include "Canvas/Impls/Impls.hpp"
 #include "Canvas/Primitives/Factory.hpp"
 #include "Canvas/Search/RandomSample.hpp"
+#include "Canvas/Search/ReceptiveAnalyzer.hpp"
 
 
 using namespace canvas;
@@ -51,6 +53,11 @@ TEST(Search, PrimitiveFactoryOnlyFC) {
     int n_primitives = 10;
     auto graph = RandomGraph(n_primitives, PrimitiveOptions("fc"));
     std::cout << graph->Hash() << std::endl;
+}
+
+TEST(Search, ReceptiveAnalyzer) {
+    auto lka = ImplLKA().graph;
+    ASSERT_EQ(ReceptiveAnalyzer::GetReceptiveSize(lka), 17 * 17);
 }
 
 TEST(Search, PrimitiveFactoryReduceWidth) {

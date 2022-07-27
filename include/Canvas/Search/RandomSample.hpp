@@ -19,6 +19,8 @@ struct SampleOptions {
     const Range<int> np_range, mw_range, weighted_range;
     double max_weighted_ratio, force_bmm_possibility;
 
+    int min_receptive_size;
+
     const canvas_timeval_t timeout;
 
     SampleOptions():
@@ -26,6 +28,7 @@ struct SampleOptions {
             kernel_sizes({3, 5, 7}), dilated_sizes({1, 2, 3}), shift_sizes({1, 2, 3}),
             np_range(3, 25), mw_range(2, 8), weighted_range(1, 8),
             max_weighted_ratio(0.6), force_bmm_possibility(0),
+            min_receptive_size(1),
             timeout(std::chrono::seconds::zero()) {
         BuildNecessaryFilters();
     }
@@ -40,6 +43,7 @@ struct SampleOptions {
                   int mw_range_min, int mw_range_max,
                   int weighted_range_min, int weighted_range_max,
                   double max_weighted_ratio, double force_bmm_possibility,
+                  int min_receptive_size,
                   int timeout):
             allowed_filter(std::move(allowed_filter)),
             forbidden_filter(std::move(forbidden_filter)),
@@ -52,6 +56,7 @@ struct SampleOptions {
             weighted_range(weighted_range_min, weighted_range_max),
             max_weighted_ratio(max_weighted_ratio),
             force_bmm_possibility(force_bmm_possibility),
+            min_receptive_size(min_receptive_size),
             timeout(std::chrono::seconds(timeout)) {
         for (int k: this->kernel_sizes)
             assert(k > 0 and k % 2 == 1);
@@ -62,6 +67,7 @@ struct SampleOptions {
         assert(timeout > 0);
         assert(0 <= max_weighted_ratio and max_weighted_ratio <= 1.0);
         assert(0 <= force_bmm_possibility and force_bmm_possibility <= 1.0);
+        assert(min_receptive_size > 0);
         BuildNecessaryFilters();
     }
 

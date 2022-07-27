@@ -2,6 +2,7 @@
 #include <boost/range/adaptor/reversed.hpp>
 
 #include "Canvas/Search/RandomSample.hpp"
+#include "Canvas/Search/ReceptiveAnalyzer.hpp"
 #include "Canvas/Passes/InplacePass.hpp"
 #include "Canvas/Primitives/Factory.hpp"
 #include "Canvas/Utils/Exceptions.hpp"
@@ -257,7 +258,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     }
 
     // The final check, fill the solution with concise values.
-    for (const auto& kernel: net_specs->kernel_specs)
+    for (const auto& kernel: net_specs->kernel_specs) {
         if (not graph->AlgebraCheck(Merge(global_specs, kernel))) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
             static int can_not_pass_algebra_check = 0;
@@ -265,6 +266,17 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 #endif
             return {};
         }
+    }
+
+    // Filter for receptive field size.
+    int receptive_size = ReceptiveAnalyzer::GetReceptiveSize(graph);
+    if (receptive_size < options.min_receptive_size) {
+#ifdef CANVAS_DEBUG_FAILED_COUNT
+        static int can_not_satisfy_receptive_size = 0;
+        IC(can_not_satisfy_receptive_size ++);
+#endif
+        return {};
+    }
 
     // Optimize.
     graph = InplacePass().Optimize(graph);

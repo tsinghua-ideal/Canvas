@@ -1,1 +1,1 @@
-add_library(SearchLib RandomSample.cpp)
+add_library(SearchLib RandomSample.cpp ReceptiveAnalyzer.cpp)
