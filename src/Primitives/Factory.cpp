@@ -321,14 +321,15 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
         // Pruning.
         if (lhs == rhs and (type == BSub or type == BMax or type == BAdd))
             continue;
-        auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type, 1);
+        auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type, kBroadFactorLimit);
         if (not all_matches.empty())
             Push(all_matches[0], primitives, options);
     }
 
     // Batch matrix multiplication.
-    for (const auto& pa: MatrixMultiplicationPrimitive::GetAllPossibleMatches(lhs, rhs))
-        Push(pa, primitives, options);
+    for (const bool with_softmax: {false, true})
+        for (const auto& pa: MatrixMultiplicationPrimitive::GetAllPossibleMatches(lhs, rhs, with_softmax))
+            Push(pa, primitives, options);
 }
 
 } // namespace canvas

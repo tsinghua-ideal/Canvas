@@ -384,18 +384,25 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         };
         ReshapeAndTranspose("lhs", bmm->ins[0], bmm->transpose_lhs);
         ReshapeAndTranspose("rhs", bmm->ins[1], bmm->transpose_rhs);
+        std::string softmax_prefix = bmm->with_softmax ? "F.softmax(" : "";
+        std::string softmax_suffix = bmm->with_softmax ? ", dim=-1)" : "";
         gen->Write() << var_map[bmm->outs[0]]
                      << " = "
-                     << "torch.bmm("
+                     << softmax_prefix << "torch.bmm("
                      << var_map[bmm->outs[0]] << "_lhs, "
-                     << var_map[bmm->outs[0]] << "_rhs)"
-                     << ".view(self.n, "
-                     << TorchStyleShape(bmm->outs[0]->shape)
-                     << ")";
+                     << var_map[bmm->outs[0]] << "_rhs)";
         auto scale = bmm->ins[0]->shape.dims[not bmm->transpose_lhs]->Pi();
         if (not scale.Empty())
             gen->Write(false) << " / math.sqrt(" << TorchStyleVariable(scale) << ")";
-        gen->Write(false) << std::endl;
+        gen->Write(false) << softmax_suffix
+                          << std::endl;
+        gen->Write() << var_map[bmm->outs[0]]
+                     << " = "
+                     << var_map[bmm->outs[0]]
+                     << ".view(self.n, "
+                     << TorchStyleShape(bmm->outs[0]->shape)
+                     << ")"
+                     << std::endl;
     } else if (auto mix = DynamicCast<MixPrimitive>(p)) {
         std::set<Shape::Index> mapping_indices;
         for (const auto& index: mix->indices)
