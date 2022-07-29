@@ -19,7 +19,9 @@ class Handler(BaseHTTPRequestHandler):
         # Assign an available kernel to the client.
         remote_ip = self.connection.getpeername()[0]
         print(f'Incoming GET request from {remote_ip}: {self.path}')
-        assert self.path == '/kernel'
+        if self.path != '/kernel':
+            print(' > Bad request')
+            return
 
         # Detect timeout kernels.
         timeout_kernels = []
@@ -55,8 +57,10 @@ class Handler(BaseHTTPRequestHandler):
         # Response success or failure.
         remote_ip = self.connection.getpeername()[0]
         print(f'Incoming POST request from {remote_ip}: {self.path}')
-        assert self.path.startswith('/success?name=') or self.path.startswith('/failure?name=') or \
-               self.path.startswith('/test')
+        if not (self.path.startswith('/success?name=') or self.path.startswith('/failure?name=') or
+                self.path.startswith('/test')):
+            print(' > Bad request')
+            return
         if not self.path.startswith('/test'):
             name = self.path[14:]
             assert len(name) > 0
