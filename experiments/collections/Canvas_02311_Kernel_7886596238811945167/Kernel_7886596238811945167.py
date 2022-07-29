@@ -9,21 +9,22 @@ class Kernel_7886596238811945167(nn.Module):
         # Configurations
         super(Kernel_7886596238811945167, self).__init__()
         self.n, self.c, self.h, self.w = None, c, h, w
-        self.g = 8
+        self.g = 4
         self.kh, self.kw = 3, 3
         self.ph, self.pw = (self.kh - 1) // 2, (self.kw - 1) // 2
         self.ks = self.kh * self.kw
         
         # Kernels
+        self.proj = nn.Conv2d(c, c, kernel_size=7, padding=3, groups=c)
         # FC: p_3
         self.p_3 = nn.Conv2d(self.c * self.ks, self.c, 1, padding=0, groups=self.g, bias=False)
         # Scale_0/1/C_0/3/KW_1/1/C: p_7
-        self.p_7_w = nn.Parameter(torch.ones((1, self.c, self.ks, self.c,)), requires_grad=True)
-        nn.init.trunc_normal_(self.p_7_w, std=.02)
+        self.p_7_w = nn.Parameter(torch.ones((1, self.c, self.ks, 1,)), requires_grad=True)
+        nn.init.trunc_normal_(self.p_7_w, std=.1)
 
     def forward(self, x: torch.Tensor):
         # Input: p_0
-        t_0 = x
+        t_0 = self.proj(x)
         self.n = t_0.size(0)
         # UnfoldW_K3_D2: p_1
         t_1 = F.unfold(t_0, (self.kh, self.kw), padding=(self.ph, self.pw))
