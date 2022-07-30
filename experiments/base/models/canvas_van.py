@@ -34,7 +34,7 @@ class Block(nn.Module):
     def __init__(self, dim, mlp_ratio=4., drop=0., drop_path=0., act_layer=nn.GELU):
         super().__init__()
         self.norm1 = nn.BatchNorm2d(dim)
-        self.attn = canvas.Placeholder(dim)
+        self.block = canvas.Placeholder(dim)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
         self.norm2 = nn.BatchNorm2d(dim)
@@ -48,7 +48,7 @@ class Block(nn.Module):
         self.prev_items, self.kernel_scale = 0, 0
 
     def forward(self, x):
-        attn_value = self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.attn(self.norm1(x)))
+        attn_value = self.drop_path(self.layer_scale_1.unsqueeze(-1).unsqueeze(-1) * self.block(self.norm1(x)))
         x = x + attn_value
         mlp_value = self.drop_path(self.layer_scale_2.unsqueeze(-1).unsqueeze(-1) * self.mlp(self.norm2(x)))
         x = x + mlp_value

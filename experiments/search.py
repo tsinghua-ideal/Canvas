@@ -50,6 +50,7 @@ if __name__ == '__main__':
             canvas.replace(model, pack.module, args.device)
 
     # Search.
+    current_best_score = 0
     round_range = range(args.canvas_rounds) if args.canvas_rounds > 0 else itertools.count()
     logger.info(f'Start Canvas kernel search ({args.canvas_rounds if args.canvas_rounds else "infinite"} rounds)')
     for i in round_range:
@@ -118,6 +119,15 @@ if __name__ == '__main__':
                               search_mode=True)
             score = max([item['top1'] for item in eval_metrics])
             logger.info(f'Solution score: {score}')
+            if score > current_best_score:
+                current_best_score = score
+                logger.info(f'Current best score: {current_best_score}')
+                if args.canvas_weight_sharing:
+                    try:
+                        cpu_clone = deepcopy(model).cpu()
+                        logger.info(f'Weight successfully shared')
+                    except Exception:
+                        pass
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')

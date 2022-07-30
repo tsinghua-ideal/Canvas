@@ -515,7 +515,7 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                 ss << ", " << index + 1;
             ss << ").contiguous()";
         }
-        gen->Write() << "return "
+        gen->Write() << "return t_0 + " // residual connection.
                      << var_map[output->ins[0]]
                      << ss.str()
                      << ".view(self.n, self.c, self.h, self.w)"

@@ -180,8 +180,9 @@ def arg_parse():
 
     # Canvas preferences.
     parser.add_argument('--canvas-load-checkpoint', default='', type=str,
-                        help='Path to checkpoint file (after replacing the kernel, only for search, '
-                             'use `resume` for training)')
+                        help='Path to checkpoint file (after replacing the kernel)')
+    parser.add_argument('--canvas-weight-sharing', action='store_true',
+                        help='Enable weight sharing with the best model in the search')
     parser.add_argument('--canvas-rounds', default=0, type=int,
                         help='Search rounds for Canvas (only for search)')
     parser.add_argument('--canvas-seed', default='pure', type=str,

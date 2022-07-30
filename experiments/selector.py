@@ -2,7 +2,6 @@ import gc
 import itertools
 import torch
 import ptflops
-
 import canvas
 
 from copy import deepcopy
