@@ -126,8 +126,8 @@ if __name__ == '__main__':
                     try:
                         cpu_clone = deepcopy(model).cpu()
                         logger.info(f'Weight successfully shared')
-                    except Exception:
-                        pass
+                    except Exception as ex:
+                        logger.warning(f'Failed to make weight shared: {ex}')
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
