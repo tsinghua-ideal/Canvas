@@ -62,6 +62,32 @@ class Block(nn.Module):
         return x
 
 
+class ProjHead(nn.Module):
+    """ Image to Patch Embedding
+    """
+
+    def __init__(self, patch_size=3, stride=2, in_chans=3, embed_dim=768, act_layer=nn.GELU):
+        super().__init__()
+        self.proj = nn.Sequential(
+            nn.Conv2d(in_chans, embed_dim // 8, kernel_size=patch_size, stride=stride),
+            nn.BatchNorm2d(embed_dim // 8),
+            act_layer(),
+            nn.Conv2d(embed_dim // 8, embed_dim // 4, kernel_size=patch_size, stride=stride),
+            nn.BatchNorm2d(embed_dim // 4),
+            act_layer(),
+            nn.Conv2d(embed_dim // 4, embed_dim // 2, kernel_size=patch_size, stride=stride),
+            nn.BatchNorm2d(embed_dim // 2),
+            act_layer(),
+            nn.Conv2d(embed_dim // 2, embed_dim, kernel_size=patch_size, stride=stride),
+            nn.BatchNorm2d(embed_dim),
+        )
+
+    def forward(self, x):
+        x = self.proj(x)
+        _, _, H, W = x.shape
+        return x, H, W
+
+
 class OverlapPatchEmbed(nn.Module):
     """ Image to Patch Embedding
     """
@@ -95,10 +121,11 @@ class VAN(nn.Module):
         cur = 0
 
         for i in range(num_stages):
-            patch_embed = OverlapPatchEmbed(patch_size=7 if i == 0 else 3,
-                                            stride=4 if i == 0 else 2,
-                                            in_chans=in_chans if i == 0 else embed_dims[i - 1],
-                                            embed_dim=embed_dims[i])
+            if i == 0:
+                patch_embed = ProjHead(patch_size=3, stride=2, in_chans=in_chans, embed_dim=embed_dims[i])
+            else:
+                patch_embed = OverlapPatchEmbed(patch_size=3, stride=2,
+                                                in_chans=embed_dims[i - 1], embed_dim=embed_dims[i])
 
             block = nn.ModuleList([Block(
                 dim=embed_dims[i], mlp_ratio=mlp_ratios[i], drop=drop_rate, drop_path=dpr[cur + j])
@@ -111,7 +138,7 @@ class VAN(nn.Module):
             setattr(self, f"norm{i + 1}", norm)
 
         # classification head
-        self.head = nn.Linear(embed_dims[3], num_classes) if num_classes > 0 else nn.Identity()
+        self.head = nn.Linear(embed_dims[-1], num_classes) if num_classes > 0 else nn.Identity()
         self.apply(canvas.init_weights)
 
     def freeze_patch_emb(self):
@@ -186,11 +213,12 @@ def _conv_filter(state_dict, patch_size=16):
 
 # noinspection PyUnusedLocal
 @register_model
-def canvas_van_tiny(pretrained=False, **kwargs):
+def canvas_levit_tiny(pretrained=False, **kwargs):
     # noinspection PyTypeChecker
     model = VAN(
-        embed_dims=[32, 64, 160, 256], mlp_ratios=[8, 8, 4, 4],
-        norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[3, 3, 5, 2],
+        embed_dims=[128, 256, 384], mlp_ratios=[2, 2, 2],
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[2, 3, 4],
+        num_stages=3,
         **kwargs)
     model.default_cfg = _cfg()
     return model

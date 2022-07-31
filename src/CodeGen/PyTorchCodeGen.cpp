@@ -77,7 +77,7 @@ static constexpr const char* TorchStyleElementWiseFunctionSuffix(ElementWiseType
         case Abs:  return ")"; // NOLINT(bugprone-branch-clone)
         case Exp:  return ")";
         case Neg:  return "";
-        case Sin:  return " * 1.5707963)";
+        case Sin:  return " * (math.pi / 2))";
         case Sqrt: return "))";
         case Sqr:  return ", 2)";
     }
