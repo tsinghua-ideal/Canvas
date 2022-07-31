@@ -132,6 +132,8 @@ static std::string PyTorchBroadcastExpr(const std::string& lhs, const std::strin
     switch (broadcast->type) {
         case BMax:
             return "torch.maximum(" + lhs + ", " + rhs + ")";
+        case BMin:
+            return "torch.minimum(" + lhs + ", " + rhs + ")";
         default:
             return lhs + " " + broadcast->TypeToSign() + " " + rhs;
     }

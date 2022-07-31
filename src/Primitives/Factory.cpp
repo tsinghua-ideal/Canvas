@@ -317,9 +317,9 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
                                            const TensorSP& lhs, const TensorSP& rhs,
                                            const PrimitiveOptions& options) {
     // Element-wise broadcasting operations.
-    for (const auto& type: {BAdd, BSub, BMul, BMax}) {
+    for (const auto& type: {BAdd, BSub, BMul, BMax, BMin}) {
         // Pruning.
-        if (lhs == rhs and (type == BSub or type == BMax or type == BAdd))
+        if (lhs == rhs and (type == BSub or type == BMax or type == BAdd or type == BMin))
             continue;
         auto all_matches = BroadcastPrimitive::GetAllPossibleMatches(lhs, rhs, type, kBroadFactorLimit);
         if (not all_matches.empty())

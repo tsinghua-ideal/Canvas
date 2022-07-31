@@ -20,14 +20,14 @@ class Kernel_16331621907596408686(nn.Module):
         # UnfoldH_K3_D3: p_2
         pass
         # Convolution_3_3_2_2_DW0: p_3
-        self.p_3 = nn.Conv2d(self.c, self.c * 3, (3, 3), dilation=(2, 2), padding=(2, 2), groups=self.c, bias=False)
+        self.p_3 = nn.Conv2d(self.c, self.c * 3, (3, 3), dilation=(2, 2), padding=(2, 2), groups=8, bias=False)
         # BMul: p_4
         pass
         # Scale_0/1/C_1/0/H: p_5
         self.p_5_w = nn.Parameter(torch.ones((1, self.c, self.h, 1,)), requires_grad=True)
         nn.init.trunc_normal_(self.p_5_w, std=.02)
         # Convolution_3_1_3_1_DW1: p_6
-        self.p_6 = nn.Conv2d(self.c * 3, self.c * 3, (3, 1), dilation=(3, 1), padding=(3, 0), groups=self.c * 3, bias=False)
+        self.p_6 = nn.Conv2d(self.c * 3, self.c * 3, (3, 1), dilation=(3, 1), padding=(3, 0), groups=self.c, bias=False)
         # FC: p_7
         self.p_7 = nn.Conv2d(self.c * 3, self.c, 1, padding=0, groups=1, bias=False)
         # BSub: p_8

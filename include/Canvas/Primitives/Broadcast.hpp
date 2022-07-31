@@ -12,7 +12,8 @@ enum BroadcastType {
     BAdd,
     BMul,
     BSub,
-    BMax
+    BMax,
+    BMin
 };
 
 static constexpr const char* BroadcastTypeToName(BroadcastType type) {
@@ -21,6 +22,7 @@ static constexpr const char* BroadcastTypeToName(BroadcastType type) {
         case BMul: return "BMul";
         case BSub: return "BSub";
         case BMax: return "BMax";
+        case BMin: return "BMin";
     }
     return "";
 }
@@ -61,6 +63,7 @@ struct BroadcastPrimitive: Primitive {
             case BMul: return '*';
             case BSub: return '-';
             case BMax: Unreachable();
+            case BMin: Unreachable();
         }
         Unreachable();
     }
