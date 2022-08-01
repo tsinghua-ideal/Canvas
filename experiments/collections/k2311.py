@@ -25,7 +25,7 @@ class K2311(nn.Module):
                               groups=self.g)
         self.scale = nn.Parameter(torch.ones((1, self.g, self.c // self.g * self.kh * self.kw * self.c // self.g,)),
                                   requires_grad=True)
-        nn.init.trunc_normal_(self.scale, std=.02)
+        nn.init.trunc_normal_(self.scale, std=.1)
         self.unfold = partial(F.unfold, kernel_size=(self.kh, self.kw),
                               dilation=(self.dh, self.dw), padding=(self.ph, self.pw))
 
