@@ -11,8 +11,8 @@ class K2311(nn.Module):
         # Configurations
         super(K2311, self).__init__()
         self.n, self.c, self.h, self.w = None, c, h, w
-        self.g, self.kh, self.kw, self.dh, self.dw = 8, 3, 3, 3, 3
-        self.gkh, self.gkw = max(1, self.dh * 2 + 7), max(1, self.dw * 2 + 7)
+        self.g, self.kh, self.kw, self.dh, self.dw = 16, 5, 5, 3, 3
+        self.gkh, self.gkw = max(1, self.dh * 2 + 5), max(1, self.dw * 2 + 5)
         self.gph, self.gpw = (self.gkh - 1) // 2, (self.gkw - 1) // 2
         self.ph, self.pw = self.dh * ((self.kh - 1) // 2), self.dw * ((self.kw - 1) // 2)
         assert self.c % self.g == 0
@@ -25,7 +25,8 @@ class K2311(nn.Module):
                               groups=self.g)
         self.scale = nn.Parameter(torch.ones((1, self.g, self.c // self.g * self.kh * self.kw * self.c // self.g,)),
                                   requires_grad=True)
-        nn.init.trunc_normal_(self.scale, std=.1)
+        self.attn_proj = nn.Conv1d(self.c // self.g * self.kh * self.kw, self.c // self.g, kernel_size=1)
+        nn.init.trunc_normal_(self.scale, std=.02)
         self.unfold = partial(F.unfold, kernel_size=(self.kh, self.kw),
                               dilation=(self.dh, self.dw), padding=(self.ph, self.pw))
 
@@ -38,11 +39,9 @@ class K2311(nn.Module):
         attn = torch.bmm(unfolded, attn_rhs) / math.sqrt(self.h * self.w)
         attn = (attn.view(self.n, self.g, -1) * self.scale) \
             .view(self.n * self.g, self.c // self.g * self.kh * self.kw, self.c // self.g)
-        sin_unfold = self.unfold(torch.sin(x * (math.pi / 2))) \
-            .view(self.n * self.g, self.c // self.g, self.kh * self.kw, self.h * self.w)
-        proj_x = self.proj(x).view(self.n * self.g, self.c // self.g, 1, self.h * self.w)
-        proj_x = torch.maximum(proj_x, sin_unfold) \
-            .view(self.n * self.g, self.c // self.g * self.kh * self.kw, self.h * self.w)
-        # attn: (ng, ckk/g, c/g), proj_x: (ng, ckk/g, hw)
+        attn = self.attn_proj(attn)
+        sin = torch.sin(x * (math.pi / 2))
+        proj_x = torch.maximum(self.proj(x), sin).view(self.n * self.g, self.c // self.g, self.h * self.w)
+        # attn: (ng, c/g, c/g), proj_x: (ng, c/g, hw)
         return torch.bmm(attn.transpose(1, 2), proj_x).view(self.n, self.c, self.h, self.w) \
-            / math.sqrt(self.c // self.g * self.kh * self.kw)
+            / math.sqrt(self.c // self.g)

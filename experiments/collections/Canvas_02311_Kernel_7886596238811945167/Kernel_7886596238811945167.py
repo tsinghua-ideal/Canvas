@@ -1,6 +1,7 @@
 import math
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class Kernel_7886596238811945167(nn.Module):
@@ -12,7 +13,8 @@ class Kernel_7886596238811945167(nn.Module):
         # Kernels
         self.proj = nn.Sequential(
             nn.Conv2d(c, c, 5, padding=2, groups=c),
-            nn.Conv2d(c, c, 7, padding=9, groups=c, dilation=3)
+            nn.Conv2d(c, c, 7, padding=9, groups=c, dilation=3),
+            nn.Conv2d(c, c, 1)
         )
         # FC: p_3
         self.p_3 = nn.Conv2d(self.c, self.c, 1)
@@ -39,6 +41,6 @@ class Kernel_7886596238811945167(nn.Module):
         # BMM_1_0: p_8
         t_6_lhs = t_6.view(self.n, self.c, self.h * self.w).transpose(1, 2)
         t_7_rhs = t_7.view(self.n, self.c, self.c)
-        t_8 = torch.bmm(t_6_lhs, t_7_rhs).view(self.n, self.h, self.w, self.c) / math.sqrt(self.c)
+        t_8 = torch.bmm(t_6_lhs, t_7_rhs).view(self.n, self.h, self.w, self.c)
         # Output: p_9
         return t_8.permute(0, 3, 1, 2).contiguous().view(self.n, self.c, self.h, self.w)
