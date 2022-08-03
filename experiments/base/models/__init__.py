@@ -5,8 +5,7 @@ import timm
 from timm import data
 
 from .canvas_van import canvas_van_tiny
-from .canvas_levit import canvas_levit_tiny
-from .van import van_tiny, van_small, van_base, van_large
+from .former import canvas_former
 from ..log import get_logger
 
 

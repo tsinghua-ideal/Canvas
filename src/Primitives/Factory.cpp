@@ -162,6 +162,8 @@ void PrimitiveFactory::GetPrimitiveApplies(const GraphSP &graph,
 
     // Element-wise: no new variables, pruning: double abs/neg.
     for (const auto& type: {Abs, Exp, Neg, Sin, Sqrt, Sqr}) {
+        if (auto unfold = DynamicCast<UnfoldPrimitive>(t->producer))
+            continue;
         if (auto last_element_wise = DynamicCast<ElementWisePrimitive>(t->producer)) {
             // Double abs.
             if (type == Abs and last_element_wise->type == Abs)
