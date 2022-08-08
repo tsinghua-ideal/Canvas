@@ -1,0 +1,83 @@
+digraph OpGraph {
+    label = "OpGraph"
+    fontname = "Graphik";
+    subgraph tensors {
+        node [shape = circle, color = black, fontname = "Graphik"]
+        t_0; t_1; t_2; t_3; t_4; t_5; t_6; t_7; t_8; t_9; t_10; t_11; 
+    }
+    subgraph cluster_0 {
+        fontcolor = blue;
+        label = "0: Input\n[] => [T0]";
+        t_0 [label = "T0\n[C, H, W]"];
+    }
+    subgraph cluster_1 {
+        fontcolor = blue;
+        label = "1: FC\n[T0] => [T1]";
+        t_1 [label = "T1\n[C, H, W]"];
+    }
+    subgraph cluster_2 {
+        fontcolor = blue;
+        label = "2: UnfoldW_K7_D2\n[T0] => [T2]";
+        t_2 [label = "T2\n[C, 7, H, W]"];
+    }
+    subgraph cluster_3 {
+        fontcolor = blue;
+        label = "3: Softmax_0/1/C\n[T1] => [T3]";
+        t_3 [label = "T3\n[C, H, W]"];
+    }
+    subgraph cluster_4 {
+        fontcolor = blue;
+        label = "4: Shift_0/1/C_K2\n[T3] => [T4]";
+        t_4 [label = "T4\n[C, H, W]"];
+    }
+    subgraph cluster_5 {
+        fontcolor = blue;
+        label = "5: Neg\n[T1] => [T5]";
+        t_5 [label = "T5\n[C, H, W]"];
+    }
+    subgraph cluster_6 {
+        fontcolor = blue;
+        label = "6: Convolution_3x3_1x1_DW1\n[T0] => [T6]";
+        t_6 [label = "T6\n[C, H, W]"];
+    }
+    subgraph cluster_7 {
+        fontcolor = blue;
+        label = "7: Mix\n[T2] => [T7]";
+        t_7 [label = "T7\n[C, H, W]"];
+    }
+    subgraph cluster_8 {
+        fontcolor = blue;
+        label = "8: BMul\n[T7, T5] => [T8]";
+        t_8 [label = "T8\n[C, H, W]"];
+    }
+    subgraph cluster_9 {
+        fontcolor = blue;
+        label = "9: BSub\n[T6, T4] => [T9]";
+        t_9 [label = "T9\n[C, H, W]"];
+    }
+    subgraph cluster_10 {
+        fontcolor = blue;
+        label = "10: BAdd\n[T9, T8] => [T10]";
+        t_10 [label = "T10\n[C, H, W]"];
+    }
+    subgraph cluster_11 {
+        fontcolor = blue;
+        label = "11: Output\n[T10] => [T11]";
+        t_11 [label = "T11\n[C, H, W]"];
+    }
+    t_0 -> t_1;
+    t_0 -> t_2;
+    t_0 -> t_6;
+    t_1 -> t_3;
+    t_1 -> t_5;
+    t_2 -> t_7;
+    t_3 -> t_4;
+    t_4 -> t_9;
+    t_5 -> t_8;
+    t_6 -> t_9;
+    t_7 -> t_8;
+    t_8 -> t_10;
+    t_9 -> t_10;
+    t_10 -> t_11;
+}
+

@@ -1,0 +1,70 @@
+digraph OpGraph {
+    label = "OpGraph"
+    fontname = "Graphik";
+    subgraph tensors {
+        node [shape = circle, color = black, fontname = "Graphik"]
+        t_0; t_1; t_2; t_3; t_4; t_5; t_6; t_7; t_8; t_9; 
+    }
+    subgraph cluster_0 {
+        fontcolor = blue;
+        label = "0: Input\n[] => [T0]";
+        t_0 [label = "T0\n[C, H, W]"];
+    }
+    subgraph cluster_1 {
+        fontcolor = blue;
+        label = "1: UnfoldW_K3_D2\n[T0] => [T1]";
+        t_1 [label = "T1\n[C, 3, H, W]"];
+    }
+    subgraph cluster_2 {
+        fontcolor = blue;
+        label = "2: Group_0_C\n[T1] => [T2]";
+        t_2 [label = "T2\n[C, 3, H, W]"];
+    }
+    subgraph cluster_3 {
+        fontcolor = blue;
+        label = "3: Convolution_1x5_1x1_DW0\n[T0] => [T3]";
+        t_3 [label = "T3\n[C, H, W]"];
+    }
+    subgraph cluster_4 {
+        fontcolor = blue;
+        label = "4: UnfoldH_K3_D1\n[T2] => [T4]";
+        t_4 [label = "T4\n[C, 3, 3, H, W]"];
+    }
+    subgraph cluster_5 {
+        fontcolor = blue;
+        label = "5: Shift_1/1/W_K2\n[T4] => [T5]";
+        t_5 [label = "T5\n[C, 3, 3, H, W]"];
+    }
+    subgraph cluster_6 {
+        fontcolor = blue;
+        label = "6: BMax\n[T1, T5] => [T6]";
+        t_6 [label = "T6\n[C, 3, 3, H, W]"];
+    }
+    subgraph cluster_7 {
+        fontcolor = blue;
+        label = "7: FC\n[T6] => [T7]";
+        t_7 [label = "T7\n[C, H, W]"];
+    }
+    subgraph cluster_8 {
+        fontcolor = blue;
+        label = "8: BMul\n[T7, T3] => [T8]";
+        t_8 [label = "T8\n[C, H, W]"];
+    }
+    subgraph cluster_9 {
+        fontcolor = blue;
+        label = "9: Output\n[T8] => [T9]";
+        t_9 [label = "T9\n[C, H, W]"];
+    }
+    t_0 -> t_1;
+    t_0 -> t_3;
+    t_1 -> t_2;
+    t_1 -> t_6;
+    t_2 -> t_4;
+    t_3 -> t_8;
+    t_4 -> t_5;
+    t_5 -> t_6;
+    t_6 -> t_7;
+    t_7 -> t_8;
+    t_8 -> t_9;
+}
+

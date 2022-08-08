@@ -1,0 +1,154 @@
+digraph OpGraph {
+    label = "OpGraph"
+    fontname = "Graphik";
+    subgraph tensors {
+        node [shape = circle, color = black, fontname = "Graphik"]
+        t_0; t_1; t_2; t_3; t_4; t_5; t_6; t_7; t_8; t_9; t_10; t_11; t_12; t_13; t_14; t_15; t_16; t_17; t_18; t_19; t_20; t_21; t_22; 
+    }
+    subgraph cluster_0 {
+        fontcolor = blue;
+        label = "0: Input\n[] => [T0]";
+        t_0 [label = "T0\n[C, H, W]"];
+    }
+    subgraph cluster_1 {
+        fontcolor = blue;
+        label = "1: UnfoldW_K3_D3\n[T0] => [T1]";
+        t_1 [label = "T1\n[C, 3, H, W]"];
+    }
+    subgraph cluster_2 {
+        fontcolor = blue;
+        label = "2: Shift_1/0/H_K3\n[T0] => [T2]";
+        t_2 [label = "T2\n[C, H, W]"];
+    }
+    subgraph cluster_3 {
+        fontcolor = blue;
+        label = "3: Shift_1/0/H_K1\n[T1] => [T3]";
+        t_3 [label = "T3\n[C, 3, H, W]"];
+    }
+    subgraph cluster_4 {
+        fontcolor = blue;
+        label = "4: Fold_0/1/C_Avg\n[T3] => [T4]";
+        t_4 [label = "T4\n[3, H, W]"];
+    }
+    subgraph cluster_5 {
+        fontcolor = blue;
+        label = "5: Shift_1/1/W_K3\n[T2] => [T5]";
+        t_5 [label = "T5\n[C, H, W]"];
+    }
+    subgraph cluster_6 {
+        fontcolor = blue;
+        label = "6: Shift_1/0/H_K2\n[T4] => [T6]";
+        t_6 [label = "T6\n[3, H, W]"];
+    }
+    subgraph cluster_7 {
+        fontcolor = blue;
+        label = "7: Mix\n[T6] => [T7]";
+        t_7 [label = "T7\n[H]"];
+    }
+    subgraph cluster_8 {
+        fontcolor = blue;
+        label = "8: Scale_0/1/C_1/0/H\n[T5] => [T8]";
+        t_8 [label = "T8\n[C, H, W]"];
+    }
+    subgraph cluster_9 {
+        fontcolor = blue;
+        label = "9: BAdd\n[T0, T8] => [T9]";
+        t_9 [label = "T9\n[C, H, W]"];
+    }
+    subgraph cluster_10 {
+        fontcolor = blue;
+        label = "10: BSub\n[T8, T9] => [T10]";
+        t_10 [label = "T10\n[C, H, W]"];
+    }
+    subgraph cluster_11 {
+        fontcolor = blue;
+        label = "11: Convolution_1x3_1x2_DW0\n[T10] => [T11]";
+        t_11 [label = "T11\n[C, H, W]"];
+    }
+    subgraph cluster_12 {
+        fontcolor = blue;
+        label = "12: UnfoldH_K7_D2\n[T7] => [T12]";
+        t_12 [label = "T12\n[7, H]"];
+    }
+    subgraph cluster_13 {
+        fontcolor = blue;
+        label = "13: BMax\n[T11, T0] => [T13]";
+        t_13 [label = "T13\n[C, H, W]"];
+    }
+    subgraph cluster_14 {
+        fontcolor = blue;
+        label = "14: BMM_1_0\n[T0, T13] => [T14]";
+        t_14 [label = "T14\n[H, W, H, W]"];
+    }
+    subgraph cluster_15 {
+        fontcolor = blue;
+        label = "15: Abs\n[T12] => [T15]";
+        t_15 [label = "T15\n[7, H]"];
+    }
+    subgraph cluster_16 {
+        fontcolor = blue;
+        label = "16: BSub\n[T7, T14] => [T16]";
+        t_16 [label = "T16\n[H, W, H, W]"];
+    }
+    subgraph cluster_17 {
+        fontcolor = blue;
+        label = "17: Fold_1/0/H_Avg\n[T15] => [T17]";
+        t_17 [label = "T17\n[7]"];
+    }
+    subgraph cluster_18 {
+        fontcolor = blue;
+        label = "18: BSub\n[T17, T10] => [T18]";
+        t_18 [label = "T18\n[C, H, W]"];
+    }
+    subgraph cluster_19 {
+        fontcolor = blue;
+        label = "19: Scale_0/1/C\n[T18] => [T19]";
+        t_19 [label = "T19\n[C, H, W]"];
+    }
+    subgraph cluster_20 {
+        fontcolor = blue;
+        label = "20: BAdd\n[T7, T16] => [T20]";
+        t_20 [label = "T20\n[H, W, H, W]"];
+    }
+    subgraph cluster_21 {
+        fontcolor = blue;
+        label = "21: BMM_0_0\n[T19, T20] => [T21]";
+        t_21 [label = "T21\n[C, H, W]"];
+    }
+    subgraph cluster_22 {
+        fontcolor = blue;
+        label = "22: Output\n[T21] => [T22]";
+        t_22 [label = "T22\n[C, H, W]"];
+    }
+    t_0 -> t_1;
+    t_0 -> t_2;
+    t_0 -> t_9;
+    t_0 -> t_13;
+    t_0 -> t_14;
+    t_1 -> t_3;
+    t_2 -> t_5;
+    t_3 -> t_4;
+    t_4 -> t_6;
+    t_5 -> t_8;
+    t_6 -> t_7;
+    t_7 -> t_12;
+    t_7 -> t_16;
+    t_7 -> t_20;
+    t_8 -> t_9;
+    t_8 -> t_10;
+    t_9 -> t_10;
+    t_10 -> t_11;
+    t_10 -> t_18;
+    t_11 -> t_13;
+    t_12 -> t_15;
+    t_13 -> t_14;
+    t_14 -> t_16;
+    t_15 -> t_17;
+    t_16 -> t_20;
+    t_17 -> t_18;
+    t_18 -> t_19;
+    t_19 -> t_21;
+    t_20 -> t_21;
+    t_21 -> t_22;
+}
+
