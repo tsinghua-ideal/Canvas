@@ -17,8 +17,6 @@ class Kernel_9391337695165810855(nn.Module):
         pass
         # FC: p_1
         self.p_1 = nn.Conv2d(self.c, self.c, 1, padding=0, groups=1, bias=False)
-        # UnfoldW_K7_D2: p_2
-        pass
         # Softmax_0/1/C: p_3
         pass
         # Shift_0/1/C_K2: p_4
@@ -28,9 +26,7 @@ class Kernel_9391337695165810855(nn.Module):
         # Convolution_3x3_1x1_DW1: p_6
         self.p_6 = nn.Conv2d(self.c, self.c, (3, 3), dilation=(1, 1), padding=(1, 1), groups=self.c, bias=False)
         # Mix: p_7
-        self.p_7_w = nn.Parameter(torch.ones((self.c, 7, 1, self.c, )), requires_grad=True)
-        bound = math.sqrt(3.0 / (self.c * 7))
-        nn.init.uniform_(self.p_7_w, a=-bound, b=bound)
+        self.p_7 = nn.Conv2d(self.c, self.c, (3, 3), dilation=(1, 1), padding=(1, 1), groups=1, bias=False)
         # BMul: p_8
         pass
         # BSub: p_9
@@ -48,9 +44,6 @@ class Kernel_9391337695165810855(nn.Module):
         # FC: p_1
         t_1 = self.p_1(t_0)
         t_1 = t_1.view(self.n, self.c, self.h, self.w)
-        # UnfoldW_K7_D2: p_2
-        t_2 = F.unfold(t_0, (1, 7), dilation=(1, 2), padding=(0, 6))
-        t_2 = t_2.view(self.n, self.c, 7, self.h, self.w)
         # Softmax_0/1/C: p_3
         t_3 = F.softmax(t_1, dim=1)
         # Shift_0/1/C_K2: p_4
@@ -61,7 +54,7 @@ class Kernel_9391337695165810855(nn.Module):
         t_6 = self.p_6(t_0)
         t_6 = t_6.view(self.n, self.c, self.h, self.w)
         # Mix: p_7
-        t_7 = torch.einsum('abcde,bcfg->afgde', [t_2, self.p_7_w]).view(self.n, self.c, self.h, self.w).contiguous()
+        t_7 = self.p_7(t_0)
         # BMul: p_8
         t_8_lhs = t_7.view(self.n, 1, self.c, self.h, self.w)
         t_8_rhs = t_5.view(self.n, 1, self.c, self.h, self.w)

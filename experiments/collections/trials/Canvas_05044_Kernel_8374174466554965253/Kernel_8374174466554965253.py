@@ -35,7 +35,7 @@ class Kernel_8374174466554965253(nn.Module):
         self.p_9_w = nn.Parameter(torch.ones((1, self.c, self.c,)), requires_grad=True)
         nn.init.trunc_normal_(self.p_9_w, std=.02)
         # Scale_0/1/C_0/2/KH_1/0/H_1/1/W: p_10
-        self.p_10_w = nn.Parameter(torch.ones((1, self.c, 7, self.h, self.w,)), requires_grad=True)
+        self.p_10_w = nn.Parameter(torch.ones((1, self.c, 7, 1, 1,)), requires_grad=True)
         nn.init.trunc_normal_(self.p_10_w, std=.02)
         # Shift_1/1/W_K1: p_11
         self.p_11_1_1 = random.randint(-1, 1)
@@ -47,7 +47,7 @@ class Kernel_8374174466554965253(nn.Module):
         # BMM_1_0: p_14
         pass
         # FC: p_15
-        self.p_15 = nn.Conv2d(self.c * 7, self.c, 1, padding=0, groups=1, bias=False)
+        self.p_15 = nn.Conv2d(self.c * 7, self.c, 1, padding=0, groups=4, bias=False)
         # BAdd: p_16
         pass
         # Output: p_17

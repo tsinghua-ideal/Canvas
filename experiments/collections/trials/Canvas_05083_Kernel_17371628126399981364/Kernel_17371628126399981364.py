@@ -21,7 +21,7 @@ class Kernel_17371628126399981364(nn.Module):
         # BMM_0_1: p_2
         pass
         # Convolution_5x1_3x1_DW1: p_3
-        self.p_3 = nn.Conv2d(self.c, self.c, (5, 1), dilation=(3, 1), padding=(6, 0), groups=self.c, bias=False)
+        self.p_3 = nn.Conv2d(self.c, self.c, (5, 5), dilation=(1, 1), padding=(2, 2), groups=self.c, bias=False)
         # Convolution_3x3_2x2_DW1: p_4
         self.p_4 = nn.Conv2d(self.c, self.c, (3, 3), dilation=(2, 2), padding=(2, 2), groups=self.c, bias=False)
         # Scale_0/1/C_1/1/C: p_5

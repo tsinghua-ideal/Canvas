@@ -113,7 +113,7 @@ def canvas_former(pretrained=False, **kwargs):
     # noinspection PyTypeChecker
     model = Former(
         embed_dims=[32, 64, 160, 256],
-        norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[4, 4, 8, 4],
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[5, 5, 5, 5],
         **kwargs)
     model.default_cfg = _cfg()
     return model

@@ -193,7 +193,7 @@ def arg_parse():
                         help='Canvas logging directory')
     parser.add_argument('--canvas-oss-bucket', default='', type=str,
                         help='Log into OSS buckets')
-    parser.add_argument('--canvas-bmm-pct', default=0.0, type=float,
+    parser.add_argument('--canvas-bmm-pct', default=0.1, type=float,
                         help='Possibility to forcibly contain BMM (attention-like, only for search)')
     parser.add_argument('--canvas-proxy-root', default='', metavar='DIR', type=str,
                         help='Path to proxy dataset (only for search)')

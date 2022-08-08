@@ -15,8 +15,6 @@ class Kernel_15812022909139887089(nn.Module):
         # Kernels
         # Input: p_0
         pass
-        # UnfoldHW_K3_D3: p_1
-        pass
         # Scale_0/1/C_1/0/H_1/1/W: p_2
         self.p_2_w = nn.Parameter(torch.ones((1, self.c, self.h, self.w,)), requires_grad=True)
         nn.init.trunc_normal_(self.p_2_w, std=.02)
@@ -30,7 +28,7 @@ class Kernel_15812022909139887089(nn.Module):
         # FC: p_6
         self.p_6 = nn.Conv2d(self.c, self.c // 8, 1, padding=0, groups=1, bias=False)
         # FC: p_7
-        self.p_7 = nn.Conv2d(self.c * 9, self.c, 1, padding=0, groups=1, bias=False)
+        self.p_7 = nn.Conv2d(self.c, self.c, 3, dilation=3, padding=3, groups=2, bias=False)
         # BMM_0_1: p_8
         pass
         # Scale_0/1/C_1/0/H_1/1/W: p_9
@@ -43,7 +41,7 @@ class Kernel_15812022909139887089(nn.Module):
         bound = math.sqrt(3.0 / (self.c // 8))
         nn.init.uniform_(self.p_11_w, a=-bound, b=bound)
         # Convolution_3x1_2x1_DW1: p_12
-        self.p_12 = nn.Conv2d(self.c, self.c, (3, 1), dilation=(2, 1), padding=(2, 0), groups=self.c, bias=False)
+        self.p_12 = nn.Conv2d(self.c, self.c, (3, 3), dilation=(2, 2), padding=(2, 2), groups=self.c, bias=False)
         # BSub: p_13
         pass
         # Shift_1/0/H_K1: p_14
@@ -72,9 +70,6 @@ class Kernel_15812022909139887089(nn.Module):
         t_0 = x
         self.n = t_0.size(0)
         assert (self.n, self.c, self.h, self.w) == tuple(t_0.size())
-        # UnfoldHW_K3_D3: p_1
-        t_1 = F.unfold(t_0, (3, 3), dilation=(3, 3), padding=(3, 3))
-        t_1 = t_1.view(self.n, self.c, 3, 3, self.h, self.w)
         # Scale_0/1/C_1/0/H_1/1/W: p_2
         t_2 = self.p_2_w * t_0
         # BMul: p_3
@@ -88,9 +83,7 @@ class Kernel_15812022909139887089(nn.Module):
         t_6 = self.p_6(t_3)
         t_6 = t_6.view(self.n, self.c // 8, self.h, self.w)
         # FC: p_7
-        t_7 = t_1.view(self.n, self.c * 9, self.h, self.w)
-        t_7 = self.p_7(t_7)
-        t_7 = t_7.view(self.n, self.c, self.h, self.w)
+        t_7 = self.p_7(t_0)
         # BMM_0_1: p_8
         t_5_lhs = t_5.view(self.n, self.c, self.h * self.w)        
         t_3_rhs = t_3.view(self.n, self.c, self.h * self.w).transpose(1, 2)        

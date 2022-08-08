@@ -16,7 +16,7 @@ class Kernel_5552027089989569678(nn.Module):
         # Input: p_0
         pass
         # Convolution_5_1_1_1_DW1: p_1
-        self.p_1 = nn.Conv2d(self.c, self.c, (5, 1), dilation=(1, 1), padding=(2, 0), groups=self.c, bias=False)
+        self.p_1 = nn.Conv2d(self.c, self.c, (5, 5), dilation=(1, 1), padding=(2, 2), groups=self.c, bias=False)
         # BMM_0_1: p_2
         pass
         # UnfoldH_K7_D3: p_3
@@ -24,14 +24,14 @@ class Kernel_5552027089989569678(nn.Module):
         # BAdd: p_4
         pass
         # Scale_0/1/C_0/2/KH_1/0/H_1/1/W: p_5
-        self.p_5_w = nn.Parameter(torch.ones((1, self.c, 7, self.h, self.w,)), requires_grad=True)
+        self.p_5_w = nn.Parameter(torch.ones((1, self.c, 7, 1, 1,)), requires_grad=True)
         nn.init.trunc_normal_(self.p_5_w, std=.02)
         # FC: p_6
-        self.p_6 = nn.Conv2d(self.c * 7, self.c, 1, padding=0, groups=1, bias=False)
+        self.p_6 = nn.Conv2d(self.c * 7, self.c, 1, padding=0, groups=2, bias=False)
         # GeLU: p_7
         pass
         # Convolution_1_7_1_3_DW1: p_8
-        self.p_8 = nn.Conv2d(self.c, self.c, (1, 7), dilation=(1, 3), padding=(0, 9), groups=self.c, bias=False)
+        self.p_8 = nn.Conv2d(self.c, self.c, (7, 7), dilation=(3, 3), padding=(9, 9), groups=self.c, bias=False)
         # BMM_1_0: p_9
         pass
         # Output: p_10

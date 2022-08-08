@@ -17,8 +17,6 @@ class Kernel_10494947694770001583(nn.Module):
         pass
         # Fold_1/1/W_Max: p_1
         pass
-        # UnfoldHW_K5_D3: p_2
-        pass
         # ReLU: p_3
         pass
         # TanH: p_4
@@ -29,7 +27,7 @@ class Kernel_10494947694770001583(nn.Module):
         self.p_6_w = nn.Parameter(torch.ones((self.c, 1, )), requires_grad=True)
         nn.init.trunc_normal_(self.p_6_w, std=.1)
         # FC: p_7
-        self.p_7 = nn.Conv2d(self.c * 25, self.c, 1, padding=0, groups=1, bias=False)
+        self.p_7 = nn.Conv2d(self.c, self.c, (3, 3), padding=1, groups=2, bias=False)
         # BMul: p_8
         pass
         # Softmax_1/1/W: p_9
@@ -50,9 +48,6 @@ class Kernel_10494947694770001583(nn.Module):
         assert (self.n, self.c, self.h, self.w) == tuple(t_0.size())
         # Fold_1/1/W_Max: p_1
         t_1 = t_0.max(3)[0]
-        # UnfoldHW_K5_D3: p_2
-        t_2 = F.unfold(t_0, (5, 5), dilation=(3, 3), padding=(6, 6))
-        t_2 = t_2.view(self.n, self.c, 5, 5, self.h, self.w)
         # ReLU: p_3
         t_3 = torch.relu(t_0)
         # TanH: p_4
@@ -62,9 +57,7 @@ class Kernel_10494947694770001583(nn.Module):
         # Mix: p_6
         t_6 = torch.einsum('abcd,be->aecd', [t_4, self.p_6_w]).view(self.n, self.h, self.w).contiguous()
         # FC: p_7
-        t_7 = t_2.view(self.n, self.c * 25, self.h, self.w)
-        t_7 = self.p_7(t_7)
-        t_7 = t_7.view(self.n, self.c, self.h, self.w)
+        t_7 = self.p_7(t_0)
         # BMul: p_8
         t_8 = t_0 * t_7
         # Softmax_1/1/W: p_9

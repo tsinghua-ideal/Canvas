@@ -18,10 +18,8 @@ class Kernel_17611448876263927411(nn.Module):
         # Mix: p_1
         self.p_1_w = nn.Parameter(torch.ones((self.h, self.w, self.c, 1, )), requires_grad=True)
         nn.init.trunc_normal_(self.p_1_w, std=.1)
-        # UnfoldW_K7_D3: p_2
-        pass
         # FC: p_3
-        self.p_3 = nn.Conv2d(self.c * 7, self.c, 1, padding=0, groups=1, bias=False)
+        self.p_3 = nn.Conv2d(self.c, self.c, 3, padding=1, groups=2, bias=False)
         # Scale_0/1/C_1/0/H: p_4
         self.p_4_w = nn.Parameter(torch.ones((1, self.c, self.c,)), requires_grad=True)
         nn.init.trunc_normal_(self.p_4_w, std=.1)
@@ -44,13 +42,8 @@ class Kernel_17611448876263927411(nn.Module):
         assert (self.n, self.c, self.h, self.w) == tuple(t_0.size())
         # Mix: p_1
         t_1 = torch.einsum('abcd,cdef->abef', [t_0, self.p_1_w]).view(self.n, self.c, self.c).contiguous()
-        # UnfoldW_K7_D3: p_2
-        t_2 = F.unfold(t_0, (1, 7), dilation=(1, 3), padding=(0, 9))
-        t_2 = t_2.view(self.n, self.c, 7, self.h, self.w)
         # FC: p_3
-        t_3 = t_2.view(self.n, self.c * 7, self.h, self.w)
-        t_3 = self.p_3(t_3)
-        t_3 = t_3.view(self.n, self.c, self.h, self.w)
+        t_3 = self.p_3(t_0)
         # Scale_0/1/C_1/0/H: p_4
         t_4 = self.p_4_w * t_1
         # Mix: p_5

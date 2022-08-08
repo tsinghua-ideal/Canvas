@@ -30,14 +30,8 @@ class Kernel_6199962355332830965(nn.Module):
         self.p_6 = nn.Conv2d(self.c, self.c, 1, padding=0, groups=1, bias=False)
         # BMM_1_0: p_7
         pass
-        # Convolution_1x5_1x3_DW0: p_8
-        self.p_8 = nn.Conv2d(1, self.c // 2, (1, 5), dilation=(1, 3), padding=(0, 6), groups=1, bias=False)
-        # UnfoldH_K3_D2: p_9
-        pass
-        # FC: p_10
-        self.p_10 = nn.Conv2d(self.c * 3 // 2, self.c, 1, padding=0, groups=1, bias=False)
-        # Shift_0/1/C_K3: p_11
-        self.p_11_0_1 = random.randint(-3, 3)
+        # Convolution_5x5_1x1_DW0: p_8
+        self.p_8 = nn.Conv2d(1, self.c, (5, 5), dilation=(1, 1), padding=(2, 2), groups=1, bias=False)
         # BMax: p_12
         pass
         # BMM_1_1: p_13
@@ -70,18 +64,8 @@ class Kernel_6199962355332830965(nn.Module):
         # Convolution_1x5_1x3_DW0: p_8
         t_8 = t_1.view(self.n, 1, self.h, self.w)
         t_8 = self.p_8(t_8)
-        t_8 = t_8.view(self.n, self.c // 2, self.h, self.w)
-        # UnfoldH_K3_D2: p_9
-        t_9 = F.unfold(t_8, (3, 1), dilation=(2, 1), padding=(2, 0))
-        t_9 = t_9.view(self.n, self.c // 2, 3, self.h, self.w)
-        # FC: p_10
-        t_10 = t_9.view(self.n, self.c * 3 // 2, self.h, self.w)
-        t_10 = self.p_10(t_10)
-        t_10 = t_10.view(self.n, self.c, self.h, self.w)
-        # Shift_0/1/C_K3: p_11
-        t_11 = torch.roll(t_10, self.p_11_0_1, 1)
         # BMax: p_12
-        t_12 = torch.maximum(t_0, t_11)
+        t_12 = torch.maximum(t_0, t_8)
         # BMM_1_1: p_13
         t_7_lhs = t_7.view(self.n, self.h * self.w, self.h * self.w).transpose(1, 2)        
         t_12_rhs = t_12.view(self.n, self.c, self.h * self.w).transpose(1, 2)        

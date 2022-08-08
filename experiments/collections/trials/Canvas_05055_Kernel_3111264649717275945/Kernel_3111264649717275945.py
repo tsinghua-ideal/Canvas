@@ -23,7 +23,7 @@ class Kernel_3111264649717275945(nn.Module):
         self.p_3_w = nn.Parameter(torch.ones((7, self.c, )), requires_grad=True)
         nn.init.trunc_normal_(self.p_3_w, std=.1)
         # Convolution_3x1_1x1_DW1: p_4
-        self.p_4 = nn.Conv2d(self.c, self.c, (3, 1), dilation=(1, 1), padding=(1, 0), groups=self.c, bias=False)
+        self.p_4 = nn.Conv2d(self.c, self.c, (3, 3), dilation=(1, 1), padding=(1, 1), groups=self.c, bias=False)
         # Shift_1/1/W_K1: p_5
         self.p_5_1_1 = random.randint(-1, 1)
         # Fold_1/0/H_Max: p_6
