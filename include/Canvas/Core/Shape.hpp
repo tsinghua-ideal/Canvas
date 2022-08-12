@@ -167,7 +167,9 @@ struct SpatialShape: MetaShape {
 
 struct Shape {
     struct ShapeSpecs {
+        static constexpr size_t kPredefinedDataSize = 4;
         static constexpr size_t kPredefinedMaxBatchSize = 128;
+        static constexpr size_t kMaxTensorSize = 1024 * 1024 * 1024; // 1 GiB
 
         std::vector<size_t> dims;
 
@@ -182,7 +184,7 @@ struct Shape {
                 if (dim == 0)
                     return false;
             }
-            return pi * kPredefinedMaxBatchSize <= std::numeric_limits<int>::max();
+            return pi * kPredefinedMaxBatchSize * kPredefinedDataSize <= kMaxTensorSize;
         }
     };
 
