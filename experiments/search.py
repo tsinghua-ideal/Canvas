@@ -91,7 +91,7 @@ if __name__ == '__main__':
                 _, proxy_eval_metrics = \
                     trainer.train(args, model=model,
                                   train_loader=proxy_train_loader, eval_loader=proxy_eval_loader,
-                                  search_mode=True)
+                                  search_mode=True, proxy_mode=True)
                 assert len(proxy_eval_metrics) > 0
                 best_epoch = 0
                 for e in range(1, len(proxy_eval_metrics)):
@@ -131,8 +131,6 @@ if __name__ == '__main__':
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
-            if 'NaN' in exception_info:
-                logger.warning('Restoring to best model parameters')
 
         # Save into logging directory.
         extra = {'proxy_score': proxy_score, 'g_macs': g_macs, 'm_params': m_params}

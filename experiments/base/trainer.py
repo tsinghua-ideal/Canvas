@@ -17,7 +17,8 @@ from . import log, loss, optim, sche
 
 def train_one_epoch(args, epoch, model, train_loader,
                     loss_func, optimizer, lr_scheduler,
-                    amp_autocast, loss_scaler, logger):
+                    amp_autocast, loss_scaler, logger,
+                    pruning_milestones):
     # Second order optimizer.
     second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
 
@@ -98,6 +99,10 @@ def train_one_epoch(args, epoch, model, train_loader,
                         rate_avg=image.size(0) * args.world_size / batch_time_m.avg,
                         lr=lr,
                         data_time=data_time_m))
+                progress = '{:.0f}'.format(100. * batch_idx / last_idx)
+                if pruning_milestones and progress in pruning_milestones and \
+                        losses_m.avg > pruning_milestones[progress]:
+                    raise RuntimeError(f'Pruned by milestone settings at progress {progress}%')
 
             if math.isnan(losses_m.avg):
                 break
@@ -174,7 +179,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                         ('top5', top5_m.avg), ('kernel_scales', kernel_scales)])
 
 
-def train(args, model, train_loader, eval_loader, search_mode: bool = False):
+def train(args, model, train_loader, eval_loader, search_mode: bool = False, proxy_mode: bool = False):
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
 
@@ -251,9 +256,17 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False):
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
 
+        # Pruner.
+        pruning_milestones = None
+        if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
+            with open(args.canvas_first_epoch_pruning_milestone) as f:
+                pruning_milestones = json.load(f)
+            logger.info(f'Milestones loaded: {pruning_milestones}')
+
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
-                                        optimizer, lr_scheduler, amp_autocast, loss_scaler, logger)
+                                        optimizer, lr_scheduler, amp_autocast, loss_scaler, logger,
+                                        pruning_milestones=pruning_milestones)
         all_train_metrics.append(train_metrics)
 
         # Check NaN errors.

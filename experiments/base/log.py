@@ -36,7 +36,8 @@ def save(args, kernel_pack, train_metrics, eval_metrics, extra):
             assert os.path.isdir(args.canvas_log_dir), 'Canvas logging path must be a directory'
         if 'exception' in extra:
             exception_info = extra['exception']
-            if 'memory' in exception_info or 'NaN' in exception_info:  # Do not record these types.
+            if 'memory' in exception_info or 'NaN' in exception_info or 'Pruned' in exception_info:
+                # Do not record these types.
                 return
             else:
                 error_type = 'Error'

@@ -189,6 +189,8 @@ def arg_parse():
                         help='Canvas seed settings (one of "global" and "pure"), '
                              '"global" means same with training, "pure" means purely random '
                              '(only for search)')
+    parser.add_argument('--canvas-first-epoch-pruning-milestone', default='', type=str,
+                        help='First epoch milestone pruning')
     parser.add_argument('--canvas-log-dir', default='', type=str,
                         help='Canvas logging directory')
     parser.add_argument('--canvas-oss-bucket', default='', type=str,
