@@ -1,5 +1,5 @@
 #include <ice-cream.hpp>
-#include <boost/range/adaptor/reversed.hpp>
+#include <thread>
 
 #include "Canvas/Search/RandomSample.hpp"
 #include "Canvas/Search/ReceptiveAnalyzer.hpp"
@@ -14,8 +14,6 @@
 
 
 namespace canvas {
-
-namespace ba = boost::adaptors;
 
 Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& options) {
     // Random graph settings.
@@ -288,20 +286,47 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 Solution RandomSample(const NetSpecsSP& net_specs, const SampleOptions& options) {
     bool force_bmm = MakeChoice(options.force_bmm_possibility);
     auto start_time_point = std::chrono::system_clock::now();
-    int times = 0;
-    while (true) {
-        ++ times;
-        auto solution = TryRandomSample(net_specs, options);
-        if (not solution.Empty()) {
-            if ((not force_bmm) or solution.graph->PrimitiveCount<MatrixMultiplicationPrimitive>() > 0)
-                return solution;
-        }
 
-        auto current_time_point = std::chrono::system_clock::now();
-        if (options.timeout != std::chrono::seconds(0) and current_time_point - start_time_point > options.timeout)
-            throw TimeoutException(options.timeout);
-    }
-    Unreachable();
+    Solution final_solution;
+    std::mutex lock;
+    auto task = [&]() {
+        while (true) {
+            auto solution = TryRandomSample(net_specs, options);
+            if (not solution.Empty()) {
+                if ((not force_bmm) or solution.graph->PrimitiveCount<MatrixMultiplicationPrimitive>() > 0) {
+                    // An available solution.
+                    lock.lock();
+                    if (final_solution.Empty())
+                        final_solution = solution;
+                    lock.unlock();
+                    return;
+                }
+            }
+
+            // Check current solution.
+            if (not final_solution.Empty())
+                return;
+
+            // Check timeout.
+            auto current_time_point = std::chrono::system_clock::now();
+            if (options.timeout != std::chrono::seconds(0) and current_time_point - start_time_point > options.timeout)
+                return;
+        }
+    };
+
+    // Span workers.
+    assert(options.workers > 0);
+    std::vector<std::thread> workers;
+    for (int i = 0; i < options.workers; ++ i)
+        workers.emplace_back(task);
+    for (auto& worker: workers)
+        worker.join();
+
+    // Check timeout.
+    if (final_solution.Empty())
+        throw TimeoutException(options.timeout);
+
+    return final_solution;
 }
 
 } // namespace canvas

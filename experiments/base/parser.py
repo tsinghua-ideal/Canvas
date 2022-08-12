@@ -215,6 +215,8 @@ def arg_parse():
                         help='Minimum receptive size (only for search)')
     parser.add_argument('--canvas-min-proxy-kernel-scale', default=0.2, type=float,
                         help='Minimum kernel scale (geometric mean, only for search)')
+    parser.add_argument('--canvas-sampling-workers', default=10, type=int,
+                        help='Workers to use for sampling (only for search)')
     parser.add_argument('--canvas-proxy-kernel-scale-limit', default=0.3, type=float,
                         help='Minimum/maximum kernel scale (geometric mean, only for search)')
     parser.add_argument('--canvas-selector-address', default='http://43.138.119.173:8000', type=str,
