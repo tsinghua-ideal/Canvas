@@ -1,0 +1,78 @@
+digraph OpGraph {
+    label = "OpGraph"
+    fontname = "Graphik";
+    subgraph tensors {
+        node [shape = circle, color = black, fontname = "Graphik"]
+        t_0; t_1; t_2; t_3; t_4; t_5; t_6; t_7; t_8; t_9; t_10; 
+    }
+    subgraph cluster_0 {
+        fontcolor = blue;
+        label = "0: Input\n[] => [T0]";
+        t_0 [label = "T0\n[C, H, W]"];
+    }
+    subgraph cluster_1 {
+        fontcolor = blue;
+        label = "1: UnfoldH_K7_D1\n[T0] => [T1]";
+        t_1 [label = "T1\n[C, 7, H, W]"];
+    }
+    subgraph cluster_2 {
+        fontcolor = blue;
+        label = "2: FC\n[T1] => [T2]";
+        t_2 [label = "T2\n[C, H, W]"];
+    }
+    subgraph cluster_3 {
+        fontcolor = blue;
+        label = "3: Scale_1/1/W\n[T2] => [T3]";
+        t_3 [label = "T3\n[C, H, W]"];
+    }
+    subgraph cluster_4 {
+        fontcolor = blue;
+        label = "4: BMul\n[T0, T2] => [T4]";
+        t_4 [label = "T4\n[C, H, W]"];
+    }
+    subgraph cluster_5 {
+        fontcolor = blue;
+        label = "5: BMax\n[T3, T2] => [T5]";
+        t_5 [label = "T5\n[C, H, W]"];
+    }
+    subgraph cluster_6 {
+        fontcolor = blue;
+        label = "6: Scale_0/1/C\n[T2] => [T6]";
+        t_6 [label = "T6\n[C, H, W]"];
+    }
+    subgraph cluster_7 {
+        fontcolor = blue;
+        label = "7: Shift_1/0/H_K1\n[T4] => [T7]";
+        t_7 [label = "T7\n[C, H, W]"];
+    }
+    subgraph cluster_8 {
+        fontcolor = blue;
+        label = "8: BMul\n[T6, T5] => [T8]";
+        t_8 [label = "T8\n[C, H, W]"];
+    }
+    subgraph cluster_9 {
+        fontcolor = blue;
+        label = "9: BMax\n[T7, T8] => [T9]";
+        t_9 [label = "T9\n[C, H, W]"];
+    }
+    subgraph cluster_10 {
+        fontcolor = blue;
+        label = "10: Output\n[T9] => [T10]";
+        t_10 [label = "T10\n[C, H, W]"];
+    }
+    t_0 -> t_1;
+    t_0 -> t_4;
+    t_1 -> t_2;
+    t_2 -> t_3;
+    t_2 -> t_4;
+    t_2 -> t_5;
+    t_2 -> t_6;
+    t_3 -> t_5;
+    t_4 -> t_7;
+    t_5 -> t_8;
+    t_6 -> t_8;
+    t_7 -> t_9;
+    t_8 -> t_9;
+    t_9 -> t_10;
+}
+
