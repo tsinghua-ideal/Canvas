@@ -5,7 +5,6 @@ import timm
 from timm import data
 
 from .canvas_van import canvas_van_tiny
-from .former import canvas_former
 from ..log import get_logger
 
 
