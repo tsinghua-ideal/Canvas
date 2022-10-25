@@ -56,15 +56,15 @@ if __name__ == '__main__':
                           train_loader=train_loader, eval_loader=eval_loader,
                           search_mode=True)
         score = max([item['top1'] for item in eval_metrics])
-        if args.rank == 0:
+        if args.local_rank == 0:
             logger.info(f'Solution score: {score}')
         if score > best_score:
             best_score = score
-            if args.rank == 0:
-                logger.info(f'Best score: {best_score}')
+        if args.local_rank == 0:
+            logger.info(f'Best score: {best_score}')
 
         # Barrier for the next and move results into another directory.
-        if args.rank == 0:
+        if args.local_rank == 0 and args.canvas_selector_save_dir:
             logger.info(f'Moving {kernel_path} into {args.canvas_selector_save_dir}')
             # TODO: move directory.
         dist.barrier()

@@ -249,6 +249,14 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         with open(os.path.join(output_dir, 'args.json'), 'w') as file:
             json.dump(vars(args), fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
 
+    # Pruning after epochs.
+    overall_pruning_milestones = None
+    if args.canvas_epoch_pruning_milestone:
+        with open(args.canvas_epoch_pruning_milestone) as f:
+            overall_pruning_milestones = json.load(f)
+        if args.local_rank == 0:
+            logger.info(f'Milestones (overall epochs) loaded: {overall_pruning_milestones}')
+
     # Iterate over epochs.
     all_train_metrics, all_eval_metrics = [], []
     for epoch in range(start_epoch, sched_epochs):
@@ -256,16 +264,17 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
             train_loader.sampler.set_epoch(epoch)
 
         # Pruner.
-        pruning_milestones = None
+        in_epoch_pruning_milestones = dict()
         if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
             with open(args.canvas_first_epoch_pruning_milestone) as f:
-                pruning_milestones = json.load(f)
-            logger.info(f'Milestones (first-epoch loss) loaded: {pruning_milestones}')
+                in_epoch_pruning_milestones = json.load(f)
+            if args.local_rank == 0:
+                logger.info(f'Milestones (first-epoch loss) loaded: {in_epoch_pruning_milestones}')
 
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
                                         optimizer, lr_scheduler, amp_autocast, loss_scaler, logger,
-                                        pruning_milestones=pruning_milestones)
+                                        pruning_milestones=in_epoch_pruning_milestones)
         all_train_metrics.append(train_metrics)
 
         # Check NaN errors.
@@ -292,17 +301,27 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
 
         # Summary and save checkpoint.
         if output_dir is not None:
-            logger.info('Updating summary ...')
+            if args.local_rank == 0:
+                logger.info('Updating summary ...')
             update_summary(
                 epoch, train_metrics, eval_metrics,
                 os.path.join(output_dir, 'summary.csv'),
                 write_header=best_metric is None)
 
         if saver is not None:
-            logger.info('Saving checkpoint ...')
+            if args.local_rank == 0:
+                logger.info('Saving checkpoint ...')
             best_metric, best_epoch = saver.save_checkpoint(epoch, metric=eval_metrics[args.eval_metric])
 
+        # Pruning by epoch accuracy.
+        if f'{epoch}' in overall_pruning_milestones and overall_pruning_milestones[f'{epoch}'] > eval_metrics['top1']:
+            if args.local_rank == 0:
+                logger.info(f'Early pruned '
+                            f'({eval_metrics["top1"]} < {overall_pruning_milestones[f"{epoch}"]}) at epoch {epoch}')
+            break
+
     if best_metric is not None:
-        logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
+        if args.local_rank == 0:
+            logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
 
     return all_train_metrics, all_eval_metrics

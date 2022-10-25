@@ -191,6 +191,8 @@ def arg_parse():
                              '(only for search)')
     parser.add_argument('--canvas-first-epoch-pruning-milestone', default='', type=str,
                         help='First epoch milestone pruning')
+    parser.add_argument('--canvas-epoch-pruning-milestone', default='', type=str,
+                        help='Epoch accuracy milestone pruning')
     parser.add_argument('--canvas-log-dir', default='', type=str,
                         help='Canvas logging directory')
     parser.add_argument('--canvas-oss-bucket', default='', type=str,
