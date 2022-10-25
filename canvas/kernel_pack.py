@@ -25,7 +25,7 @@ def load_from_cache_dir(name: str):
     if name not in cached_torch_kernels:
         cached_torch_modules[name] = importlib.import_module('{}.{}'.format(cache_dir_name, name))
     else:
-        importlib.reload(cached_torch_modules[name])
+        cached_torch_modules[name] = importlib.reload(cached_torch_modules[name])
     assert name in cached_torch_modules
     cached_torch_kernels[name] = cached_torch_modules[name].__dict__[name]
     return cached_torch_kernels[name]
