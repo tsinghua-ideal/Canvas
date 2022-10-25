@@ -1,5 +1,7 @@
 import json
+import math
 import os
+import shutil
 import torch
 import torch.distributed as dist
 
@@ -65,8 +67,16 @@ if __name__ == '__main__':
 
         # Barrier for the next and move results into another directory.
         if args.local_rank == 0 and args.canvas_selector_save_dir:
-            logger.info(f'Moving {kernel_path} into {args.canvas_selector_save_dir}')
-            # TODO: move directory.
+            logger.info('Writing logs ...')
+            _, s, k, h = kernel_path.split('/')[-1].split('_')
+            with open(os.path.join(kernel_path, f'{k}_{h}_dist.json'), 'w') as file:
+                json.dump({'args': vars(args), 'train_metrics': train_metrics, 'eval_metrics': eval_metrics},
+                          fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
+            score = math.floor(score * 100)
+            score_str = ('0' * max(0, 5 - len(f'{score}'))) + f'{score}'
+            new_path = os.path.join(args.canvas_selector_save_dir, f'Canvas_{score_str}_Kernel_{h}')
+            logger.info(f'Moving {kernel_path} into {new_path} ...')
+            shutil.move(kernel_path, new_path)
         dist.barrier()
 
     # Exit.
