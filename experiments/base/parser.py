@@ -221,6 +221,9 @@ def arg_parse():
                         help='Minimum/maximum kernel scale (geometric mean, only for search)')
     parser.add_argument('--canvas-selector-address', default='http://43.138.119.173:8000', type=str,
                         help='Selector server address')
+    parser.add_argument('--canvas-selector-max-params', default=6, help='Maximum model size')
+    parser.add_argument('--canvas-selector-dir', default='', help='Selector working directory')
+    parser.add_argument('--canvas-selector-save-dir', default='', help='Selector saving directory')
 
     # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()

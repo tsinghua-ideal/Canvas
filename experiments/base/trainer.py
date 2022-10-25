@@ -224,7 +224,6 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
 
     # Distributed training.
     if args.distributed:
-        assert not search_mode, 'Search mode does not support distributed training'
         if args.local_rank == 0:
             logger.info("Using native Torch DistributedDataParallel.")
         if args.apex_amp:
@@ -261,7 +260,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
             with open(args.canvas_first_epoch_pruning_milestone) as f:
                 pruning_milestones = json.load(f)
-            logger.info(f'Milestones loaded: {pruning_milestones}')
+            logger.info(f'Milestones (first-epoch loss) loaded: {pruning_milestones}')
 
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
