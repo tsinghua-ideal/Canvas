@@ -52,12 +52,14 @@ if __name__ == '__main__':
         args.canvas_kernel = kernel_path
         model = models.get_model(args)
         train_loader, eval_loader = dataset.get_loaders(args)
-        # TODO: pruner with epoch accuracy.
-        train_metrics, eval_metrics = \
-            trainer.train(args, model=model,
-                          train_loader=train_loader, eval_loader=eval_loader,
-                          search_mode=True)
-        score = max([item['top1'] for item in eval_metrics])
+        try:
+            train_metrics, eval_metrics = \
+                trainer.train(args, model=model,
+                              train_loader=train_loader, eval_loader=eval_loader,
+                              search_mode=True)
+            score = max([item['top1'] for item in eval_metrics])
+        except RuntimeError as re:
+            score, train_metrics, eval_metrics = 0, None, None
         if args.local_rank == 0:
             logger.info(f'Solution score: {score}')
         if score > best_score:
