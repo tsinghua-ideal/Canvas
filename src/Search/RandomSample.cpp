@@ -40,8 +40,17 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
             available_g_factors.push_back(i);
     auto global_specs = GlobalSpecs(1 << RandomChoose(available_g_factors));
 
+    // Determine spatial dims and input/output shapes
+    size_t spatial_dims = 2;
+    if (not net_specs->Empty()) {
+        spatial_dims = net_specs->kernel_specs.front().spatial_dims;
+        for (const auto& specs: net_specs->kernel_specs)
+            assert(spatial_dims == specs.spatial_dims);
+    }
+    auto io_shape = Shape::MakeShapeCHW(spatial_dims);
+
     // Take actions.
-    GraphSP graph = std::make_shared<Graph>();
+    GraphSP graph = std::make_shared<Graph>(io_shape);
     std::unordered_set<TensorSP> algebra_checked;
     for (int i = 0; i < n_primitives; ++ i) {
         int width = graph->Width();
@@ -68,7 +77,8 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
         // Random a primitive according to the filters.
         PrimitiveOptions primitive_options(options.allowed_filter, options.forbidden_filter,
-                                           options.kernel_sizes, options.dilated_sizes, options.shift_sizes);
+                                           options.kernel_sizes, options.dilated_sizes, options.shift_sizes,
+                                           io_shape);
 
         // Hash filters.
         for (const auto& p: graph->primitives)
@@ -155,8 +165,6 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         return {};
     }
 
-    // TODO: may check the number of involving neighbors, using a bitmap-like algorithm.
-
     // Filter by user options.
     if (options.Filter(graph)) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
@@ -173,7 +181,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     auto out = graph->Out();
     if (not out->shape.IsStatic()) {
         auto pi = out->shape.Pi();
-        auto var_sol = VarSolution::Solve(pi, Variable::CHW());
+        auto var_sol = VarSolution::Solve(pi, io_shape.Pi());
         if (pi.DynamicVarCount() > 1 or not var_sol.has_value()) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
             static int can_not_solve_output_shape = 0;
@@ -205,8 +213,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
 
     // Add output primitive and fill the budget.
     assert(graph->Width() == 1);
-    assert(out->shape.CouldBeReshapedToCHW());
-    graph->ApplyOutput();
+    graph->ApplyOutput(io_shape);
 
     try {
         std::vector<int> available_reduction_factors;

@@ -8,7 +8,7 @@ from . import kernel_pack, placeholder, utils
 
 def build_sample_options(allowed_filter: str = '',
                          forbidden_filter: str = '',
-                         necessary_filter: str = 'unfold',
+                         necessary_filter: str = '',
                          kernel_sizes: [int] = (3, 5, 7),
                          dilated_sizes: [int] = (1, 2, 3),
                          shift_sizes: [int] = (1, 2, 3),
@@ -68,7 +68,7 @@ def build_sample_options(allowed_filter: str = '',
 
 def empty_sample(allowed_filter: str = '',
                  forbidden_filter: str = '',
-                 necessary_filter: str = 'unfold',
+                 necessary_filter: str = '',
                  kernel_sizes: [int] = (3, 5, 7),
                  dilated_sizes: [int] = (1, 2, 3),
                  shift_sizes: [int] = (1, 2, 3),
@@ -145,7 +145,7 @@ def sample(m: nn.Module,
            example_input: torch.Tensor = None,
            allowed_filter: str = '',
            forbidden_filter: str = '',
-           necessary_filter: str = 'unfold',
+           necessary_filter: str = '',
            kernel_sizes: [int] = (3, 5, 7),
            dilated_sizes: [int] = (1, 2, 3),
            shift_sizes: [int] = (1, 2, 3),
@@ -226,7 +226,7 @@ def sample(m: nn.Module,
         return None
 
     # Sample a kernel design.
-    kernel_specs = [cpp_canvas.KernelSpecs(ker.c, ker.h, ker.w) for ker in kernels]
+    kernel_specs = [cpp_canvas.KernelSpecs(kernel.c, kernel.h, kernel.w, kernel.spatial_dims) for kernel in kernels]
     options = build_sample_options(allowed_filter, forbidden_filter, necessary_filter,
                                    kernel_sizes, dilated_sizes, shift_sizes,
                                    num_primitive_range,

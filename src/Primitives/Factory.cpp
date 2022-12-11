@@ -33,10 +33,10 @@ bool PrimitiveOptions::Filter(const PrimitiveApply& pa) const {
 
     // Filter by output.
     if (output_filter) {
-        auto pi = p->outs[0]->shape;
+        auto out_shape = p->outs[0]->shape;
         if (pa.solution.has_value())
-            pi.SolveDynamicVar(pa.solution.value());
-        if (pi.IsStatic() and not pi.CouldBeReshapedToCHW())
+            out_shape.SolveDynamicVar(pa.solution.value());
+        if (out_shape.IsStatic() and io_shape.Pi() != out_shape.Pi())
             return true;
     }
 

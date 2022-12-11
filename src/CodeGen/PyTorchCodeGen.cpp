@@ -359,7 +359,6 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                          << std::endl;
         }
     } else if (auto input = DynamicCast<InputPrimitive>(p)) {
-        // The input `x` must be in the shape of [N, C, H, W].
         gen->Write() << var_map[input->outs[0]]
                      << " = x"
                      << std::endl;
@@ -367,8 +366,10 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
                      << var_map[input->outs[0]] << ".size(0)"
                      << std::endl;
         gen->Write() << "assert "
-                     << "(self.n, self.c, self.h, self.w)"
-                     << " == "
+                     << "(self.n, self.c"
+                     << (not input->outs[0]->shape.Spatial()->H().Empty() ? ", self.h" : "")
+                     << (not input->outs[0]->shape.Spatial()->W().Empty() ? ", self.w" : "")
+                     << ") == "
                      << "tuple(" << var_map[input->outs[0]] << ".size())"
                      << std::endl;
     } else if (auto bmm = DynamicCast<MatrixMultiplicationPrimitive>(p)) {
@@ -520,7 +521,9 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         gen->Write() << "return "
                      << var_map[output->ins[0]]
                      << ss.str()
-                     << ".view(self.n, self.c, self.h, self.w)"
+                     << ".view(self.n, "
+                     << TorchStyleShape(output->outs[0]->shape)
+                     << ")"
                      << std::endl;
     } else if (auto scale = DynamicCast<ScalePrimitive>(p)) {
         gen->Write() << var_map[scale->outs[0]]
@@ -628,12 +631,22 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         // Class definition and configurations.
         Write() << "class " << name << "(nn.Module):" << std::endl;
         BeginScope();
-        Write() << "def __init__(self, c: int, h: int, w: int):" << std::endl;
+        Write() << "def __init__(self, c: int";
+        if (not graph->in->shape.Spatial()->H().Empty())
+            Write(false) << ", h: int";
+        if (not graph->in->shape.Spatial()->W().Empty())
+            Write(false) << ", w: int";
+        Write(false) << "):" << std::endl;
+
         BeginScope();
         Write() << "# Configurations" << std::endl;
         Write() << "super(" << name << ", self).__init__()" << std::endl;
         Write() << "self.g = " << global_specs.g << std::endl;
-        Write() << "self.n, self.c, self.h, self.w = None, c, h, w" << std::endl;
+        Write() << "self.n, self.c = None, c" << std::endl;
+        if (not graph->in->shape.Spatial()->H().Empty())
+            Write() << "self.h = h" << std::endl;
+        if (not graph->in->shape.Spatial()->W().Empty())
+            Write() << "self.w = w" << std::endl;
         Write() << std::endl;
 
         // Define kernels.

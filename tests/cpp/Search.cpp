@@ -93,15 +93,7 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
     }
 }
 
-TEST(Search, RandomSampleAPI) {
-    // Create network specifications.
-    std::vector<KernelSpecs> kernels;
-    kernels.emplace_back(32, 56, 56);
-    kernels.emplace_back(64, 28, 28);
-    kernels.emplace_back(160, 14, 14);
-    kernels.emplace_back(256, 7, 7);
-    auto net_specs = std::make_shared<NetSpecs>(kernels);
-
+void TestAPI(const NetSpecsSP& net_specs) {
     // Random and generate code.
     for (int i = 0; i < 10; ++ i) {
         auto solution = RandomSample(net_specs);
@@ -116,23 +108,39 @@ TEST(Search, RandomSampleAPI) {
     }
 }
 
+TEST(Search, RandomSampleAPI) {
+    // Create network specifications.
+    std::vector<KernelSpecs> kernels;
+    kernels.emplace_back(32, 56, 56);
+    kernels.emplace_back(64, 28, 28);
+    kernels.emplace_back(160, 14, 14);
+    kernels.emplace_back(256, 7, 7);
+    TestAPI(std::make_shared<NetSpecs>(kernels));
+}
+
+TEST(Search, SingleSpatialRandomSampleAPI) {
+    // Create network specifications.
+    std::vector<KernelSpecs> kernels;
+    kernels.emplace_back(32, 56, 1, 1);
+    kernels.emplace_back(64, 28, 1, 1);
+    kernels.emplace_back(160, 14, 1, 1);
+    kernels.emplace_back(256, 7, 1, 1);
+    TestAPI(std::make_shared<NetSpecs>(kernels));
+}
+
+TEST(Search, NoneSpatialRandomSampleAPI) {
+    // Create network specifications.
+    std::vector<KernelSpecs> kernels;
+    kernels.emplace_back(32, 1, 1, 0);
+    kernels.emplace_back(64, 1, 1, 0);
+    kernels.emplace_back(160, 1, 1, 0);
+    kernels.emplace_back(256, 1, 1, 0);
+    TestAPI(std::make_shared<NetSpecs>(kernels));
+}
+
 TEST(Search, EmptyRandomSampleAPI) {
     // Test empty kernels.
-    // Create network specifications.
-    auto net_specs = std::make_shared<NetSpecs>(std::vector<KernelSpecs>());
-
-    // Random and generate code.
-    for (int i = 0; i < 10; ++ i) {
-        auto solution = RandomSample(net_specs);
-        std::cout << ConsoleUtils::blue
-                  << "# Sample kernel " << i + 1 << ": "
-                  << ConsoleUtils::reset << std::endl;
-        auto torch_code = PyTorchCodeGen().Gen(solution);
-        auto graphviz_code = DotCodeGen().Gen(solution);
-        std::cout << torch_code << std::endl;
-        std::cout << graphviz_code << std::endl;
-        std::cout << std::endl;
-    }
+    TestAPI(std::make_shared<NetSpecs>(std::vector<KernelSpecs>()));
 }
 
 #ifdef CANVAS_DEBUG_SEARCH_TEST_PRINT_ALL_ACTIONS

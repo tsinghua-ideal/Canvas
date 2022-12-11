@@ -28,14 +28,21 @@ struct GlobalSpecs {
 
 /// Specifications for a single kernel.
 struct KernelSpecs {
-    size_t c, h, w;
+    size_t c, h, w, spatial_dims;
 
-    KernelSpecs(size_t c, size_t h, size_t w): c(c), h(h), w(w) {}
+    KernelSpecs(size_t c, size_t h, size_t w, size_t spatial_dims=3): c(c), h(h), w(w), spatial_dims(spatial_dims) {
+        if (spatial_dims < 1)
+            assert(h == 1);
+        if (spatial_dims < 2)
+            assert(w == 1);
+    }
 
     [[nodiscard]] size_t Hash() const {
         size_t hash = c;
-        hash = IterateHash(hash, h);
-        hash = IterateHash(hash, w);
+        if (spatial_dims >= 1)
+            hash = IterateHash(hash, h);
+        if (spatial_dims >= 2)
+            hash = IterateHash(hash, w);
         return hash;
     }
 };

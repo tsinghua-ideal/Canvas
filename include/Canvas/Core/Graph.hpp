@@ -37,8 +37,8 @@ struct Graph {
     bool hash_cached = false;
     size_t hash_value = 0;
 
-    Graph() {
-        auto p = std::make_shared<InputPrimitive>();
+    explicit Graph(const Shape& input_shape=Shape::MakeShapeCHW()) {
+        auto p = std::make_shared<InputPrimitive>(input_shape);
         Apply(p);
         in = p->outs[0];
     }
@@ -88,7 +88,7 @@ struct Graph {
 
     void Apply(const PrimitiveApply& pa);
 
-    void ApplyOutput();
+    void ApplyOutput(const Shape& output_shape=Shape::MakeShapeCHW());
 
     [[nodiscard]] PrimitiveSP RemapPrimitive(const PrimitiveSP& p) const;
 

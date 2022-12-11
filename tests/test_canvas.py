@@ -20,6 +20,38 @@ class ExampleModel(nn.Module):
         return x
 
 
+class ExampleModelSingleSpatial(nn.Module):
+    def __init__(self):
+        super(ExampleModelSingleSpatial, self).__init__()
+        self.proj = nn.Conv1d(3, 32, 1)
+        self.kernel_1 = canvas.Placeholder()
+        self.relu = nn.ReLU(inplace=True)
+        self.kernel_2 = canvas.Placeholder()
+
+    def forward(self, x: torch.Tensor):
+        x = self.proj(x)
+        x = self.kernel_1(x)
+        x = self.relu(x)
+        x = self.kernel_2(x)
+        return x
+
+
+class ExampleModelNoneSpatial(nn.Module):
+    def __init__(self):
+        super(ExampleModelNoneSpatial, self).__init__()
+        self.proj = nn.Linear(3, 32)
+        self.kernel_1 = canvas.Placeholder()
+        self.relu = nn.ReLU(inplace=True)
+        self.kernel_2 = canvas.Placeholder()
+
+    def forward(self, x: torch.Tensor):
+        x = self.proj(x)
+        x = self.kernel_1(x)
+        x = self.relu(x)
+        x = self.kernel_2(x)
+        return x
+
+
 def demo():
     net = ExampleModel()
     pack = canvas.sample(net, example_input=torch.zeros(1, 3, 32, 32))
@@ -37,12 +69,24 @@ def test_seed():
     assert pack_1.graphviz_code == pack_2.graphviz_code
 
 
+def test_different_spatial():
+    canvas.seed(1998)
+    for model_cls, shape in [
+        (ExampleModel, (1, 3, 32, 32)),
+        (ExampleModelSingleSpatial, (1, 3, 32)),
+        (ExampleModelNoneSpatial, (1, 3))
+    ]:
+        net = model_cls()
+        pack = canvas.sample(net, torch.zeros(shape))
+        net = canvas.replace(net, pack.module, 'cpu')
+        t = net(torch.zeros(shape))
+
+
 def test_sample():
     net = ExampleModel()
     canvas.sample(net, torch.zeros(1, 3, 32, 32))
     for _ in range(10):
         pack = canvas.sample(net)
-        print(pack.torch_code)
         net = canvas.replace(net, pack.module, 'cpu')
         t = net(torch.zeros(1, 3, 32, 32))
 

@@ -144,10 +144,12 @@ struct SpatialShape: MetaShape {
         return std::make_shared<SpatialShape>(*this);
     }
 
-    [[nodiscard]] static MetaShapeSP MakeShapeHW() {
+    [[nodiscard]] static MetaShapeSP MakeShapeHW(size_t spatial_dims=2) {
         auto meta_dims = std::make_shared<SpatialShape>();
-        meta_dims->dims[PH] = Variable::StaticVar(StaticVarPos::VH);
-        meta_dims->dims[PW] = Variable::StaticVar(StaticVarPos::VW);
+        if (spatial_dims > 0)
+            meta_dims->dims[PH] = Variable::StaticVar(StaticVarPos::VH);
+        if (spatial_dims > 1)
+            meta_dims->dims[PW] = Variable::StaticVar(StaticVarPos::VW);
         return meta_dims;
     }
 
@@ -223,8 +225,8 @@ struct Shape {
         return {std::make_shared<ChannelShape>(), std::make_shared<SpatialShape>()};
     }
 
-    [[nodiscard]] static Shape MakeShapeCHW() {
-        return {ChannelShape::MakeShapeC(), SpatialShape::MakeShapeHW()};
+    [[nodiscard]] static Shape MakeShapeCHW(size_t spatial_dims=2) {
+        return {ChannelShape::MakeShapeC(), SpatialShape::MakeShapeHW(spatial_dims)};
     }
 
     [[nodiscard]] bool IsChannelSpatial() const {
@@ -262,10 +264,6 @@ struct Shape {
 
     [[nodiscard]] Variable Pi() const {
         return dims[0]->Pi() * dims[1]->Pi();
-    }
-
-    [[nodiscard]] bool CouldBeReshapedToCHW() const {
-        return Pi() == Variable::CHW();
     }
 
     void SolveDynamicVar(const VarSolution& s) {

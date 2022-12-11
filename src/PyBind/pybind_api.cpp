@@ -19,10 +19,11 @@ PYBIND11_MODULE(cpp_canvas, m) {
 
     // The kernel specification class.
     pybind11::class_<canvas::KernelSpecs>(m, "KernelSpecs")
-            .def(pybind11::init<size_t, size_t, size_t>())
+            .def(pybind11::init<size_t, size_t, size_t, size_t>())
             .def_readwrite("c", &canvas::KernelSpecs::c)
             .def_readwrite("h", &canvas::KernelSpecs::h)
-            .def_readwrite("w", &canvas::KernelSpecs::w);
+            .def_readwrite("w", &canvas::KernelSpecs::w)
+            .def_readwrite("spatial_dims", &canvas::KernelSpecs::spatial_dims);
 
     // The kernel pack (solution class in Python).
     pybind11::class_<canvas::KernelPack>(m, "KernelPackImpl")

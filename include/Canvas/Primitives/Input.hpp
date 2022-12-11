@@ -6,8 +6,8 @@
 namespace canvas {
 
 struct InputPrimitive: Primitive {
-    InputPrimitive(): Primitive("Input", {}) {
-        outs.push_back(std::make_shared<Tensor>(Shape::MakeShapeCHW()));
+    explicit InputPrimitive(const Shape& input_shape=Shape::MakeShapeCHW()): Primitive("Input", {}) {
+        outs.push_back(std::make_shared<Tensor>(input_shape));
     }
 
     CanvasPrimitiveCopyTemplate(InputPrimitive);

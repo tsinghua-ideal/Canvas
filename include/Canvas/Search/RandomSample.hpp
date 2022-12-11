@@ -25,7 +25,7 @@ struct SampleOptions {
     const canvas_timeval_t timeout;
 
     SampleOptions():
-            necessary_filter("unfold"),
+            necessary_filter(),
             kernel_sizes({3, 5, 7}), dilated_sizes({1, 2, 3}), shift_sizes({1, 2, 3}),
             np_range(3, 25), mw_range(2, 8), weighted_range(1, 8),
             max_weighted_ratio(0.6), force_bmm_possibility(0),

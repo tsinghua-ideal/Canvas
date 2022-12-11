@@ -108,8 +108,7 @@ bool Graph::IsTopologicalFinished() const {
     for (const auto& p: primitives)
         output_count += (DynamicCast<OutputPrimitive>(p) != nullptr);
     return output_count == 1
-        and DynamicCast<OutputPrimitive>(out->producer) != nullptr
-        and out->shape == Shape::MakeShapeCHW();
+        and DynamicCast<OutputPrimitive>(out->producer) != nullptr;
 }
 
 std::vector<int> Graph::DynamicVars() const {
@@ -218,11 +217,12 @@ void Graph::Apply(const PrimitiveApply& pa) {
         SolveDynamicVar(pa.solution.value());
 }
 
-void Graph::ApplyOutput() {
+void Graph::ApplyOutput(const Shape& output_shape) {
     // Apply output primitive.
     auto out = Out();
     assert(out and DynamicCast<OutputPrimitive>(out->producer) == nullptr);
-    Apply(std::make_shared<OutputPrimitive>(out));
+    assert(out->shape.Pi() == output_shape.Pi());
+    Apply(std::make_shared<OutputPrimitive>(out, output_shape));
 }
 
 PrimitiveSP Graph::RemapPrimitive(const PrimitiveSP& p) const {

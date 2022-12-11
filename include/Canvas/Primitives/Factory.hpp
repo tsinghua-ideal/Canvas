@@ -44,6 +44,9 @@ struct PrimitiveOptions {
     /// Filters.
     std::vector<std::string> allowed_filter, forbidden_filter;
 
+    /// Input/output shape
+    Shape io_shape;
+
     /// `max_delta_width` could be -1 (reducing width), 0 (retaining width), 1 (unlimited).
     int max_delta_width = 1;
 
@@ -51,14 +54,17 @@ struct PrimitiveOptions {
                               const std::string& forbidden_str="",
                               std::vector<int> kernel_sizes={3, 5, 7},
                               std::vector<int> dilated_sizes={1, 2, 3},
-                              std::vector<int> shift_sizes={1, 2, 3}):
+                              std::vector<int> shift_sizes={1, 2, 3},
+                              const Shape& io_shape=Shape::MakeShapeCHW()):
             kernel_sizes(std::move(kernel_sizes)),
             dilated_sizes(std::move(dilated_sizes)),
-            shift_sizes(std::move(shift_sizes)) {
+            shift_sizes(std::move(shift_sizes)),
+            io_shape(io_shape) {
         BuildFilters(allowed_str, forbidden_str);
     }
 
-    explicit PrimitiveOptions(int max_delta_width): max_delta_width(max_delta_width) {}
+    explicit PrimitiveOptions(int max_delta_width, const Shape& io_shape=Shape::MakeShapeCHW()):
+        max_delta_width(max_delta_width), io_shape(io_shape) {}
 
     void BuildFilters(const std::string& allowed_str="", const std::string& forbidden_str="");
 
