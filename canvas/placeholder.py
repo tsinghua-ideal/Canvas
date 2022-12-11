@@ -10,6 +10,12 @@ class Placeholder(nn.Module):
 
         Attributes
         ----------
+        initialized: bool
+            Indicating whether the module is initialized.
+
+        spatial_dims: int
+            The number of spatial dimensions.
+
         c: int
             Input/output channel numbers.
 
@@ -27,27 +33,23 @@ class Placeholder(nn.Module):
 
     """
 
-    def __init__(self, c: int):
+    def __init__(self):
         r"""Construct a kernel placeholder.
-
-            Parameters
-            ----------
-            c: int
-                Input/output channel numbers.
         """
 
         super().__init__()
         self.id = None
-        self.c, self.h, self.w = c, 0, 0
-        self.canvas_placeholder_kernel = Identity(c, 0, 0)
+        self.initialized = False
+        self.spatial_dims, self.c, self.h, self.w = 0, 0, 0, 0
+        self.canvas_placeholder_kernel = Identity()
         self.apply(init_weights)
 
     def clear(self):
-        r"""Reset the information of `h` and `w`, which is
-            inferred during analysis.
+        r"""Reset all information, which is inferred during analysis.
         """
 
-        self.h = self.w = 0
+        self.initialized = False
+        self.spatial_dims, self.c, self.h, self.w = 0, 0, 0, 0
 
     def reload(self, kernel_cls, device: str):
         r"""Reload the internal kernel implement.
@@ -60,7 +62,12 @@ class Placeholder(nn.Module):
                 Reload this module to which device.
         """
 
-        self.canvas_placeholder_kernel = kernel_cls(self.c, self.h, self.w).to(device)
+        args = {'c': self.c}
+        if self.spatial_dims > 0:
+            args['h'] = self.h
+        if self.spatial_dims > 1:
+            args['w'] = self.w
+        self.canvas_placeholder_kernel = kernel_cls(**args).to(device)
         self.canvas_placeholder_kernel.apply(init_weights)
 
     def forward(self, x: torch.Tensor):
@@ -78,11 +85,22 @@ class Placeholder(nn.Module):
         """
 
         assert self.canvas_placeholder_kernel is not None
-        if self.h == 0 or self.w == 0:
-            self.h, self.w = x.size()[2], x.size()[3]
-            assert self.h > 0 and self.w > 0
+        # [N, C], or [N, C, H], or [N, C, H, W]
+        assert 2 <= len(x.size()) <= 4
+        if not self.initialized:
+            # Inference
+            self.initialized = True
+            self.spatial_dims = len(x.size()) - 2
+            self.c = x.size()[1]
+            self.h = 1 if self.spatial_dims < 1 else x.size()[2]
+            self.w = 1 if self.spatial_dims < 2 else x.size()[3]
+            assert self.c > 0 and self.h > 0 and self.w > 0
         else:
-            assert self.h == x.size()[2], self.w == x.size()[3]
+            # Check
+            assert self.spatial_dims == len(x.size()) - 2
+            assert self.c == x.size()[1]
+            assert self.h == (1 if self.spatial_dims < 1 else x.size()[2])
+            assert self.w == (1 if self.spatial_dims < 2 else x.size()[3])
         return self.canvas_placeholder_kernel(x)
 
 
@@ -136,10 +154,14 @@ def get_placeholders(m: nn.Module,
         if not hasattr(m, 'canvas_cached_example_input_shape'):
             failure = True
         for kernel in m.canvas_cached_placeholders:
-            if kernel.h == 0 or kernel.w == 0:
+            if not kernel.initialized:
                 failure = True
         if failure:
             raise AttributeError('Failed to analyze shape information, '
                                  'please set `example_input` as not `None`.')
+
+        input_spatial_dims = [kernel.spatial_dims for kernel in m.canvas_cached_placeholders]
+        if len(set(input_spatial_dims)) > 1:
+            raise AttributeError('The input spatial dims in all placeholders should be the same')
 
     return m.canvas_cached_placeholders

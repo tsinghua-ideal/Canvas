@@ -7,10 +7,10 @@ class ExampleModel(nn.Module):
     def __init__(self):
         super(ExampleModel, self).__init__()
         self.proj = nn.Conv2d(3, 32, 1)
-        self.kernel_1 = canvas.Placeholder(32)
+        self.kernel_1 = canvas.Placeholder()
         self.bn = nn.BatchNorm2d(32)
         self.relu = nn.ReLU(inplace=True)
-        self.kernel_2 = canvas.Placeholder(32)
+        self.kernel_2 = canvas.Placeholder()
 
     def forward(self, x: torch.Tensor):
         x = self.proj(x)

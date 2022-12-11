@@ -34,7 +34,7 @@ class Block(nn.Module):
     def __init__(self, dim, mlp_ratio=4., drop=0., drop_path=0., act_layer=nn.GELU):
         super().__init__()
         self.norm1 = nn.BatchNorm2d(dim)
-        self.block = canvas.Placeholder(dim)
+        self.block = canvas.Placeholder()
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
         self.norm2 = nn.BatchNorm2d(dim)
