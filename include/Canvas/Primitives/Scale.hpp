@@ -21,6 +21,8 @@ struct ScalePrimitive: Primitive {
 
     explicit ScalePrimitive(const TensorSP& t, const std::vector<Shape::Index>& indices);
 
+    [[nodiscard]] std::vector<Variable> ParamShape() const final;
+
     CanvasPrimitiveCopyTemplate(ScalePrimitive);
 };
 

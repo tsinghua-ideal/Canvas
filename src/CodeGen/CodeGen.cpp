@@ -23,6 +23,8 @@ void CodeGen::CommonChecks(const Solution& solution) {
     auto net_specs = solution.net_specs;
 
     // Algebra checks.
+    if (not graph->AlgebraCheck(solution.ensure_spatial_invariance))
+        CriticalError("Unable to generate code for a graph with illegal shapes");
     for (const auto& kernel: net_specs->kernel_specs)
         if (not graph->AlgebraCheck(Merge(solution.global_specs, kernel)))
             CriticalError("Unable to generate code for a graph with illegal shapes");

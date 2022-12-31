@@ -50,16 +50,19 @@ struct PrimitiveOptions {
     /// `max_delta_width` could be -1 (reducing width), 0 (retaining width), 1 (unlimited).
     int max_delta_width = 1;
 
+    bool ensure_spatial_invariance = true;
+
     explicit PrimitiveOptions(const std::string& allowed_str="",
                               const std::string& forbidden_str="",
                               std::vector<int> kernel_sizes={3, 5, 7},
                               std::vector<int> dilated_sizes={1, 2, 3},
                               std::vector<int> shift_sizes={1, 2, 3},
-                              const Shape& io_shape=Shape::MakeShapeCHW()):
+                              const Shape& io_shape=Shape::MakeShapeCHW(),
+                              bool ensure_spatial_invariance=true):
             kernel_sizes(std::move(kernel_sizes)),
             dilated_sizes(std::move(dilated_sizes)),
             shift_sizes(std::move(shift_sizes)),
-            io_shape(io_shape) {
+            io_shape(io_shape), ensure_spatial_invariance(ensure_spatial_invariance) {
         BuildFilters(allowed_str, forbidden_str);
     }
 

@@ -128,7 +128,7 @@ static int RandomInt(int min=0, int max=std::numeric_limits<int>::max()) {
 }
 
 /// Random choice with possibility.
-static bool MakeChoice(double p) {
+static bool MakeChoice(double p=0.5) {
     assert(0 <= p and p <= 1);
     return global_uniform_random() <= p;
 }

@@ -13,6 +13,8 @@ struct MixPrimitive: Primitive {
                  const std::vector<Shape::Index>& indices,
                  const std::vector<Variable>& new_dims);
 
+    [[nodiscard]] std::vector<Variable> ParamShape() const final;
+
     CanvasPrimitiveCopyTemplate(MixPrimitive);
 };
 

@@ -31,6 +31,13 @@ bool PrimitiveOptions::Filter(const PrimitiveApply& pa) const {
     if (hash_filter.count(p->Hash(true)))
         return true;
 
+    // Illegal weight shape
+    if (not ensure_spatial_invariance) {
+        for (const auto& v: p->ParamShape())
+            if (v.HasSpatialInvolved())
+                return true;
+    }
+
     // Filter by output.
     if (output_filter) {
         auto out_shape = p->outs[0]->shape;

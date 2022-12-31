@@ -18,6 +18,7 @@ def build_sample_options(allowed_filter: str = '',
                          max_weighted_ratio: float = 0.6,
                          force_bmm_possibility: float = 0.0,
                          min_receptive_size: int = 1,
+                         ensure_spatial_invariance: bool = true,
                          workers: int = 1,
                          timeout: int = 0):
     # Check option types.
@@ -48,6 +49,8 @@ def build_sample_options(allowed_filter: str = '',
         raise ValueError('The variable `force_bmm_possibility` should be a float between [0.0, 1.0].')
     if type(min_receptive_size) != int or min_receptive_size < 0:
         raise ValueError('The variable `min_receptive_size` should be an integer greater than 0.')
+    if type(ensure_spatial_invariance) != bool:
+        raise ValueError('The variable `ensure_spatial_invariance` should be boolean.')
     if type(workers) != int or workers < 0:
         raise ValueError('The variable `workers` should be an integer greater than 0.')
     if not (type(timeout) == int and timeout >= 0):
@@ -62,6 +65,7 @@ def build_sample_options(allowed_filter: str = '',
                                     max_weighted_ratio,
                                     force_bmm_possibility,
                                     min_receptive_size,
+                                    ensure_spatial_invariance,
                                     workers,
                                     timeout)
 
@@ -78,6 +82,7 @@ def empty_sample(allowed_filter: str = '',
                  max_weighted_ratio: float = 0.6,
                  force_bmm_possibility: float = 0.0,
                  min_receptive_size: int = 1,
+                 ensure_spatial_invariance: bool = true,
                  workers: int = 1,
                  timeout: int = 0):
     r"""Sample an available kernel from the search space, without network reference.
@@ -108,6 +113,9 @@ def empty_sample(allowed_filter: str = '',
             The possibility to forcibly contain BMM (attention like) primitive.
         min_receptive_size: int
             A filter for minimum receptive size.
+        ensure_spatial_invariance: bool
+            Whether we can ensure the spatial dimensions will not change.
+            If we can, then we can generate weights with H and W.
         workers: int
             Workers for sampling.
         timeout: int
@@ -133,6 +141,7 @@ def empty_sample(allowed_filter: str = '',
                                    max_weighted_ratio,
                                    force_bmm_possibility,
                                    min_receptive_size,
+                                   ensure_spatial_invariance,
                                    workers,
                                    timeout)
     pack = cpp_canvas.sample([], options)
@@ -155,6 +164,7 @@ def sample(m: nn.Module,
            max_weighted_ratio: float = 0.6,
            force_bmm_possibility: float = 0.0,
            min_receptive_size: int = 1,
+           ensure_spatial_invariance: bool = true,
            workers: int = 1,
            timeout: int = 0):
     r"""Sample an available kernel for a module from the search space.
@@ -196,6 +206,9 @@ def sample(m: nn.Module,
             The possibility to forcibly contain BMM (attention like) primitive.
         min_receptive_size: int
             A filter for minimum receptive size.
+        ensure_spatial_invariance: bool
+            Whether we can ensure the spatial dimensions will not change.
+            If we can, then we can generate weights with H and W.
         workers: int
             Workers for sampling.
         timeout: int
@@ -235,6 +248,7 @@ def sample(m: nn.Module,
                                    max_weighted_ratio,
                                    force_bmm_possibility,
                                    min_receptive_size,
+                                   ensure_spatial_invariance,
                                    workers,
                                    timeout)
     pack = cpp_canvas.sample(kernel_specs, options)

@@ -11,6 +11,8 @@ struct FCPrimitive: Primitive {
 
     [[nodiscard]] std::vector<Variable> IntermediateVariables() const final;
 
+    [[nodiscard]] std::vector<Variable> ParamShape() const final;
+
     CanvasPrimitiveCopyTemplate(FCPrimitive);
 };
 

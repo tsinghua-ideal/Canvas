@@ -96,7 +96,9 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
 void TestAPI(const NetSpecsSP& net_specs) {
     // Random and generate code.
     for (int i = 0; i < 10; ++ i) {
-        auto solution = RandomSample(net_specs);
+        auto options = SampleOptions();
+        options.ensure_spatial_invariance = MakeChoice();
+        auto solution = RandomSample(net_specs, options);
         std::cout << ConsoleUtils::blue
                   << "# Sample kernel " << i + 1 << ": "
                   << ConsoleUtils::reset << std::endl;

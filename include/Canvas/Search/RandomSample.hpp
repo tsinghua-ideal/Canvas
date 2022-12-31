@@ -21,6 +21,8 @@ struct SampleOptions {
 
     int min_receptive_size;
 
+    bool ensure_spatial_invariance;
+
     int workers = 1;
     const canvas_timeval_t timeout;
 
@@ -30,6 +32,7 @@ struct SampleOptions {
             np_range(3, 25), mw_range(2, 8), weighted_range(1, 8),
             max_weighted_ratio(0.6), force_bmm_possibility(0),
             min_receptive_size(1),
+            ensure_spatial_invariance(true),
             workers(1), timeout(std::chrono::seconds::zero()) {
         BuildNecessaryFilters();
     }
@@ -45,6 +48,7 @@ struct SampleOptions {
                   int weighted_range_min, int weighted_range_max,
                   double max_weighted_ratio, double force_bmm_possibility,
                   int min_receptive_size,
+                  bool ensure_spatial_invariance,
                   int workers, int timeout):
             allowed_filter(std::move(allowed_filter)),
             forbidden_filter(std::move(forbidden_filter)),
@@ -58,6 +62,7 @@ struct SampleOptions {
             max_weighted_ratio(max_weighted_ratio),
             force_bmm_possibility(force_bmm_possibility),
             min_receptive_size(min_receptive_size),
+            ensure_spatial_invariance(ensure_spatial_invariance),
             workers(workers), timeout(std::chrono::seconds(timeout)) {
         for (int k: this->kernel_sizes)
             assert(k > 0 and k % 2 == 1);

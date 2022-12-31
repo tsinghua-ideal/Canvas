@@ -16,4 +16,11 @@ std::vector<Variable> FCPrimitive::IntermediateVariables() const {
     return {outs[0]->shape.Channel()->Pi() / ins[0]->shape.Channel()->G()};
 }
 
+std::vector<Variable> FCPrimitive::ParamShape() const {
+    auto g = ins[0]->shape.Channel()->G();
+    auto ic = ins[0]->shape.Channel()->Pi();
+    auto oc = outs[0]->shape.Channel()->Pi();
+    return {ic, oc, g};
+}
+
 } // namespace canvas

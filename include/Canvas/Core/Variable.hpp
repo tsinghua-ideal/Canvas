@@ -79,6 +79,10 @@ struct Variable {
         return Compose({StaticVarPos::VC, StaticVarPos::VH, StaticVarPos::VW});
     }
 
+    [[nodiscard]] bool HasSpatialInvolved() const {
+        return static_power[StaticVarPos::VH] > 0 or static_power[StaticVarPos::VW] > 0;
+    }
+
     void Reset() {
         std::memset(this, 0, sizeof(Variable));
         numeric_numerator = numeric_denominator = 1;

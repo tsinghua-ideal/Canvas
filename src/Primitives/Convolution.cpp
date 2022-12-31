@@ -34,4 +34,11 @@ std::vector<Variable> ConvolutionPrimitive::IntermediateVariables() const {
     return {depth_wise ? (oc / channel->C()) : (oc / channel->G())};
 }
 
+std::vector<Variable> ConvolutionPrimitive::ParamShape() const {
+    auto g = ins[0]->shape.Channel()->G();
+    auto ic = ins[0]->shape.Channel()->Pi();
+    auto oc = outs[0]->shape.Channel()->Pi();
+    return {ic, oc, depth_wise ? ic : g};
+}
+
 } // namespace canvas

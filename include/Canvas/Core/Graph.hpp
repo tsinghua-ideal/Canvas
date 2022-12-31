@@ -47,6 +47,8 @@ struct Graph {
 
     ~Graph();
 
+    [[nodiscard]] bool AlgebraCheck(bool ensure_spatial_invariance) const;
+
     [[nodiscard]] bool AlgebraCheck(const Variable::VarSpecs& specs) const;
 
     [[nodiscard]] std::vector<Variable> GetRelatedVariables(int index) const;

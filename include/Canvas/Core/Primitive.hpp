@@ -41,6 +41,9 @@ struct Primitive {
     /// Note the returned values are not references but copies.
     [[nodiscard]] virtual std::vector<Variable> IntermediateVariables() const { return {}; }
 
+    /// Param shape to construct the PyTorch function (maybe not weight)
+    [[nodiscard]] virtual std::vector<Variable> ParamShape() const { return {}; }
+
     /// Only solve the special variables in the primitive (inputs and outputs' shape not included).
     virtual void SolveDynamicVar(const VarSolution& s) {}
 

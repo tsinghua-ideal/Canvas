@@ -15,16 +15,20 @@ namespace canvas {
 
 struct PyTorchInitTranslator {
     VarMap& var_map;
+    bool ensure_spatial_invariance;
 
-    explicit PyTorchInitTranslator(VarMap& var_map): var_map(var_map) {}
+    PyTorchInitTranslator(VarMap& var_map, bool ensure_spatial_invariance):
+        var_map(var_map), ensure_spatial_invariance(ensure_spatial_invariance) {}
 
     void operator () (CodeGen* gen, const PrimitiveSP& p);
 };
 
 struct PyTorchForwardTranslator {
     VarMap& var_map;
+    bool ensure_spatial_invariance;
 
-    explicit PyTorchForwardTranslator(VarMap& var_map): var_map(var_map) {}
+    PyTorchForwardTranslator(VarMap& var_map, bool ensure_spatial_invariance):
+        var_map(var_map), ensure_spatial_invariance(ensure_spatial_invariance) {}
 
     void operator () (CodeGen* gen, const PrimitiveSP& p);
 };

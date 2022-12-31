@@ -47,6 +47,17 @@ Graph::~Graph() {
     }
 }
 
+bool Graph::AlgebraCheck(bool ensure_spatial_invariance) const {
+    // Check weight shapes
+    if (not ensure_spatial_invariance) {
+        for (const auto& p: primitives)
+            for (const auto& v: p->ParamShape())
+                if (v.HasSpatialInvolved())
+                    return false;
+    }
+    return true;
+}
+
 bool Graph::AlgebraCheck(const Variable::VarSpecs& specs) const {
     // Get all parameters.
     size_t g = specs.g, c = specs.c, h = specs.h, w = specs.w;

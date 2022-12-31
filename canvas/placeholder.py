@@ -30,7 +30,6 @@ class Placeholder(nn.Module):
 
         id: int
             The index of current kernel in the network.
-
     """
 
     def __init__(self):
@@ -92,6 +91,7 @@ class Placeholder(nn.Module):
             self.initialized = True
             self.spatial_dims = len(x.size()) - 2
             self.c = x.size()[1]
+            # H and W may be not used if not guaranteed with spatial invariance
             self.h = 1 if self.spatial_dims < 1 else x.size()[2]
             self.w = 1 if self.spatial_dims < 2 else x.size()[3]
             assert self.c > 0 and self.h > 0 and self.w > 0
@@ -99,8 +99,7 @@ class Placeholder(nn.Module):
             # Check
             assert self.spatial_dims == len(x.size()) - 2
             assert self.c == x.size()[1]
-            assert self.h == (1 if self.spatial_dims < 1 else x.size()[2])
-            assert self.w == (1 if self.spatial_dims < 2 else x.size()[3])
+            # Check spatial dimensions in kernel implementation
         return self.canvas_placeholder_kernel(x)
 
 

@@ -168,6 +168,9 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << "groups=" << TorchStyleVariable(groups) << ", "
                      << "bias=False)"
                      << std::endl;
+        if (not ensure_spatial_invariance)
+            for (const auto& v: conv->ParamShape())
+                assert(not v.HasSpatialInvolved());
     } else if (auto fc = DynamicCast<FCPrimitive>(p)) {
         auto& in_shape = p->ins[0]->shape;
         auto& out_shape = p->outs[0]->shape;
@@ -180,15 +183,19 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
                      << "groups=" << TorchStyleVariable(in_shape.Channel()->G()) << ", "
                      << "bias=False)"
                      << std::endl;
+        if (not ensure_spatial_invariance)
+            for (const auto& v: fc->ParamShape())
+                assert(not v.HasSpatialInvolved());
     } else if (auto mix = DynamicCast<MixPrimitive>(p)) {
         std::stringstream shape_ss;
-        auto fan_in = Variable();
-        for (const auto& index: mix->indices) {
-            shape_ss << TorchStyleVariable(mix->ins[0]->shape[index]) << ", ";
-            fan_in = fan_in * mix->ins[0]->shape[index];
+        for (const auto& v: mix->ParamShape()) {
+            shape_ss << TorchStyleVariable(v) << ", ";
+            if (not ensure_spatial_invariance)
+                assert(not v.HasSpatialInvolved());
         }
+        auto fan_in = Variable();
         for (const auto& index: mix->indices)
-            shape_ss << TorchStyleVariable(mix->outs[0]->shape[index]) << ", ";
+            fan_in = fan_in * mix->ins[0]->shape[index];
         gen->Write() << "self." << primitive_var << "_w"
                      << " = nn.Parameter(torch.ones("
                      << "(" << shape_ss.str() << ")"
@@ -207,28 +214,15 @@ void PyTorchInitTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) {
             gen->Write() << "self." << primitive_var << "_" << index.d << "_" << index.k
                          << " = random.randint(-" << k << ", " << k << ")" << std::endl;
     } else if (auto scale = DynamicCast<ScalePrimitive>(p)) {
-        auto sorted = scale->indices;
-        std::sort(sorted.begin(), sorted.end(),
-                  [](const auto& lhs, const auto& rhs) -> bool {
-                      return lhs.d == rhs.d ? lhs.k < rhs.k : lhs.d < rhs.d;
-                  });
-        auto t_shape = p->ins[0]->shape;
-        std::stringstream shape_str;
-        int next = 0;
-        for (int d = 0; d < 2; ++ d) {
-            for (int k = 0; k < MetaShape::kMaxMetaDims; ++ k) {
-                auto index = Shape::Index(d, k);
-                if (t_shape[index].Empty())
-                    continue;
-                if (next < sorted.size() and index == sorted[next])
-                    shape_str << ", " << TorchStyleVariable(t_shape[index]), next ++;
-                else
-                    shape_str << ", 1";
-            }
+        std::stringstream shape_ss;
+        for (const auto& v: scale->ParamShape()) {
+            shape_ss << ", " << TorchStyleVariable(v);
+            if (not ensure_spatial_invariance)
+                assert(not v.HasSpatialInvolved());
         }
         gen->Write() << "self." << primitive_var << "_w"
                      << " = nn.Parameter(torch.ones("
-                     << "(1" << shape_str.str() << ",)"
+                     << "(1" << shape_ss.str() << ",)"
                      << "), requires_grad=True)"
                      << std::endl;
         gen->Write() << "nn.init.trunc_normal_("
@@ -365,13 +359,31 @@ void PyTorchForwardTranslator::operator () (CodeGen* gen, const PrimitiveSP& p) 
         gen->Write() << "self.n = "
                      << var_map[input->outs[0]] << ".size(0)"
                      << std::endl;
-        gen->Write() << "assert "
-                     << "(self.n, self.c"
-                     << (not input->outs[0]->shape.Spatial()->H().Empty() ? ", self.h" : "")
-                     << (not input->outs[0]->shape.Spatial()->W().Empty() ? ", self.w" : "")
-                     << ") == "
-                     << "tuple(" << var_map[input->outs[0]] << ".size())"
-                     << std::endl;
+        if (ensure_spatial_invariance) {
+            gen->Write() << "assert "
+                         << "(self.n, self.c"
+                         << (not input->outs[0]->shape.Spatial()->H().Empty() ? ", self.h" : "")
+                         << (not input->outs[0]->shape.Spatial()->W().Empty() ? ", self.w" : "")
+                         << ") == "
+                         << "tuple(" << var_map[input->outs[0]] << ".size())"
+                         << std::endl;
+        } else {
+            gen->Write() << "assert self.c == "
+                         << var_map[input->outs[0]]
+                         << ".size()[1]"
+                         << std::endl;
+            int spatial_index = 2;
+            if (not input->outs[0]->shape.Spatial()->H().Empty())
+                gen->Write() << "self.h = "
+                             << var_map[input->outs[0]]
+                             << ".size()[" << spatial_index ++ << "]"
+                             << std::endl;
+            if (not input->outs[0]->shape.Spatial()->W().Empty())
+                gen->Write() << "self.w = "
+                             << var_map[input->outs[0]]
+                             << ".size()[" << spatial_index << "]"
+                             << std::endl;
+        }
     } else if (auto bmm = DynamicCast<MatrixMultiplicationPrimitive>(p)) {
         auto ReshapeAndTranspose = [&](const char* suffix, const TensorSP& t, bool transpose) {
             gen->Write() << var_map[bmm->outs[0]] << "_" << suffix
@@ -643,10 +655,14 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         Write() << "super(" << name << ", self).__init__()" << std::endl;
         Write() << "self.g = " << global_specs.g << std::endl;
         Write() << "self.n, self.c = None, c" << std::endl;
-        if (not graph->in->shape.Spatial()->H().Empty())
-            Write() << "self.h = h" << std::endl;
-        if (not graph->in->shape.Spatial()->W().Empty())
-            Write() << "self.w = w" << std::endl;
+        if (solution.ensure_spatial_invariance) {
+            if (not graph->in->shape.Spatial()->H().Empty())
+                Write() << "self.h = h" << std::endl;
+            if (not graph->in->shape.Spatial()->W().Empty())
+                Write() << "self.w = w" << std::endl;
+        } else {
+            Write() << "self.h, self.w = None, None" << std::endl;
+        }
         Write() << std::endl;
 
         // Define kernels.
@@ -656,7 +672,7 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         VarMap var_map;
 
         // Travel the graph with the `InitTranslator`.
-        PyTorchInitTranslator init_translator(var_map);
+        PyTorchInitTranslator init_translator(var_map, solution.ensure_spatial_invariance);
         Travel(graph, init_translator);
 
         // End the `__init__` scope.
@@ -668,7 +684,7 @@ Code PyTorchCodeGen::GenImpl(const Solution& solution, std::string name) {
         BeginScope();
 
         // Travel the graph the `ForwardTranslator`.
-        PyTorchForwardTranslator forward_translator(var_map);
+        PyTorchForwardTranslator forward_translator(var_map, solution.ensure_spatial_invariance);
         Travel(graph, forward_translator);
 
         // End the `forward` scope.

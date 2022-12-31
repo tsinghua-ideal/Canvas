@@ -78,7 +78,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
         // Random a primitive according to the filters.
         PrimitiveOptions primitive_options(options.allowed_filter, options.forbidden_filter,
                                            options.kernel_sizes, options.dilated_sizes, options.shift_sizes,
-                                           io_shape);
+                                           io_shape, options.ensure_spatial_invariance);
 
         // Hash filters.
         for (const auto& p: graph->primitives)
@@ -262,6 +262,8 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     }
 
     // The final check, fill the solution with concise values.
+    if (not graph->AlgebraCheck(options.ensure_spatial_invariance))
+        return {};
     for (const auto& kernel: net_specs->kernel_specs) {
         if (not graph->AlgebraCheck(Merge(global_specs, kernel))) {
 #ifdef CANVAS_DEBUG_FAILED_COUNT
@@ -283,7 +285,7 @@ Solution TryRandomSample(const NetSpecsSP& net_specs, const SampleOptions& optio
     }
 
     // Successfully sampled!
-    return {net_specs, graph, global_specs};
+    return {net_specs, graph, global_specs, options.ensure_spatial_invariance};
 }
 
 Solution RandomSample(const NetSpecsSP& net_specs, const SampleOptions& options) {
