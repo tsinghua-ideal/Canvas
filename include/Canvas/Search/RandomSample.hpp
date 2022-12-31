@@ -70,7 +70,6 @@ struct SampleOptions {
             assert(d > 0);
         for (int k: this->shift_sizes)
             assert(k > 0);
-        assert(timeout > 0);
         assert(0 <= max_weighted_ratio and max_weighted_ratio <= 1.0);
         assert(0 <= force_bmm_possibility and force_bmm_possibility <= 1.0);
         assert(min_receptive_size > 0);

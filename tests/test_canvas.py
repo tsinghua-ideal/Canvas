@@ -52,7 +52,7 @@ class ExampleModelNoneSpatial(nn.Module):
         return x
 
 
-def demo():
+def test_demo():
     net = ExampleModel()
     pack = canvas.sample(net, example_input=torch.zeros(1, 3, 32, 32))
     net = canvas.replace(net, pack.module, 'cpu')
@@ -87,6 +87,15 @@ def test_sample():
     canvas.sample(net, torch.zeros(1, 3, 32, 32))
     for _ in range(10):
         pack = canvas.sample(net)
+        net = canvas.replace(net, pack.module, 'cpu')
+        t = net(torch.zeros(1, 3, 32, 32))
+
+
+def test_spatial_variance_sample():
+    net = ExampleModel()
+    canvas.sample(net, torch.zeros(1, 3, 32, 32))
+    for _ in range(10):
+        pack = canvas.sample(net, ensure_spatial_invariance=False)
         net = canvas.replace(net, pack.module, 'cpu')
         t = net(torch.zeros(1, 3, 32, 32))
 

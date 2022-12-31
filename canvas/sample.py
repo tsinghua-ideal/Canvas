@@ -18,7 +18,7 @@ def build_sample_options(allowed_filter: str = '',
                          max_weighted_ratio: float = 0.6,
                          force_bmm_possibility: float = 0.0,
                          min_receptive_size: int = 1,
-                         ensure_spatial_invariance: bool = true,
+                         ensure_spatial_invariance: bool = True,
                          workers: int = 1,
                          timeout: int = 0):
     # Check option types.
@@ -82,7 +82,7 @@ def empty_sample(allowed_filter: str = '',
                  max_weighted_ratio: float = 0.6,
                  force_bmm_possibility: float = 0.0,
                  min_receptive_size: int = 1,
-                 ensure_spatial_invariance: bool = true,
+                 ensure_spatial_invariance: bool = True,
                  workers: int = 1,
                  timeout: int = 0):
     r"""Sample an available kernel from the search space, without network reference.
@@ -164,7 +164,7 @@ def sample(m: nn.Module,
            max_weighted_ratio: float = 0.6,
            force_bmm_possibility: float = 0.0,
            min_receptive_size: int = 1,
-           ensure_spatial_invariance: bool = true,
+           ensure_spatial_invariance: bool = True,
            workers: int = 1,
            timeout: int = 0):
     r"""Sample an available kernel for a module from the search space.
