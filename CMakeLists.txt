@@ -8,6 +8,10 @@ set(CMAKE_CXX_STANDARD 17)
 # Compiler flags.
 add_definitions(-fPIC)
 
+# Customized release build type with assertions: RelBuildWithAsserts
+set(CMAKE_C_FLAGS_RELBUILDWITHASSERTS "-O2 -g")
+set(CMAKE_CXX_FLAGS_RELBUILDWITHASSERTS "-O2 -g")
+
 # Fetch external dependencies.
 include(FetchContent)
 

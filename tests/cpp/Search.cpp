@@ -95,7 +95,7 @@ TEST(Search, PrimitiveFactoryReduceWidth) {
 
 void TestAPI(const NetSpecsSP& net_specs) {
     // Random and generate code.
-    for (int i = 0; i < 10; ++ i) {
+    for (int i = 0; i < 30; ++ i) {
         auto options = SampleOptions();
         options.ensure_spatial_invariance = MakeChoice();
         auto solution = RandomSample(net_specs, options);

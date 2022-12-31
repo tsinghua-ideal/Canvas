@@ -34,7 +34,7 @@ class CMakeBuild(build_ext):
             extdir += os.path.sep
 
         debug = int(os.environ.get('DEBUG', 0)) if self.debug is None else self.debug
-        cfg = 'Debug' if debug else 'Release'
+        cfg = 'Debug' if debug else 'RelBuildWithAsserts'
         print(f'compiling with {cfg} mode ...')
 
         # CMake lets you override the generator - we need to check this.
