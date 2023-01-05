@@ -41,7 +41,6 @@ class Placeholder(nn.Module):
         self.initialized = False
         self.spatial_dims, self.c, self.h, self.w = 0, 0, 0, 0
         self.canvas_placeholder_kernel = Identity()
-        self.apply(init_weights)
 
     def clear(self):
         r"""Reset all information, which is inferred during analysis.
@@ -50,7 +49,7 @@ class Placeholder(nn.Module):
         self.initialized = False
         self.spatial_dims, self.c, self.h, self.w = 0, 0, 0, 0
 
-    def reload(self, kernel_cls, device: str):
+    def reload(self, kernel_cls, device: str, init_weights_func=init_weights):
         r"""Reload the internal kernel implement.
 
             Parameters
@@ -59,6 +58,8 @@ class Placeholder(nn.Module):
                 The Python class of the kernel to replace.
             device: str
                 Reload this module to which device.
+            init_weights_func:
+                Function for initializing weights.
         """
 
         args = {'c': self.c}
@@ -67,7 +68,8 @@ class Placeholder(nn.Module):
         if self.spatial_dims > 1:
             args['w'] = self.w
         self.canvas_placeholder_kernel = kernel_cls(**args).to(device)
-        self.canvas_placeholder_kernel.apply(init_weights)
+        if init_weights_func is not None:
+            self.canvas_placeholder_kernel.apply(init_weights_func)
 
     def forward(self, x: torch.Tensor):
         r"""Forward propagation of the kernel.
