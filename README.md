@@ -55,7 +55,7 @@ if __name__ == "__main__":
     # You may also repeat the sampling process in a loop to find a better kernel
     kernel_pack = canvas.sample(model, example_input=torch.randn(1, 3, 224, 224))
     # Replace the original kernel with the sampled one
-    canvas.replace(model, kernel_pack)
+    canvas.replace(model, kernel_pack.module)
     # Print PyTorch implementation of the sampled kernel
     print(f"Sampled kernel code: {kernel_pack.torch_code}")
 ```
