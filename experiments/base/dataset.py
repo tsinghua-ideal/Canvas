@@ -12,8 +12,8 @@ def get_loaders(args, proxy: bool = False):
     # Get dataset.
     if args.local_rank == 0:
         get_logger().info(f'Preparing data loaders in {root} (proxy={proxy})')
-    dataset_train = create_dataset(name='', root=root, split=args.train_split, batch_size=args.batch_size)
-    dataset_eval = create_dataset(name='', root=root, split=args.val_split, batch_size=args.batch_size)
+    dataset_train = create_dataset(name='torch/cifar10', root=root, split=args.train_split, download=True, batch_size=args.batch_size)
+    dataset_eval = create_dataset(name='torch/cifar10', root=root, split=args.val_split, download=True, batch_size=args.batch_size)
 
     # Setup mixup / cutmix.
     collate_fn = None

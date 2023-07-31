@@ -179,7 +179,10 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                         ('top5', top5_m.avg), ('kernel_scales', kernel_scales)])
 
 
-def train(args, model, train_loader, eval_loader, search_mode: bool = False, proxy_mode: bool = False):
+def train(args, model, train_loader, eval_loader, darts_eval: bool = False, search_mode: bool = False, proxy_mode: bool = False):
+    # Set different number of epochs based on your target
+    if darts_eval:
+        args.epochs = 5
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
 
@@ -250,12 +253,12 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
             json.dump(vars(args), fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
 
     # Pruning after epochs.
-    overall_pruning_milestones = None
-    if args.canvas_epoch_pruning_milestone:
-        with open(args.canvas_epoch_pruning_milestone) as f:
-            overall_pruning_milestones = json.load(f)
-        if args.local_rank == 0:
-            logger.info(f'Milestones (overall epochs) loaded: {overall_pruning_milestones}')
+    # overall_pruning_milestones = None
+    # if args.canvas_epoch_pruning_milestone:
+    #     with open(args.canvas_epoch_pruning_milestone) as f:
+    #         overall_pruning_milestones = json.load(f)
+    #     if args.local_rank == 0:
+    #         logger.info(f'Milestones (overall epochs) loaded: {overall_pruning_milestones}')
 
     # Iterate over epochs.
     all_train_metrics, all_eval_metrics = [], []
@@ -263,13 +266,13 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
 
-        # Pruner.
+        # # Pruner.
         in_epoch_pruning_milestones = dict()
-        if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
-            with open(args.canvas_first_epoch_pruning_milestone) as f:
-                in_epoch_pruning_milestones = json.load(f)
-            if args.local_rank == 0:
-                logger.info(f'Milestones (first-epoch loss) loaded: {in_epoch_pruning_milestones}')
+        # if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
+        #     with open(args.canvas_first_epoch_pruning_milestone) as f:
+        #         in_epoch_pruning_milestones = json.load(f)
+        #     if args.local_rank == 0:
+        #         logger.info(f'Milestones (first-epoch loss) loaded: {in_epoch_pruning_milestones}')
 
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
@@ -286,7 +289,6 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
             # if args.local_rank == 0:
             #     logger.info("Distributing BatchNorm running means and vars")
             distribute_bn(model, args.world_size, args.dist_bn == 'reduce')
-
         # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, amp_autocast, logger)
         all_eval_metrics.append(eval_metrics)
@@ -314,14 +316,14 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
             best_metric, best_epoch = saver.save_checkpoint(epoch, metric=eval_metrics[args.eval_metric])
 
         # Pruning by epoch accuracy.
-        if f'{epoch}' in overall_pruning_milestones and overall_pruning_milestones[f'{epoch}'] > eval_metrics['top1']:
-            if args.local_rank == 0:
-                logger.info(f'Early pruned '
-                            f'({eval_metrics["top1"]} < {overall_pruning_milestones[f"{epoch}"]}) at epoch {epoch}')
-            break
+        # if f'{epoch}' in overall_pruning_milestones and overall_pruning_milestones[f'{epoch}'] > eval_metrics['top1']:
+        #     if args.local_rank == 0:
+        #         logger.info(f'Early pruned '
+        #                     f'({eval_metrics["top1"]} < {overall_pruning_milestones[f"{epoch}"]}) at epoch {epoch}')
+        #     break
 
     if best_metric is not None:
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
 
-    return all_train_metrics, all_eval_metrics
+    return all_train_metrics, all_eval_metrics if not darts_eval else all_train_metrics

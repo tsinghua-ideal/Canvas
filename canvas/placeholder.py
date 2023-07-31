@@ -49,12 +49,13 @@ class Placeholder(nn.Module):
         self.initialized = False
         self.spatial_dims, self.c, self.h, self.w = 0, 0, 0, 0
 
-    def reload(self, kernel_cls, device: str, init_weights_func=init_weights):
+def reload(self, replaced_module, kernel_list, device: str, i, init_weights_func=init_weights):
+    # def reload(self, replaced_module, device: str, init_weights_func=init_weights):
         r"""Reload the internal kernel implement.
 
             Parameters
             ----------
-            kernel_cls: type
+            # kernel_cls: type
                 The Python class of the kernel to replace.
             device: str
                 Reload this module to which device.
@@ -67,9 +68,30 @@ class Placeholder(nn.Module):
             args['h'] = self.h
         if self.spatial_dims > 1:
             args['w'] = self.w
-        self.canvas_placeholder_kernel = kernel_cls(**args).to(device)
+        # TEST
+        # replaced_module.initialize_kernels(args)
+        # self.canvas_placeholder_kernel = replaced_module.to(device)
+        # for name, param in self.canvas_placeholder_kernel.named_parameters():
+        #         print(name, param.device)
+        module_list = [None] * len(kernel_list) 
+
+        for i, kernel in enumerate(kernel_list):
+            # module = kernel.module
+            module = kernel.module(**args)
+            module_list[i] = module
+        # print("The length of module_list")
+        # print(len(module_list))
+        module_list = nn.ModuleList(module_list)
         if init_weights_func is not None:
-            self.canvas_placeholder_kernel.apply(init_weights_func)
+                module_list.apply(init_weights_func)
+        self.canvas_placeholder_kernel = replaced_module(module_list, i)
+        self.canvas_placeholder_kernel.to(device)
+        # self.canvas_placeholder_kernel = replaced_module(**args).to(device)
+        # if init_weights_func is not None:
+        #     self.canvas_placeholder_kernel.apply(init_weights_func)
+        # for name, param in self.canvas_placeholder_kernel.named_parameters():
+        #         print(name, param.device)
+        del module_list
 
     def forward(self, x: torch.Tensor):
         r"""Forward propagation of the kernel.
@@ -134,10 +156,10 @@ def get_placeholders(m: nn.Module,
     """
     if not hasattr(m, 'canvas_cached_placeholders'):
         setattr(m, 'canvas_cached_placeholders', [])
-        for kernel in m.modules():
-            if isinstance(kernel, Placeholder):
-                kernel.id = len(m.canvas_cached_placeholders)
-                m.canvas_cached_placeholders.append(kernel)
+    for kernel in m.modules():
+        if isinstance(kernel, Placeholder):
+            kernel.id = len(m.canvas_cached_placeholders)
+            m.canvas_cached_placeholders.append(kernel)
 
     # Analyze shapes.
     if example_input is not None:
