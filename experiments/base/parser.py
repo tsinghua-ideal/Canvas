@@ -226,7 +226,10 @@ def arg_parse():
     parser.add_argument('--canvas-selector-max-params', default=6, help='Maximum model size')
     parser.add_argument('--canvas-selector-dir', default='', help='Selector working directory')
     parser.add_argument('--canvas-selector-save-dir', default='', help='Selector saving directory')
-
+    parser.add_argument('--canvas-number-of-kernels', default=4, help='The number of kernels inside the replaced module')
+    parser.add_argument('--compression-rate', default=1.0, help='The compression rate after replaced with replaced module')
+    # EntranNAS preferences
+    parser.add_argument('--lambda', default=0.5, help='The hyperparameter used to control the degree of sparsification of final model')
     # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()
     setattr(args, 'timestamp', time.time_ns())

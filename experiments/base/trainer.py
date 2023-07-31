@@ -179,10 +179,9 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                         ('top5', top5_m.avg), ('kernel_scales', kernel_scales)])
 
 
-def train(args, model, train_loader, eval_loader, darts_eval: bool = False, search_mode: bool = False, proxy_mode: bool = False):
+def train(args, model, train_loader, eval_loader, search_mode: bool = False, proxy_mode: bool = False):
     # Set different number of epochs based on your target
-    if darts_eval:
-        args.epochs = 5
+        
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
 
@@ -310,10 +309,10 @@ def train(args, model, train_loader, eval_loader, darts_eval: bool = False, sear
                 os.path.join(output_dir, 'summary.csv'),
                 write_header=best_metric is None)
 
-        if saver is not None:
-            if args.local_rank == 0:
-                logger.info('Saving checkpoint ...')
-            best_metric, best_epoch = saver.save_checkpoint(epoch, metric=eval_metrics[args.eval_metric])
+        # if saver is not None:
+        #     if args.local_rank == 0:
+        #         logger.info('Saving checkpoint ...')
+        #     best_metric, best_epoch = saver.save_checkpoint(epoch, metric=eval_metrics[args.eval_metric])
 
         # Pruning by epoch accuracy.
         # if f'{epoch}' in overall_pruning_milestones and overall_pruning_milestones[f'{epoch}'] > eval_metrics['top1']:
@@ -326,4 +325,4 @@ def train(args, model, train_loader, eval_loader, darts_eval: bool = False, sear
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
 
-    return all_train_metrics, all_eval_metrics if not darts_eval else all_train_metrics
+    return all_train_metrics, all_eval_metrics 
