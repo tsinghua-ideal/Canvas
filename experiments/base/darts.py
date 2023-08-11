@@ -59,25 +59,55 @@ def get_weights(model):
         return weights
     
 class InGtOut(nn.Module):
+    """
+    A custom module that applies when Input channels greater than Output channels
+
+    Args:
+        factor (int): Split factor for the input tensor.
+    """
     def __init__(self, factor):
         super(InGtOut, self).__init__()
         self.factor = factor 
         self.layer = canvas.Placeholder()
     def forward(self, x: torch.Tensor):
+        """
+        Forward pass of the module.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Aggregated output tensor.
+        """
         split_outputs = []
         # print(f"old channel = {print(x.shape)}, factor = {self.factor}")
         tensors = torch.split(x, x.shape[1] // self.factor, dim = 1)
         for tensor in tensors:
             output = self.layer(tensor)
             split_outputs.append(output)
-        output = torch.sum(torch.stack(split_outputs), dim=0)
-        return output
+        aggregated_output = torch.sum(torch.stack(split_outputs), dim=0)
+        return aggregated_output
 class OutGtIn(nn.Module):
+    """
+    A custom module that applies when Output channels greater than Input channels
+
+    Args:
+        factor (int): Split factor for the input tensor.
+    """
     def __init__(self, factor):
         super(OutGtIn, self).__init__()
         self.factor = factor
         self.layer = canvas.Placeholder()
     def forward(self, x: torch.Tensor):
+        """
+        Forward pass of the module.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Concatenated output tensor.
+        """
         output = self.layer(x) 
 
         concatenated_tensor = torch.cat([output for _ in range(self.factor)], dim=1)
