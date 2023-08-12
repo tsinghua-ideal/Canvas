@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from typing import Tuple, Type
+from typing import Callable, Tuple
 
 import cpp_canvas
 from . import kernel_pack, placeholder, utils
@@ -257,7 +257,7 @@ def sample(m: nn.Module,
     return kernel_pack.KernelPack.load_from_cpp(pack)
 
 
-def replace(m: nn.Module, module: Type[nn.Module], device: str = 'cuda:0', init_weights_func=utils.init_weights):
+def replace(m: nn.Module, module: Callable, device: str = 'cuda:0', init_weights_func=utils.init_weights):
     r"""Replace all kernel placeholders of n with sample kernels in pack.
 
         Parameters
