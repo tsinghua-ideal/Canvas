@@ -5,58 +5,82 @@ import math
 from typing import Callable, Dict
 import canvas
 from . import log
+
+
 def get_final_model(model, wsharing):
     kernel_dict = {}
     # Helper function to recursively search for conv layers
     def find(module):
         for name, child in module.named_children():
-            if isinstance(child, ReplacedModule):
+            if isinstance(child, ParallelPlaceholder):
                 kernel_dict[name] = child
             elif isinstance(child, nn.Module):
                 find(child)
-
+                
     find(model)
     for name, ensembled_kernel in kernel_dict.items():
         final_kernel = ensembled_kernel.get_max_weight_kernel()
         setattr(model, name, final_kernel)
             
-class ReplacedModule(nn.Module):
-    def __init__(self, module_list: nn.ModuleList, i):
-        super(ReplacedModule, self).__init__()
+            
+class ParallelPlaceholder(nn.Module):
+    """
+    A module representing a parallel combination of multiple kernels with weighted outputs.
+
+    Args:
+        kernel_cls_list (list): List of kernel class types to be instantiated.
+        i (int): Index of the placeholder.
+        **kwargs: Keyword arguments passed to kernel constructors(c, h, w).
+
+    Attributes:
+        i (int): Rank of this placeholder in the model.
+        module_list (nn.ModuleList): List of instantiated kernel modules.
+        alphas (nn.Parameter): Learnable architecture parameter representing weights of kernels.
+
+    Methods:
+        forward(x): Forward pass through the module.
+        get_max_weight_kernel(): Get the kernel with the maximum weight.
+        print_parameters(j): Print the parameters of the module when it's trained.
+        get_alphas(): Get the alpha values.
+
+    """
+    def __init__(self, kernel_cls_list, i, **kwargs):
+        super().__init__()
         self.i = i
-        self.module_list = module_list
-        self.alphas = nn.Parameter(torch.randn(len(module_list)))
+        assert len(kernel_cls_list) >= 1
+        self.module_list = nn.ModuleList([kernel_cls(*kwargs.values()) for kernel_cls in kernel_cls_list])
+        self.alphas = nn.Parameter((1e-3) * torch.randn(len(kernel_cls_list)))
+
     def forward(self, x: torch.Tensor):
-        out = torch.zeros(x.shape, device=x.device)
-        # out = x
-        alphas_softmax = F.softmax(self.alphas, dim=0)  
-        for i in range(len(self.module_list)):
-            out.add_(torch.mul(alphas_softmax[i], self.module_list[i](x)))
-        #     # out = out + torch.mul(self.alphas[i], self.module_list[i](x))
-        return out
-        # return sum(alphas_softmax[i] * self.module_list[i](x) for i in range(len(self.module_list)))
-        # return torch.mul(alphas_softmax[0], self.module_list[0](x))
+        softmax_alphas = F.softmax(self.alphas, dim=0)
+        stacked_outs = torch.stack([kernel(x) for kernel in self.module_list], dim=0)
+        return torch.einsum('i,i...->...', softmax_alphas, stacked_outs)
+
     def get_max_weight_kernel(self):
         max_weight_idx = torch.argmax(self.alphas)
         return self.module_list[max_weight_idx]
-    def print_parameters(self, j):
+    
+    def print_parameters(self, j, parameters):
         logger = log.get_logger()
+        
         # Print parameters in each placeholder  
         logger.info(f'In {self.i}th Placeholder')  
+        
         # Alpha
         logger.info(f'####### ALPHA After {j}th epoch #######')
         logger.info('# Alphas')
         logger.info(F.softmax(self.alphas, dim=0))
         logger.info('#####################')
     
-    def get_alphas(self):
-        return self.alphas
     
 def get_alphas(model):
-    return nn.ParameterList(placeholder.canvas_placeholder_kernel.get_alphas() for placeholder in model.canvas_cached_placeholders)
+    return nn.ParameterList(placeholder.canvas_placeholder_kernel.alphas for placeholder in model.canvas_cached_placeholders)
+
+
 def get_weights(model):
-        weights = nn.ParameterList(param for name, param in model.named_parameters() if 'alphas' not in name)
-        return weights
+    weights = nn.ParameterList(param for name, param in model.named_parameters() if 'alphas' not in name)
+    return weights
+    
     
 class InGtOut(nn.Module):
     """
@@ -69,6 +93,7 @@ class InGtOut(nn.Module):
         super(InGtOut, self).__init__()
         self.factor = factor 
         self.layer = canvas.Placeholder()
+        
     def forward(self, x: torch.Tensor):
         """
         Forward pass of the module.
@@ -87,6 +112,8 @@ class InGtOut(nn.Module):
             split_outputs.append(output)
         aggregated_output = torch.sum(torch.stack(split_outputs), dim=0)
         return aggregated_output
+    
+    
 class OutGtIn(nn.Module):
     """
     A custom module that applies when Output channels greater than Input channels
@@ -98,6 +125,7 @@ class OutGtIn(nn.Module):
         super(OutGtIn, self).__init__()
         self.factor = factor
         self.layer = canvas.Placeholder()
+        
     def forward(self, x: torch.Tensor):
         """
         Forward pass of the module.
@@ -109,9 +137,9 @@ class OutGtIn(nn.Module):
             torch.Tensor: Concatenated output tensor.
         """
         output = self.layer(x) 
-
         concatenated_tensor = torch.cat([output for _ in range(self.factor)], dim=1)
         return concatenated_tensor
+    
     
 def filter(module: nn.Module, type: str = "conv", max_count: int = 0) -> bool:
     match type:
@@ -139,15 +167,15 @@ def filter(module: nn.Module, type: str = "conv", max_count: int = 0) -> bool:
             return True
         case "resblock":
             return True
+        
+        
 def replace_module_with_placeholder(module: nn.Module, old_module_types: Dict[nn.Module, str], filter: Callable = filter):
     if isinstance(module, canvas.Placeholder):
-            return 0, 1
+        return 0, 1
     # assert old_module_type == nn.Conv2d or old_module_type == SqueezeExcitation
-    
     replaced, not_replaced = 0, 0
     for name, child in module.named_children():
         if type(child) in old_module_types:
-            # print("gotcha")
             string_name = old_module_types[type(child)]
             match string_name:
                 case "conv":
@@ -171,22 +199,21 @@ def replace_module_with_placeholder(module: nn.Module, old_module_types: Dict[nn
                             setattr(module, name, canvas.Placeholder())
                         else:
                             factor = 2
-                            # print(f"factor = {factor}")
                             setattr(module, name, OutGtIn(factor))
                     else:
-                        not_replaced += 1       
-                                 
+                        not_replaced += 1           
         elif len(list(child.named_children())) > 0:
             count = replace_module_with_placeholder(child, old_module_types, filter)
             replaced += count[0]
             not_replaced += count[1]
     return replaced, not_replaced
+
+
 """ Architect controls architecture of cell by computing gradients of alphas 
     NAS训练算法中的第1步: 更新架构参数 α
     根据论文可知 dα Lval(w*, α) 约等于 dα Lval(w', α)    w' = w - ξ * dw Ltrain(w, α)
 """
 import copy
-import torch
 
 
 class Architect():

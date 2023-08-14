@@ -10,11 +10,16 @@ from ..log import get_logger
 
 def get_model(args, search_mode: bool = False):
     logger = get_logger()
-    model = timm.create_model(args.model,
-                              num_classes=args.num_classes,
-                              drop_rate=args.drop,
-                              drop_path_rate=args.drop_path,
-                              drop_block_rate=args.drop_block)
+    logger.info("args.canvas_van_tiny")
+    logger.info(args.canvas_van_tiny)
+    if args.canvas_van_tiny == True:
+        model = canvas_van_tiny()
+    else:
+        model = timm.create_model(args.model,
+                                num_classes=args.num_classes,
+                                drop_rate=args.drop,
+                                drop_path_rate=args.drop_path,
+                                drop_block_rate=args.drop_block)
     model.to(args.device)
 
     if args.num_classes is None:
@@ -48,8 +53,9 @@ def get_model(args, search_mode: bool = False):
 
     # Count FLOPs and params.
     if args.local_rank == 0:
-        macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
+        macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=False,
                                                          print_per_layer_stat=False, verbose=False)
-        logger.info(f'MACs: {macs}, params: {params}')
+        g_macs, m_params = macs / 1e9, params / 1e6
+        logger.info(f'G_MACs: {g_macs}, m_params: {m_params}')
 
-    return model
+    return model, g_macs, m_params

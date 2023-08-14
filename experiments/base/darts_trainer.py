@@ -77,10 +77,10 @@ def train_one_epoch(args, epoch, model, train_loader, eval_loader, w_optim, alph
         # for alphas in darts.get_kernel_weights(model):
         #     logger.info(f'grad of kernels weights:{alphas.grad}')
         for name, param in model.named_parameters():
-            if param.grad is not None:
-                print(name, param.grad)
-            # if param.grad is None:
-            #     print(name, param.grad_fn)
+            # if param.grad is not None:
+            #     print(name, param.grad)
+            if param.grad is None:
+                print(name, param.grad_fn)
         # Sync.
         torch.cuda.synchronize()
         num_updates += 1
@@ -208,24 +208,15 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     # LR scheduler and epochs.
     optimizer = optim.get_optimizer(args, model)
     schedule = sche.get_schedule(args, optimizer)
-    lr_scheduler, sched_epochs = schedule
-    # weights optimizer 用于网络参数 w 的优化器  
-    # w_lr 初始值是0.025，使用的余弦退火调度更新学习率，每个epoch的学习率都不一样
-    # w_momentum = 0.9 常用参数
-    # w_weight_decay = 3e-4  正则化参数
-    
-   
+    lr_scheduler, sched_epochs = schedule 
     w_optim = torch.optim.SGD(darts.get_weights(model), args.w_lr, momentum=args.w_momentum,
                               weight_decay=args.w_weight_decay)
-
-    # alphas optimizer 用于结构参数 α 的优化器
-    
     alpha_optim = torch.optim.Adam(darts.get_alphas(model), args.alpha_lr, betas=(0.5, 0.999),
                                    weight_decay=args.alpha_weight_decay)
+
     # Create a logger.
     logger = log.get_logger()
-    # logger.info(f'weights: {darts.get_weights(model)}')
-    # logger.info(f'alphas: {darts.get_alphas(model)}')
+    
     if args.local_rank == 0:
         logger.info('Begin training ...')
 
@@ -295,6 +286,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
 
     # Iterate over epochs.
     all_train_metrics, all_eval_metrics = [], []
+    alphas_dict = {}
     for epoch in range(start_epoch, sched_epochs):
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
@@ -312,9 +304,15 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
                                         optimizer, lr_scheduler, amp_autocast, loss_scaler, logger,
                                         pruning_milestones=in_epoch_pruning_milestones)
         all_train_metrics.append(train_metrics)
+        
+        # Log the alphas
         for placeholder in model.canvas_cached_placeholders:
             placeholder.canvas_placeholder_kernel.print_parameters(epoch)
-            
+        
+        # Save the alphas
+        if epoch / 10 == 0 or epoch == 5:
+            alphas_dict[f'In the {epoch} epoch, the alphas = '] = model.get_alphas()
+
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):
             raise RuntimeError('NaN occurs during training')
@@ -324,6 +322,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
             # if args.local_rank == 0:
             #     logger.info("Distributing BatchNorm running means and vars")
             distribute_bn(model, args.world_size, args.dist_bn == 'reduce')
+            
         # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, amp_autocast, logger)
         all_eval_metrics.append(eval_metrics)
@@ -345,20 +344,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
                 os.path.join(output_dir, 'summary.csv'),
                 write_header=best_metric is None)
 
-        # if saver is not None:
-        #     if args.local_rank == 0:
-        #         logger.info('Saving checkpoint ...')
-        #     best_metric, best_epoch = saver.save_checkpoint(epoch, metric=eval_metrics[args.eval_metric])
-
-        # Pruning by epoch accuracy.
-        # if f'{epoch}' in overall_pruning_milestones and overall_pruning_milestones[f'{epoch}'] > eval_metrics['top1']:
-        #     if args.local_rank == 0:
-        #         logger.info(f'Early pruned '
-        #                     f'({eval_metrics["top1"]} < {overall_pruning_milestones[f"{epoch}"]}) at epoch {epoch}')
-        #     break
-
     if best_metric is not None:
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
-
-    return all_train_metrics, all_eval_metrics 
+    return all_train_metrics, all_eval_metrics, alphas_dict

@@ -121,7 +121,17 @@ def arg_parse():
                         help='Clip gradient norm (default: none, no clipping)')
     parser.add_argument('--clip-mode', type=str, default='norm',
                         help='Gradient clipping mode, one of ("norm", "value", "agc")')
-
+    #test
+    parser.add_argument('--w_lr', type=float, default=0.025, help='lr for weights')
+    parser.add_argument('--w_lr_min', type=float, default=0.001, help='minimum lr for weights')
+    parser.add_argument('--w_momentum', type=float, default=0.9, help='momentum for weights')
+    parser.add_argument('--w_weight_decay', type=float, default=3e-4,
+                        help='weight decay for weights')
+    # parser.add_argument('--w_grad_clip', type=float, default=5.,
+    #                     help='gradient clipping for weights')
+    parser.add_argument('--alpha_lr', type=float, default=3e-4, help='lr for alpha')
+    parser.add_argument('--alpha_weight_decay', type=float, default=1e-3,
+                        help='weight decay for alpha')
     # Scheduler parameters.
     parser.add_argument('--sched', default='cosine', type=str, metavar='SCHEDULER',
                         help='LR scheduler (default: "step"')
@@ -226,10 +236,13 @@ def arg_parse():
     parser.add_argument('--canvas-selector-max-params', default=6, help='Maximum model size')
     parser.add_argument('--canvas-selector-dir', default='', help='Selector working directory')
     parser.add_argument('--canvas-selector-save-dir', default='', help='Selector saving directory')
-    parser.add_argument('--canvas-number-of-kernels', default=4, help='The number of kernels inside the replaced module')
+    parser.add_argument('--canvas-number-of-kernels', default=4, type = int, help='The number of kernels inside the replaced module')
     parser.add_argument('--compression-rate', default=1.0, help='The compression rate after replaced with replaced module')
+    parser.add_argument('--canvas-van-tiny', default=False, type=bool, help='Use canvas van tiny as the backbone')
+    
     # EntranNAS preferences
     parser.add_argument('--lambda', default=0.5, help='The hyperparameter used to control the degree of sparsification of final model')
+
     # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()
     setattr(args, 'timestamp', time.time_ns())
