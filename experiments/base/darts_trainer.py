@@ -311,7 +311,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         
         # Save the alphas
         if epoch / 10 == 0 or epoch == 5:
-            alphas_dict[f'In the {epoch} epoch, the alphas = '] = model.get_alphas()
+            alphas_dict[f'In the {epoch} epoch, the alphas = '] = darts.get_alphas(model)
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):
