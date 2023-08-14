@@ -5,7 +5,7 @@ from functools import partial
 from torch import nn
 
 
-class ParallelPlaceholder(nn.Module):
+class ParallelKernels(nn.Module):
     def __init__(self, kernel_cls_list, **kwargs):
         super().__init__()
         assert len(kernel_cls_list) > 1
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     # Replace the placeholders with the sampled kernels
     model = canvas.replace(model,
-                           partial(ParallelPlaceholder, kernel_cls_list=[kernel_pack_1.module, kernel_pack_2.module]),
+                           partial(ParallelKernels, kernel_cls_list=[kernel_pack_1.module, kernel_pack_2.module]),
                            'cpu')
     out = model(torch.randn(1, 3, 224, 224))
     print(model)

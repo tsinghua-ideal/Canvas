@@ -157,6 +157,7 @@ def arg_parse():
                         help='LR decay rate (default: 0.1)')
 
     # Misc.
+    parser.add_argument('--darts', default=False, action='store_true', help='Enable DARTS mode')
     parser.add_argument('--forbid-eval-nan', action='store_true', help='Whether to forbid NaN during evaluation')
     parser.add_argument('--output', default='', type=str, metavar='PATH',
                         help='Path to output folder (default: none, current dir, training only)')
@@ -203,7 +204,7 @@ def arg_parse():
                         help='Path to proxy dataset (only for search)')
     parser.add_argument('--canvas-proxy-threshold', default=70.0, type=float,
                         help='Proxy dataset threshold for real training (only for search)')
-    parser.add_argument('--canvas-kernel', default='', type=str,
+    parser.add_argument('--canvas-kernels', type=str, nargs='+', default=[],
                         help='Path to the replaced kernel (only for training)')
     parser.add_argument('--canvas-min-macs', default=0, type=float,
                         help='Minimum MACs for searched kernels (in G-unit, only for search)')

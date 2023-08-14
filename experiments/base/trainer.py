@@ -12,7 +12,9 @@ from timm.models import model_parameters, resume_checkpoint, safe_model_name
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
 from timm.utils import NativeScaler, ApexScaler, CheckpointSaver, get_outdir, update_summary
 
+import canvas
 from . import log, loss, optim, sche
+from .models import ParallelKernels
 
 
 def train_one_epoch(args, epoch, model, train_loader,
@@ -110,7 +112,16 @@ def train_one_epoch(args, epoch, model, train_loader,
     if hasattr(optimizer, 'sync_lookahead'):
         optimizer.sync_lookahead()
 
-    return OrderedDict([('loss', losses_m.avg)])
+    metrics = OrderedDict([('loss', losses_m.avg)])
+    if args.darts:
+        alphas = []
+        for parallel_kernels in canvas.get_placeholders(model):
+            assert isinstance(parallel_kernels, ParallelKernels)
+            alphas.append(parallel_kernels.alphas.detach().cpu().numpy())
+        if args.local_rank == 0:
+            logger.info(f'Alphas: {alphas}')
+        metrics.update({'alphas': alphas})
+    return metrics
 
 
 def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
