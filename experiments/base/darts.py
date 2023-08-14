@@ -60,7 +60,7 @@ class ParallelPlaceholder(nn.Module):
         max_weight_idx = torch.argmax(self.alphas)
         return self.module_list[max_weight_idx]
     
-    def print_parameters(self, j, parameters):
+    def print_parameters(self, j):
         logger = log.get_logger()
         
         # Print parameters in each placeholder  
