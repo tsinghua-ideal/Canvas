@@ -2,11 +2,12 @@ import canvas
 import torch
 import ptflops
 import timm
+from functools import partial
 from timm import data
 
 from .canvas_van import canvas_van_tiny
 from ..log import get_logger
-
+from .. import darts
 
 def get_model(args, search_mode: bool = False):
     logger = get_logger()
@@ -45,12 +46,14 @@ def get_model(args, search_mode: bool = False):
     canvas.get_placeholders(model, example_input)
 
     # Replace kernel.
-    if not search_mode and args.canvas_kernel:
+    if not search_mode and len(args.canvas_kernels) > 0:
         if args.local_rank == 0:
-            logger.info(f'Replacing kernel from {args.canvas_kernel}')
-        pack = canvas.KernelPack.load(args.canvas_kernel)
-        model = canvas.replace(model, pack.module, args.device)
-
+              logger.info(f'Replacing kernel from {args.canvas_kernels}')
+        assert len(args.canvas_kernels) == 1 or (len(args.canvas_kernels) > 1 and args.darts)
+        packs = [canvas.KernelPack.load(kernel) for kernel in args.canvas_kernels]
+        cls = packs[0].module if len(packs) == 1 else partial(darts.ParallelKernels, 
+                                                              kernel_cls_list=[pack.module for pack in packs])
+        model = canvas.replace(model, cls, args.device)
     # Count FLOPs and params.
     if args.local_rank == 0:
         macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=False,

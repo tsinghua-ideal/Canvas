@@ -8,22 +8,110 @@ from . import log
 
 
 def get_final_model(model, wsharing):
-    kernel_dict = {}
-    # Helper function to recursively search for conv layers
-    def find(module):
-        for name, child in module.named_children():
-            if isinstance(child, ParallelPlaceholder):
-                kernel_dict[name] = child
-            elif isinstance(child, nn.Module):
-                find(child)
-                
-    find(model)
-    for name, ensembled_kernel in kernel_dict.items():
-        final_kernel = ensembled_kernel.get_max_weight_kernel()
-        setattr(model, name, final_kernel)
-            
-            
-class ParallelPlaceholder(nn.Module):
+    for placeholder in canvas.get_placeholders(model):
+        placeholder.canvas_placeholder_kernel = placeholder.canvas_placeholder_kernel.get_max_weight_kernel()
+    if not wsharing:
+        model.clear()    
+         
+def sparsed_loss(val_loss, model, lambda_value):
+    
+    # Calculate the sparsification regularization term
+    sparsification_term = 0
+    n = len(model.canvas_cached_placeholders)
+    for placeholder in model.canvas_cached_placeholders:
+        sparsification_term -= torch.log(placeholder.canvas_placeholder_kernel.beta)
+    
+    # Combine the validation loss and the sparsification regularization term
+    return val_loss + lambda_value / (n - 1) * sparsification_term
+    
+    
+class EntransParallelKernels(nn.Module):
+    """
+    A module representing a parallel combination of multiple kernels with weighted outputs.
+
+    Args:
+        kernel_cls_list (list): List of kernel class types to be instantiated.
+        i (int): Index of the placeholder.
+        **kwargs: Keyword arguments passed to kernel constructors(c, h, w).
+
+    Attributes:
+        i (int): Rank of this placeholder in the model.
+        module_list (nn.ModuleList): List of instantiated kernel modules.
+        alphas (nn.Parameter): Learnable architecture parameter representing weights of kernels.
+
+    Methods:
+        forward(x): Forward pass through the module.
+        get_max_weight_kernel(): Get the kernel with the maximum weight.
+        print_parameters(j): Print the parameters of the module when it's trained.
+        get_alphas(): Get the alpha values.
+
+    """
+    def __init__(self, kernel_cls_list, i, **kwargs):
+        super().__init__()
+        self.i = i
+        assert len(kernel_cls_list) >= 1
+        self.module_list = nn.ModuleList([kernel_cls(*kwargs.values()) for kernel_cls in kernel_cls_list])
+        self.alphas = nn.Parameter((1e-3) * torch.randn(len(kernel_cls_list)))
+        self.beta = nn.Parameter(torch.randn(1))
+        self.temperature = 5.0
+        
+    def forward(self, x: torch.Tensor):
+        
+        # Softmax with temperature 
+        softmax_alphas = F.softmax(self.alphas / self.temperature, dim=0)
+        
+        # Calculate the threshhold that at least one alpha exists after the pruning
+        t = torch.max(softmax_alphas) * torch.sigmoid(self.beta)
+        softmax_alphas = torch.relu(softmax_alphas - t)
+        
+        # Kernel normalization
+        softmax_alphas = softmax_alphas / torch.sum(softmax_alphas)
+
+        # Only calculate the kernel_module with the corresponding alpha > 0
+        stacked_outs = torch.stack([kernel_module(x) * softmax_alpha for kernel_module, softmax_alpha in zip(self.module_list, softmax_alphas) if softmax_alpha != 0], dim=0)
+
+        return torch.sum(stacked_outs, dim=0)
+      
+    def get_max_weight_kernel(self):
+        max_weight_idx = torch.argmax(self.alphas)
+        return self.module_list[max_weight_idx]
+    
+    def print_parameters(self, j):
+        logger = log.get_logger()
+        
+        # Print parameters in each placeholder  
+        logger.info(f'In {self.i}th Placeholder')  
+        
+        # Alpha
+        logger.info(f'####### ALPHA After {j}th epoch #######')
+        logger.info('# Alphas')
+        logger.info(F.softmax(self.alphas, dim=0))
+        logger.info('#####################')
+        
+        # Beta
+        logger.info(f'####### BETA After {j}th epoch #######')
+        logger.info('# Beta')
+        logger.info(self.beta)
+        logger.info('#####################')
+        
+    
+     
+def temperature_anneal(model):
+    for placeholder in model.canvas_cached_placeholders:
+        placeholder.canvas_placeholder_kernel.temperature *= 0.9235
+     
+def get_alphas_and_beta(model, detach = False):
+    if detach:
+        for name, param in model.named_parameters():
+            if 'alphas' in name or 'beta' in name :
+                    yield param.detach().cpu().numpy() 
+    else:
+        for name, param in model.named_parameters():
+            if 'alphas' in name or 'beta' in name:
+                    print(f'{name}: {param}')
+                    yield param
+       
+class ParallelKernels(nn.Module):
     """
     A module representing a parallel combination of multiple kernels with weighted outputs.
 
@@ -73,12 +161,20 @@ class ParallelPlaceholder(nn.Module):
         logger.info('#####################')
     
     
-def get_alphas(model):
-    return nn.ParameterList(placeholder.canvas_placeholder_kernel.alphas for placeholder in model.canvas_cached_placeholders)
+def get_alphas(model, detach = False):
+    """
+        Return a list that can be JSON serializable and saved into a json file 
+        or return a parameter list for gradient update of architecture parameters 
+
+    """  
+    if detach:
+        return [F.softmax(placeholder.canvas_placeholder_kernel.alphas.detach().cpu()).tolist() for placeholder in model.canvas_cached_placeholders]
+    else:
+        return nn.ParameterList([placeholder.canvas_placeholder_kernel.alphas for placeholder in model.canvas_cached_placeholders])
 
 
 def get_weights(model):
-    weights = nn.ParameterList(param for name, param in model.named_parameters() if 'alphas' not in name)
+    weights = nn.ParameterList(param for name, param in model.named_parameters() if 'alphas' not in name and 'beta' not in name and param.requires_grad == True)
     return weights
     
     
@@ -90,7 +186,7 @@ class InGtOut(nn.Module):
         factor (int): Split factor for the input tensor.
     """
     def __init__(self, factor):
-        super(InGtOut, self).__init__()
+        super().__init__()
         self.factor = factor 
         self.layer = canvas.Placeholder()
         
@@ -122,7 +218,7 @@ class OutGtIn(nn.Module):
         factor (int): Split factor for the input tensor.
     """
     def __init__(self, factor):
-        super(OutGtIn, self).__init__()
+        super().__init__()
         self.factor = factor
         self.layer = canvas.Placeholder()
         

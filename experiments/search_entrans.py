@@ -24,7 +24,7 @@ from canvas import placeholder
 import os
 import ptflops
 
-from base import dataset, device, log, models, parser, trainer, darts
+from base import dataset, device, log, models, parser, trainer, darts, entrans_trainer
 
 if __name__ == '__main__':
     
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         model = deepcopy(cpu_clone).to(args.device)
         if pack is not None:
             # canvas.replace(model, pack.module, args.device)
-            canvas.replace(model, partial(darts.ParallelKernels, pack), args.device)
+            canvas.replace(model, partial(darts.EntransParallelKernels, pack), args.device)
             
     # Search.
     current_best_score = 0
@@ -98,7 +98,7 @@ if __name__ == '__main__':
     logger.info(f'Start Canvas kernel search ({args.canvas_rounds if args.canvas_rounds else "infinite"} rounds)')
     for i in range(train_range):
         if i == 5:
-            args.canvas_number_of_kernels = 4
+            args.canvas_number_of_kernels = 1
         # Sample a new kernel.
         kernel_pack_list = []
         total_g_macs, total_m_params = placeholder_macs, placeholder_params  
@@ -161,8 +161,8 @@ if __name__ == '__main__':
         # Evaluate     
         try:
             logger.info('Darts evaluating on main dataset ...')
-            args.epochs = 80
-            train_metrics, eval_metrics = trainer.train(args, model=model,
+            args.epochs = 100
+            train_metrics, eval_metrics = entrans_trainer.train(args, model=model,
                                         train_loader=train_loader, eval_loader=eval_loader, evaluate = True)
         except RuntimeError as ex:
             exception_info = f'{ex}'
@@ -177,7 +177,7 @@ if __name__ == '__main__':
         best_kernel = kernel_pack_list[0]
 
         # proxy_score, train_metrics, eval_metrics, exception_info = 0, None, None, None
-        exception_info = None
+        
         # try:
         #     logger.info('Training on main dataset ...')
         #     # model = model.to(args.device)
