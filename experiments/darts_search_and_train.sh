@@ -28,6 +28,6 @@ canvas_number_of_kernels=2
 canvas_van_tiny=True
 
 # Lauch search_darts.py
-CUDA_VISIBLE_DEVICES=1 python search_darts.py --model $model --root $root --canvas-log-dir $canvas_log_dir --canvas-rounds $canvas_rounds --epochs $epochs \
+CUDA_VISIBLE_DEVICES=3 python search_entrans.py --model $model --root $root --canvas-log-dir $canvas_log_dir --canvas-rounds $canvas_rounds --epochs $epochs \
  --canvas-min-macs $canvas_min_macs --canvas-max-macs $canvas_max_macs --canvas-min-params $canvas_min_params --canvas-max-params $canvas_max_params \
- --canvas-number-of-kernels $canvas_number_of_kernels --canvas-van-tiny $canvas_van_tiny --darts
+ --canvas-number-of-kernels $canvas_number_of_kernels --canvas-van-tiny $canvas_van_tiny --darts --entrans

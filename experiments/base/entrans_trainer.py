@@ -41,7 +41,7 @@ def train_one_epoch(args, epoch, model, train_loader,
     last_idx = len(train_loader) - 1
     
     # Update the weights of the model
-    for batch_idx, (image, target)in enumerate(train_loader1):
+    for batch_idx, (image, target)in enumerate(train_loader):
 
         # Update starting time.
         data_time_m.update(time.time() - end)
@@ -52,21 +52,30 @@ def train_one_epoch(args, epoch, model, train_loader,
         if not args.distributed:
             losses_m.update(loss_value.item(), image.size(0))
 
-        optimizer.zero_grad()
-        if loss_scaler is not None:
-            loss_scaler(
-                loss_value, optimizer,
-                clip_grad=args.clip_grad, clip_mode=args.clip_mode,
-                parameters=model_parameters(model, exclude_head='agc' in args.clip_mode),
-                create_graph=second_order)
-        else:
-            loss_value.backward(create_graph=second_order)
-            if args.clip_grad is not None:
-                dispatch_clip_grad(
-                    model_parameters(model, exclude_head='agc' in args.clip_mode),
-                    value=args.clip_grad, mode=args.clip_mode)
-            # alpha_optim.step()
-            optimizer.step()
+        # Update the weights parameters 
+        if batch_idx % 2 == 0 or epoch <= 5:
+            optimizer.zero_grad()
+            if loss_scaler is not None:
+                loss_scaler(
+                    loss_value, optimizer,
+                    clip_grad=args.clip_grad, clip_mode=args.clip_mode,
+                    parameters=model_parameters(model, exclude_head='agc' in args.clip_mode),
+                    create_graph=second_order)
+            else:
+                loss_value.backward(create_graph=second_order)
+                if args.clip_grad is not None:
+                    dispatch_clip_grad(
+                        model_parameters(model, exclude_head='agc' in args.clip_mode),
+                        value=args.clip_grad, mode=args.clip_mode)
+                optimizer.step()
+        else:    
+
+            # Update the architecture parameters and beta parameters TODO
+            alpha_beta_optim.zero_grad()   
+            loss_value = darts.sparsed_loss(loss_value, model, lambda_value=0.1)
+            loss_value.backward()
+            alpha_beta_optim.step()
+
         # Sync.
         torch.cuda.synchronize()
         num_updates += 1
@@ -112,14 +121,6 @@ def train_one_epoch(args, epoch, model, train_loader,
 
             if math.isnan(losses_m.avg):
                 break
-    for batch_idx, (image, target)in enumerate(train_loader2):
-        
-        # Update the architecture parameters and beta parameters TODO
-        # alpha_beta_optim.zero_grad()   
-        # loss_value = darts.sparsed_loss(loss_value, model, lambda_value=0.1)
-        # loss_value.backward()
-        # alpha_beta_optim.step()
-        pass
     if hasattr(optimizer, 'sync_lookahead'):
         optimizer.sync_lookahead()
 
@@ -211,10 +212,11 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     # LR scheduler and epochs.
     weight_optim = torch.optim.SGD(darts.get_weights(model), args.w_lr, momentum=args.w_momentum,
                                weight_decay=args.w_weight_decay)
+    alpha_beta_optim = torch.optim.Adam(darts.get_alphas_and_beta(model), args.alpha_lr, betas=(0.5, 0.999),
+                                weight_decay=args.alpha_weight_decay)
     schedule = sche.get_schedule(args, weight_optim)
     lr_scheduler, sched_epochs = schedule 
-    alpha_beta_optim = torch.optim.Adam(darts.get_alphas_and_beta(model), args.alpha_lr, betas=(0.5, 0.999),
-                                   weight_decay=args.alpha_weight_decay)
+
 
     # Create a logger.
     logger = log.get_logger()

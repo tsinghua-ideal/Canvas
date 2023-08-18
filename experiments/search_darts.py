@@ -4,24 +4,18 @@ Kernel search on CV using Canvas.
 Supports searched kernel evaluation on proxy dataset, final discretization and full model training.
 Logging and checkpointing throughout the search process.
 """
-import inspect
 import random 
-import math
 import itertools
 import gc
 
-import numpy as np
 import torch
 import torch.nn as nn
-import timm
 
 from copy import deepcopy
-from typing import Union, Callable, List, Dict
 from functools import partial
 import canvas
 from canvas import placeholder
 
-import os
 import ptflops
 
 from base import dataset, device, log, models, parser, trainer, darts
@@ -168,14 +162,12 @@ if __name__ == '__main__':
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
             continue
-                
-        # Discretize the ensembled kernel to get final model
+
+        # Get the best kernel and derive the final model TODO
         weight_sharing = True
-        darts.get_final_model(model, weight_sharing)
-
-        # Get the best kernel TODO
-        best_kernel = kernel_pack_list[0]
-
+        best_kernel_index = darts.select_and_replace(model, weight_sharing)
+        best_kernel = kernel_pack_list[best_kernel_index]
+        
         # proxy_score, train_metrics, eval_metrics, exception_info = 0, None, None, None
         exception_info = None
         # try:

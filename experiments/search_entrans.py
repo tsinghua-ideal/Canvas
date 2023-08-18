@@ -4,24 +4,18 @@ Kernel search on CV using Canvas.
 Supports searched kernel evaluation on proxy dataset, final discretization and full model training.
 Logging and checkpointing throughout the search process.
 """
-import inspect
 import random 
-import math
 import itertools
 import gc
 
-import numpy as np
 import torch
 import torch.nn as nn
-import timm
 
 from copy import deepcopy
-from typing import Union, Callable, List, Dict
 from functools import partial
 import canvas
 from canvas import placeholder
 
-import os
 import ptflops
 
 from base import dataset, device, log, models, parser, trainer, darts, entrans_trainer
@@ -65,7 +59,7 @@ if __name__ == '__main__':
         placeholder_macs, placeholder_params = original_macs, original_params
         
     train_loader, eval_loader = dataset.get_loaders(args)
-    proxy_train_loader, proxy_eval_loader = dataset.get_loaders(args, proxy=True)
+    # proxy_train_loader, proxy_eval_loader = dataset.get_loaders(args, proxy=True)
     
     # Load checkpoint.
     if args.canvas_load_checkpoint:
@@ -98,7 +92,7 @@ if __name__ == '__main__':
     logger.info(f'Start Canvas kernel search ({args.canvas_rounds if args.canvas_rounds else "infinite"} rounds)')
     for i in range(train_range):
         if i == 5:
-            args.canvas_number_of_kernels = 1
+            args.canvas_number_of_kernels = 4
         # Sample a new kernel.
         kernel_pack_list = []
         total_g_macs, total_m_params = placeholder_macs, placeholder_params  
@@ -161,12 +155,13 @@ if __name__ == '__main__':
         # Evaluate     
         try:
             logger.info('Darts evaluating on main dataset ...')
-            args.epochs = 100
+            args.epochs = 60
             train_metrics, eval_metrics = entrans_trainer.train(args, model=model,
                                         train_loader=train_loader, eval_loader=eval_loader, evaluate = True)
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
+            j = 0
             continue
                 
         # Discretize the ensembled kernel to get final model
@@ -177,7 +172,7 @@ if __name__ == '__main__':
         best_kernel = kernel_pack_list[0]
 
         # proxy_score, train_metrics, eval_metrics, exception_info = 0, None, None, None
-        
+        exception_info = None
         # try:
         #     logger.info('Training on main dataset ...')
         #     # model = model.to(args.device)

@@ -168,6 +168,7 @@ def arg_parse():
 
     # Misc.
     parser.add_argument('--darts', default=False, action='store_true', help='Enable DARTS mode')
+    parser.add_argument('--entrans', default=False, action='store_true', help='Enable ENTRANS mode')
     parser.add_argument('--forbid-eval-nan', action='store_true', help='Whether to forbid NaN during evaluation')
     parser.add_argument('--output', default='', type=str, metavar='PATH',
                         help='Path to output folder (default: none, current dir, training only)')

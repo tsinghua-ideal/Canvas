@@ -7,13 +7,29 @@ import canvas
 from . import log
 
 
-def get_final_model(model, wsharing):
-    for placeholder in canvas.get_placeholders(model):
-        placeholder.canvas_placeholder_kernel = placeholder.canvas_placeholder_kernel.get_max_weight_kernel()
+def select_and_replace(args, model, wsharing):
+    """
+        Find only one template kernel to replace each parallel kernels
+    """ 
+    
+    # Select the kernel based on there score
+    score_record = [0] * len(args.canvas_number_of_kernels)
+    for placeholder in canvas.get_placeholders(model):  
+        score_record[torch.argmax(placeholder.canvas_placeholder_kernel.alphas)] += 1
+        
+    # The weight of the kernel is different at each placeholder 
+    best_kernel_index = torch.argmax(score_record)
+
+    # Replace the kernel
+    for placeholder in canvas.get_placeholders(model): 
+        placeholder.canvas_placeholder_kernel = placeholder.canvas_placeholder_kernel.module_list[best_kernel_index]
+
     if not wsharing:
-        model.clear()    
+        model.clear()  
+    return best_kernel_index  
          
 def sparsed_loss(val_loss, model, lambda_value):
+    assert lambda_value != 0
     
     # Calculate the sparsification regularization term
     sparsification_term = 0
@@ -41,7 +57,7 @@ class EntransParallelKernels(nn.Module):
 
     Methods:
         forward(x): Forward pass through the module.
-        get_max_weight_kernel(): Get the kernel with the maximum weight.
+        get_max_alpha_kernel(): Get the kernel with the maximum alpha.
         print_parameters(j): Print the parameters of the module when it's trained.
         get_alphas(): Get the alpha values.
 
@@ -70,11 +86,12 @@ class EntransParallelKernels(nn.Module):
         # Only calculate the kernel_module with the corresponding alpha > 0
         stacked_outs = torch.stack([kernel_module(x) * softmax_alpha for kernel_module, softmax_alpha in zip(self.module_list, softmax_alphas) if softmax_alpha != 0], dim=0)
 
+        print(f'alphas after calculations:{softmax_alphas}')
         return torch.sum(stacked_outs, dim=0)
       
-    def get_max_weight_kernel(self):
-        max_weight_idx = torch.argmax(self.alphas)
-        return self.module_list[max_weight_idx]
+    def get_max_alpha_kernel(self):
+        max_alpha_idx = torch.argmax(self.alphas)
+        return self.module_list[max_alpha_idx]
     
     def print_parameters(self, j):
         logger = log.get_logger()
@@ -97,10 +114,11 @@ class EntransParallelKernels(nn.Module):
     
      
 def temperature_anneal(model):
+    assert hasattr(model, 'canvas_cached_placeholders')
     for placeholder in model.canvas_cached_placeholders:
         placeholder.canvas_placeholder_kernel.temperature *= 0.9235
      
-def get_alphas_and_beta(model, detach = False):
+def get_alphas_and_beta(model, detach: bool = False):
     if detach:
         for name, param in model.named_parameters():
             if 'alphas' in name or 'beta' in name :
@@ -161,7 +179,7 @@ class ParallelKernels(nn.Module):
         logger.info('#####################')
     
     
-def get_alphas(model, detach = False):
+def get_alphas(model, detach: bool = False):
     """
         Return a list that can be JSON serializable and saved into a json file 
         or return a parameter list for gradient update of architecture parameters 
@@ -174,8 +192,9 @@ def get_alphas(model, detach = False):
 
 
 def get_weights(model):
-    weights = nn.ParameterList(param for name, param in model.named_parameters() if 'alphas' not in name and 'beta' not in name and param.requires_grad == True)
-    return weights
+    for name, param in model.named_parameters():
+            if 'alphas' not in name and 'beta' not in name:
+                    yield param
     
     
 class InGtOut(nn.Module):
@@ -185,7 +204,7 @@ class InGtOut(nn.Module):
     Args:
         factor (int): Split factor for the input tensor.
     """
-    def __init__(self, factor):
+    def __init__(self, factor: int):
         super().__init__()
         self.factor = factor 
         self.layer = canvas.Placeholder()
@@ -217,7 +236,7 @@ class OutGtIn(nn.Module):
     Args:
         factor (int): Split factor for the input tensor.
     """
-    def __init__(self, factor):
+    def __init__(self, factor: int):
         super().__init__()
         self.factor = factor
         self.layer = canvas.Placeholder()
@@ -326,9 +345,11 @@ class Architect():
         self.w_momentum = w_momentum
         
         self.w_weight_decay = w_weight_decay    # 正则化项用来防止过拟合
+
     def get_loss(self, model, x, y):
         logits = model.forward(x)
         return self.criterion(logits, y)
+
     def virtual_step(self, trn_X, trn_y, xi, w_optim, criterion):
         """
         Compute unrolled weight w' (virtual step)
