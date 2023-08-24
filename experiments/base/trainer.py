@@ -123,14 +123,14 @@ def train_one_epoch(args, epoch, model, train_loader,
         optimizer.sync_lookahead()
 
     metrics = OrderedDict([('loss', losses_m.avg)])
-    if args.darts and evaluate:
-        alphas = {}
-        for parallel_kernels in canvas.get_placeholders(model):
-            assert isinstance(parallel_kernels.canvas_placeholder_kernel, darts.ParallelKernels)
-            alphas[f'In the {epoch} epoch:'] = darts.get_alphas(model, detach = True)
-        # if args.local_rank == 0:
-        #     logger.info(f'Alphas: {alphas}')
-        metrics.update({'alphas': alphas})
+    # if args.darts and evaluate:
+    #     alphas = {}
+    #     for parallel_kernels in canvas.get_placeholders(model):
+    #         assert isinstance(parallel_kernels.canvas_placeholder_kernel, darts.ParallelKernels)
+    #         alphas[f'In the {epoch} epoch, magnitude score:'], alphas[f'In the {epoch} epoch, one-hot score:'] = darts.get_alphas(model, detach = True)
+    #     # if args.local_rank == 0:
+    #     #     logger.info(f'Alphas: {alphas}')
+    #     metrics.update({'alphas': alphas})
     return metrics
 
 
@@ -213,11 +213,10 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     optimizer = optim.get_optimizer(args, model)
     schedule = sche.get_schedule(args, optimizer)
     lr_scheduler, sched_epochs = schedule 
-    w_optim = torch.optim.SGD(darts.get_weights(model), args.w_lr, momentum=args.w_momentum,
-                              weight_decay=args.w_weight_decay)
+    # w_optim = torch.optim.SGD(darts.get_weights(model), args.w_lr, momentum=args.w_momentum,
+    #                           weight_decay=args.w_weight_decay)
     # alpha_optim = torch.optim.Adam(darts.get_alphas(model), args.alpha_lr, betas=(0.5, 0.999),
     #                                weight_decay=args.alpha_weight_decay)
-    alpha_optim = None
     # Create a logger.
     logger = log.get_logger()
     
@@ -289,7 +288,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     #         logger.info(f'Milestones (overall epochs) loaded: {overall_pruning_milestones}')
 
     # Iterate over epochs.
-    all_train_metrics, all_eval_metrics = [], []
+    all_train_metrics, all_eval_metrics, magnitude_alphas, one_hot_alphas = [], [], [], []
     for epoch in range(start_epoch, sched_epochs):
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
@@ -307,11 +306,13 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
                                         optimizer, lr_scheduler, amp_autocast, loss_scaler, logger, evaluate,
                                         pruning_milestones=in_epoch_pruning_milestones)
         all_train_metrics.append(train_metrics)
+        # magnitude_alphas.append(darts.get_magnitude_scores(model).tolist())
+        # one_hot_alphas.append(darts.get_one_hot_scores(model).tolist())
         
         # Log the parameters
         if evaluate:
-            for placeholder in model.canvas_cached_placeholders:
-                placeholder.canvas_placeholder_kernel.print_parameters(epoch)
+            for placeholder, i in enumerate(model.canvas_cached_placeholders):
+                placeholder.canvas_placeholder_kernel.print_parameters(i, epoch)
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):
@@ -347,4 +348,5 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     if best_metric is not None:
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
+    # return all_train_metrics, all_eval_metrics, magnitude_alphas, one_hot_alphas
     return all_train_metrics, all_eval_metrics

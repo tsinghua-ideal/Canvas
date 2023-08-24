@@ -62,9 +62,8 @@ class EntransParallelKernels(nn.Module):
         get_alphas(): Get the alpha values.
 
     """
-    def __init__(self, kernel_cls_list, i, **kwargs):
+    def __init__(self, kernel_cls_list, **kwargs):
         super().__init__()
-        self.i = i
         assert len(kernel_cls_list) >= 1
         self.module_list = nn.ModuleList([kernel_cls(*kwargs.values()) for kernel_cls in kernel_cls_list])
         self.alphas = nn.Parameter((1e-3) * torch.randn(len(kernel_cls_list)))
@@ -93,11 +92,11 @@ class EntransParallelKernels(nn.Module):
         max_alpha_idx = torch.argmax(self.alphas)
         return self.module_list[max_alpha_idx]
     
-    def print_parameters(self, j):
+    def print_parameters(self, i, j):
         logger = log.get_logger()
         
         # Print parameters in each placeholder  
-        logger.info(f'In {self.i}th Placeholder')  
+        logger.info(f'In {i}th Placeholder')  
         
         # Alpha
         logger.info(f'####### ALPHA After {j}th epoch #######')
@@ -118,16 +117,35 @@ def temperature_anneal(model):
     for placeholder in model.canvas_cached_placeholders:
         placeholder.canvas_placeholder_kernel.temperature *= 0.9235
      
-def get_alphas_and_beta(model, detach: bool = False):
-    if detach:
-        for name, param in model.named_parameters():
-            if 'alphas' in name or 'beta' in name :
-                    yield param.detach().cpu().numpy() 
-    else:
-        for name, param in model.named_parameters():
-            if 'alphas' in name or 'beta' in name:
-                    print(f'{name}: {param}')
-                    yield param
+def get_alphas_and_beta_detached(model):
+    """
+    Return the detached alphas and beta parameters.
+
+    Args:
+        model: The model instance.
+
+    Returns:
+        Generator yielding detached numpy arrays for alphas and beta.
+    """
+    for name, param in model.named_parameters():
+        if 'alphas' in name or 'beta' in name:
+            yield param.detach().cpu().numpy()
+
+def get_alphas_and_beta_undetached(model):
+    """
+    Return the alphas and beta parameters without detaching.
+
+    Args:
+        model: The model instance.
+
+    Returns:
+        Generator yielding parameters for alphas and beta.
+    """
+    for name, param in model.named_parameters():
+        if 'alphas' in name or 'beta' in name:
+            print(f'{name}: {param}')
+            yield param
+
        
 class ParallelKernels(nn.Module):
     """
@@ -179,17 +197,56 @@ class ParallelKernels(nn.Module):
         logger.info('#####################')
     
     
-def get_alphas(model, detach: bool = False):
+def get_alphas_detached(model):
     """
-        Return a list that can be JSON serializable and saved into a json file 
-        or return a parameter list for gradient update of architecture parameters 
+    Return a list of detached alphas that can be JSON serializable and saved into a JSON file.
 
-    """  
-    if detach:
-        return [F.softmax(placeholder.canvas_placeholder_kernel.alphas.detach().cpu()).tolist() for placeholder in model.canvas_cached_placeholders]
-    else:
-        return nn.ParameterList([placeholder.canvas_placeholder_kernel.alphas for placeholder in model.canvas_cached_placeholders])
+    Args:
+        model: The model instance.
 
+    Returns:
+        A list of detached alphas.
+    """
+    return [F.softmax(placeholder.canvas_placeholder_kernel.alphas.detach().cpu()).tolist() for placeholder in model.canvas_cached_placeholders]
+
+def get_alphas_undetached(model):
+    """
+    Return a parameter list for gradient update of architecture parameters.
+
+    Args:
+        model: The model instance.
+
+    Returns:
+        A parameter list for architecture parameters.
+    """
+    return nn.ParameterList([placeholder.canvas_placeholder_kernel.alphas for placeholder in model.canvas_cached_placeholders])
+
+def get_magnitude_scores(model):
+    """
+    Calculate and return the magnitude scores.
+
+    Args:
+        model: The model instance.
+
+    Returns:
+        The sum of softmax scores.
+    """
+    return torch.sum(torch.stack([F.softmax(placeholder.canvas_placeholder_kernel.alphas.detach().cpu()) for placeholder in model.canvas_cached_placeholders]), dim=0)
+
+def get_one_hot_scores(model):
+    """
+    Calculate and return the one-hot scores.
+
+    Args:
+        model: The model instance.
+
+    Returns:
+        The sum of one-hot scores.
+    """
+    one_hot_scores = torch.stack([torch.eye(len(placeholder.canvas_placeholder_kernel.alphas.detach().cpu()))[torch.argmax(F.softmax(placeholder.canvas_placeholder_kernel.alphas.detach().cpu()))] 
+                for placeholder in model.canvas_cached_placeholders])
+    
+    return torch.sum(one_hot_scores, dim=0)
 
 def get_weights(model):
     for name, param in model.named_parameters():
