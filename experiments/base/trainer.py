@@ -42,15 +42,7 @@ def train_one_epoch(args, epoch, model, train_loader,
     for batch_idx, (image, target)in enumerate(train_loader):
         # lr = lr_scheduler._get_lr(epoch)[0]
         # Update starting time.
-        data_time_m.update(time.time() - end)
-
-        # Calculate loss.
-        # alpha_optim.zero_grad()
-        # Architect step
-        # architect.unrolled_backward(image, target, val_image, val_target, lr, w_optim)
-        # Weights step
-       
-        
+        data_time_m.update(time.time() - end)      
         with amp_autocast():
             output = model(image)
             loss_value = loss_func(output, target)
@@ -123,14 +115,6 @@ def train_one_epoch(args, epoch, model, train_loader,
         optimizer.sync_lookahead()
 
     metrics = OrderedDict([('loss', losses_m.avg)])
-    # if args.darts and evaluate:
-    #     alphas = {}
-    #     for parallel_kernels in canvas.get_placeholders(model):
-    #         assert isinstance(parallel_kernels.canvas_placeholder_kernel, darts.ParallelKernels)
-    #         alphas[f'In the {epoch} epoch, magnitude score:'], alphas[f'In the {epoch} epoch, one-hot score:'] = darts.get_alphas(model, detach = True)
-    #     # if args.local_rank == 0:
-    #     #     logger.info(f'Alphas: {alphas}')
-    #     metrics.update({'alphas': alphas})
     return metrics
 
 
@@ -306,12 +290,12 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
                                         optimizer, lr_scheduler, amp_autocast, loss_scaler, logger, evaluate,
                                         pruning_milestones=in_epoch_pruning_milestones)
         all_train_metrics.append(train_metrics)
-        # magnitude_alphas.append(darts.get_magnitude_scores(model).tolist())
-        # one_hot_alphas.append(darts.get_one_hot_scores(model).tolist())
+        magnitude_alphas.append(darts.get_magnitude_scores(model).tolist())
+        one_hot_alphas.append(darts.get_one_hot_scores(model).tolist())
         
         # Log the parameters
         if evaluate:
-            for placeholder, i in enumerate(model.canvas_cached_placeholders):
+            for i, placeholder in enumerate(model.canvas_cached_placeholders):
                 placeholder.canvas_placeholder_kernel.print_parameters(i, epoch)
 
         # Check NaN errors.
@@ -348,5 +332,12 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     if best_metric is not None:
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
-    # return all_train_metrics, all_eval_metrics, magnitude_alphas, one_hot_alphas
-    return all_train_metrics, all_eval_metrics
+        
+    all_train_val_data_metrics = {
+    "all_train_metrics": all_train_metrics,
+    "all_eval_metrics": all_eval_metrics,
+    "magnitude_alphas": magnitude_alphas,
+    "one_hot_alphas": one_hot_alphas
+    }
+    
+    return all_train_val_data_metrics
