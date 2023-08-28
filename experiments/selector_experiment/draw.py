@@ -42,15 +42,7 @@ for i, (filename, alphas_data) in enumerate(data_dict.items()):
 plt.figure(figsize=(10, 10))
 
 # Plotting histograms
-hist, bins, _ = plt.hist(x_values, alpha=0.6, label=f'Histogram, number of data:{len(os.listdir(folder_path))}', histtype='bar', color='lightblue')
-
-# Plotting kernel density estimation graph
-kde = gaussian_kde(x_values)
-x_grid = np.linspace(min(x_values), max(x_values), 100)
-kde_values = kde(x_grid)
-scale_factor = len(x_values) * (bins[1] - bins[0])
-kde_values_scaled = kde_values * scale_factor
-# plt.plot(x_grid, kde_values_scaled, label='Kernel Density Estimation', color='orange', linewidth=2)
+plt.hist(x_values, alpha=0.6, label=f'Histogram, number of data:{len(os.listdir(folder_path))}', histtype='bar', color='lightblue')
 
 plt.xlabel('Epoch', fontsize=14)
 plt.ylabel('Density', fontsize=14)
