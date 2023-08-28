@@ -5,7 +5,7 @@ import timm
 from functools import partial
 from timm import data
 
-from .canvas_van import canvas_van_tiny
+from .canvas_van import van_b0
 from ..log import get_logger
 from .. import darts
 
@@ -14,7 +14,7 @@ def get_model(args, search_mode: bool = False):
     logger.info("args.canvas_van_tiny")
     logger.info(args.canvas_van_tiny)
     if args.canvas_van_tiny == True:
-        model = canvas_van_tiny()
+        model = van_b0()
     else:
         model = timm.create_model(args.model,
                                 num_classes=args.num_classes,
@@ -60,5 +60,8 @@ def get_model(args, search_mode: bool = False):
                                                          print_per_layer_stat=False, verbose=False)
         g_macs, m_params = macs / 1e9, params / 1e6
         logger.info(f'G_MACs: {g_macs}, m_params: {m_params}')
-
-    return model, g_macs, m_params
+        
+    if args.need_model_complexity_info:
+        return model, g_macs, m_params
+    else:
+        return model
