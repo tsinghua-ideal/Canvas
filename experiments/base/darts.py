@@ -168,9 +168,8 @@ class ParallelKernels(nn.Module):
         get_alphas(): Get the alpha values.
 
     """
-    def __init__(self, kernel_cls_list, i, **kwargs):
+    def __init__(self, kernel_cls_list, **kwargs):
         super().__init__()
-        self.i = i
         assert len(kernel_cls_list) >= 1
         self.module_list = nn.ModuleList([kernel_cls(*kwargs.values()) for kernel_cls in kernel_cls_list])
         self.alphas = nn.Parameter((1e-3) * torch.randn(len(kernel_cls_list)))
@@ -184,11 +183,11 @@ class ParallelKernels(nn.Module):
         max_weight_idx = torch.argmax(self.alphas)
         return self.module_list[max_weight_idx]
     
-    def print_parameters(self, j):
+    def print_parameters(self, i, j):
         logger = log.get_logger()
         
         # Print parameters in each placeholder  
-        logger.info(f'In {self.i}th Placeholder')  
+        logger.info(f'In {i}th Placeholder')  
         
         # Alpha
         logger.info(f'####### ALPHA After {j}th epoch #######')
