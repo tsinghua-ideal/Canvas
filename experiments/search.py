@@ -219,7 +219,7 @@ if __name__ == '__main__':
             #             continue
             logger.info('Training on main dataset ...')
             # model = model.to(args.device)
-            train_metrics, eval_metrics = \
+            all_train_eval_data = \
                 trainer.train(args, model=model,
                               train_loader=train_loader, eval_loader=eval_loader,
                               search_mode=True)
@@ -237,8 +237,9 @@ if __name__ == '__main__':
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
+            
         # Save into logging directory.
         extra = {'proxy_score': proxy_score, 'g_macs': g_macs, 'm_params': m_params}
         if exception_info:
             extra['exception'] = exception_info
-        log.save(args, kernel_pack, train_metrics, eval_metrics, extra)
+        log.save(args, kernel_pack, all_train_eval_data["train_metrics"], all_train_eval_data["eval_metrics"], extra)
