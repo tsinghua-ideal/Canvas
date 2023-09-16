@@ -1,81 +1,127 @@
-
-
-import json
 import math
 import os
 import time
-import torch
-import canvas
-
-from torch.autograd import grad
 from collections import OrderedDict
 from contextlib import suppress
-from datetime import datetime
 
-from torch.nn.parallel import DistributedDataParallel as NativeDDP
+import torch
+import torch.nn.functional as F
+
 from timm.models import model_parameters, resume_checkpoint, safe_model_name
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
 from timm.utils import NativeScaler, ApexScaler, CheckpointSaver, get_outdir, update_summary
 
-from . import log, loss, optim, sche, darts
+from . import log, loss, optim, sche
+from .proxyless import *
+
+def get_update_schedule(args, nBatch):
+    schedule = {}
+    for i in range(nBatch):
+        if (i + 1) % args.grad_update_arch_param_every == 0:
+            schedule[i] = args.grad_update_steps
+    return schedule
 
 
-def train_one_epoch(args, epoch, model, train_loader,  
-                    loss_func, optimizer, alpha_beta_optim, lr_scheduler,
-                    amp_autocast, loss_scaler, logger, evaluate,
-                    pruning_milestones, w_optim = None, alpha_optim = None):
+def train_one_epoch(args, epoch, model, train_loader, eval_loader,
+                    
+                    
+                    train_loss_func, eval_loss_func, w_optimizer, arch_optimizer, lr_scheduler,
+                    amp_autocast, loss_scaler, logger, pruning_milestones=None):
     # Second order optimizer.
-    second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
-
+    second_order = hasattr(w_optimizer, 'is_second_order') and w_optimizer.is_second_order
+    
+    # Proxy
+    nBatch = len(train_loader)
+    arch_update_schedule = get_update_schedule(args, nBatch)
+    num_updates = epoch * nBatch
+    
     # Meters.
     batch_time_m = AverageMeter()
     data_time_m = AverageMeter()
     losses_m = AverageMeter()
     end = time.time()
-    num_updates = epoch * len(train_loader)
+
 
     # Switch to training mode.
     model.train()
 
     # Iterate over this epoch.
-    last_idx = len(train_loader) - 1
-    
-    # Update the weights of the model
+    last_idx = nBatch - 1
     for batch_idx, (image, target)in enumerate(train_loader):
-
-        # Update starting time.
-        data_time_m.update(time.time() - end)
+        data_time_m.update(time.time() - end) 
+        image, target = image.to(args.device), target.to(args.device)
+        reset_binary_gates(model)  # random sample binary gates
+        unused_modules_off(model)  # remove unused module for speedup
         with amp_autocast():
             output = model(image)
-            loss_value = loss_func(output, target)
-
+            loss_value = train_loss_func(output, target)
         if not args.distributed:
             losses_m.update(loss_value.item(), image.size(0))
+        model.zero_grad()
+        if loss_scaler is not None:
+            loss_scaler(
+                loss_value, w_optimizer,
+                clip_grad=args.clip_grad, clip_mode=args.clip_mode,
+                parameters=model_parameters(model, exclude_head='agc' in args.clip_mode),
+                create_graph=second_order)
+        else:
+            loss_value.backward(create_graph=second_order)
+            if args.clip_grad is not None:
+                dispatch_clip_grad(
+                    model_parameters(model, exclude_head='agc' in args.clip_mode),
+                    value=args.clip_grad, mode=args.clip_mode)
+            w_optimizer.step()
+        unused_modules_back(model)
 
-        # Update the weights parameters 
-        if batch_idx % 2 == 0 or epoch <= 5:
-            optimizer.zero_grad()
-            if loss_scaler is not None:
-                loss_scaler(
-                    loss_value, optimizer,
-                    clip_grad=args.clip_grad, clip_mode=args.clip_mode,
-                    parameters=model_parameters(model, exclude_head='agc' in args.clip_mode),
-                    create_graph=second_order)
-            else:
-                loss_value.backward(create_graph=second_order)
-                if args.clip_grad is not None:
-                    dispatch_clip_grad(
-                        model_parameters(model, exclude_head='agc' in args.clip_mode),
-                        value=args.clip_grad, mode=args.clip_mode)
-                optimizer.step()
-        else:    
-
-            # Update the architecture parameters and beta parameters TODO
-            alpha_beta_optim.zero_grad()   
-            loss_value = darts.sparsed_loss(loss_value, model, lambda_value=0.1)
-            loss_value.backward()
-            alpha_beta_optim.step()
-
+        # Architecture parameter updates
+        if epoch > args.warmup_epochs:
+            
+            # update architecture parameters according to update_schedule
+            try:
+                image_eval, target_eval = next(valid_queue_iter)
+            except:
+                valid_queue_iter = iter(eval_loader)
+                image_eval, target_eval = next(valid_queue_iter)
+            for j in range(arch_update_schedule.get(batch_idx, 0)):
+                # switch to train mode
+                model.train()
+                # Mix edge mode
+                ProxylessParallelKernels.MODE = args.grad_binary_mode
+                
+                # sample a batch of data from validation set
+                image_eval, target_eval = image_eval.to(args.device), target_eval.to(args.device)
+                
+                # compute output
+                reset_binary_gates(model)  # random sample binary gates
+                unused_modules_off(model)  # remove unused module for speedup
+                with amp_autocast():
+                    output_eval = model(image_eval)
+                if isinstance(output_eval, (tuple, list)):
+                    output_eval = output_eval[0]
+                    
+                # Augmentation reduction.
+                reduce_factor = args.tta
+                if reduce_factor > 1:
+                    output_eval = output_eval.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
+                    target_eval = target_eval[0:target_eval.size(0):reduce_factor]
+                    
+                # loss
+                loss = eval_loss_func(output_eval, target_eval)
+                
+                # compute gradient and do SGD step
+                model.zero_grad()  # zero grads of weight_param, arch_param & binary_param
+                loss.backward()
+                
+                # set architecture parameter gradients
+                set_arch_param_grad(model)
+                arch_optimizer.step()
+                if ProxylessParallelKernels.MODE == 'two':
+                    rescale_updated_arch_param(model)
+                    
+                # back to normal mode
+                unused_modules_back(model)
+                ProxylessParallelKernels.MODE = None           
+        
         # Sync.
         torch.cuda.synchronize()
         num_updates += 1
@@ -90,7 +136,7 @@ def train_one_epoch(args, epoch, model, train_loader,
 
         # Logging.
         if batch_idx == last_idx or batch_idx % args.log_interval == 0:
-            lrl = [param_group['lr'] for param_group in optimizer.param_groups]
+            lrl = [param_group['lr'] for param_group in w_optimizer.param_groups]
             lr = sum(lrl) / len(lrl)
 
             if args.distributed:
@@ -121,18 +167,11 @@ def train_one_epoch(args, epoch, model, train_loader,
 
             if math.isnan(losses_m.avg):
                 break
-    if hasattr(optimizer, 'sync_lookahead'):
-        optimizer.sync_lookahead()
+
+    if hasattr(w_optimizer, 'sync_lookahead'):
+        w_optimizer.sync_lookahead()
 
     metrics = OrderedDict([('loss', losses_m.avg)])
-    # if args.darts and evaluate:
-    #     alphas = []
-    #     for parallel_kernels in canvas.get_placeholders(model):
-    #         assert isinstance(parallel_kernels.canvas_placeholder_kernel, darts.EntransParallelKernels)
-    #         alphas.append(darts.get_alphas(model))
-    #     # if args.local_rank == 0:
-    #     #     logger.info(f'Alphas: {alphas}')
-    #     metrics.update({'alphas': alphas})
     return metrics
 
 
@@ -146,29 +185,34 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
 
     end = time.time()
     last_idx = len(eval_loader) - 1
+    # set chosen op active
+    set_chosen_module_active(model)
+    # remove unused modules
+    unused_modules_off(model)
     with torch.no_grad():
         for batch_idx, (image, target) in enumerate(eval_loader):
             with amp_autocast():
                 output = model(image)
             if isinstance(output, (tuple, list)):
                 output = output[0]
-
+                
             # Augmentation reduction.
             reduce_factor = args.tta
             if reduce_factor > 1:
                 output = output.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
                 target = target[0:target.size(0):reduce_factor]
-
+            
             loss_value = loss_func(output, target)
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
+            # Distributed data recorded reduction.
             if args.distributed:
                 reduced_loss = reduce_tensor(loss_value.data, args.world_size)
                 acc1 = reduce_tensor(acc1, args.world_size)
                 acc5 = reduce_tensor(acc5, args.world_size)
             else:
                 reduced_loss = loss_value.data
-                
+            
             
             torch.cuda.synchronize()
 
@@ -192,7 +236,8 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                     'Acc@5: {top5.val:>7.4f} ({top5.avg:>7.4f})'.format(
                         batch_idx, last_idx, batch_time=batch_time_m,
                         loss=losses_m, top1=top1_m, top5=top5_m))
-
+                
+    unused_modules_back(model)
     # Record kernel scales.
     kernel_scales = []
     if hasattr(model, 'kernel_scales'):
@@ -203,22 +248,20 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                         ('top5', top5_m.avg), ('kernel_scales', kernel_scales)])
 
 
-def train(args, model, train_loader, eval_loader, search_mode: bool = False, proxy_mode: bool = False, evaluate = False):
-    # Set different number of epochs based on your target
-        
+def train(args, model, train_loader, eval_loader, search_mode: bool = False, proxy_mode: bool = False):
+
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
     
     # LR scheduler and epochs.
-    weight_optim = torch.optim.SGD(darts.get_weights(model), args.w_lr, momentum=args.w_momentum,
-                               weight_decay=args.w_weight_decay)
-    alpha_beta_optim = torch.optim.Adam(darts.get_alphas_and_beta(model), args.alpha_lr, betas=(0.5, 0.999),
+    w_optimizer = optim.get_optimizer(args, get_parameters(model=model, keys=['AP_path'], mode='exclude'))  
+    arch_optimizer = torch.optim.Adam(get_parameters(model=model, keys=['AP_path_alpha'], mode='include'), args.alpha_lr, betas=(0.5, 0.999),
                                 weight_decay=args.alpha_weight_decay)
-    schedule = sche.get_schedule(args, weight_optim)
+    schedule = sche.get_schedule(args, w_optimizer)
     lr_scheduler, sched_epochs = schedule 
-
-
-    # Create a logger.
+    
+    
+  # Create a logger.
     logger = log.get_logger()
     
     if args.local_rank == 0:
@@ -235,7 +278,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         amp_autocast, loss_scaler = suppress, ApexScaler()
         # noinspection PyUnresolvedReferences
         from apex import amp
-        model, weight_optim = amp.initialize(model, weight_optim, opt_level='O1', verbosity=0,
+        model, optimizer = amp.initialize(model, optimizer, opt_level='O1', verbosity=0,
                                           loss_scale=args.apex_amp_loss_scale)
     else:
         amp_autocast, loss_scaler = suppress, None
@@ -246,54 +289,38 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if args.local_rank == 0:
             logger.info(f'Resuming from checkpoint {args.resume}')
         resume_epoch = resume_checkpoint(
-            model, args.resume, optimizer=weight_optim, loss_scaler=loss_scaler,
+            model, args.resume, optimizer=optimizer, loss_scaler=loss_scaler,
             log_info=(args.local_rank == 0)
         )
     start_epoch = resume_epoch if resume_epoch else 0
     if lr_scheduler is not None and start_epoch > 0:
         lr_scheduler.step(start_epoch)
 
-    # Distributed training.
-    if args.distributed:
-        if args.local_rank == 0:
-            logger.info("Using native Torch DistributedDataParallel.")
-        if args.apex_amp:
-            # noinspection PyUnresolvedReferences
-            from apex.parallel import DistributedDataParallel as ApexDDP
-            model = ApexDDP(model, delay_allreduce=True)
-        else:
-            model = NativeDDP(model, device_ids=[args.local_rank], broadcast_buffers=not args.no_ddp_bb)
-
     # Checkpoint saver.
     best_metric, best_epoch = None, None
     saver, output_dir = None, None
-    if args.local_rank == 0 and not search_mode:
-        name = '-'.join([
-            datetime.now().strftime("%Y%m%d-%H%M%S"),
-            safe_model_name(args.model)
-        ])
-        output_dir = get_outdir(args.output if args.output else './output/train', name)
-        decreasing = True if args.eval_metric == 'loss' else False
-        saver = CheckpointSaver(
-            model=model, optimizer=weight_optim, args=args, amp_scaler=loss_scaler,
-            checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
-        with open(os.path.join(output_dir, 'args.json'), 'w') as file:
-            json.dump(vars(args), fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
-
-    # Pruning after epochs.
-    # overall_pruning_milestones = None
-    # if args.canvas_epoch_pruning_milestone:
-    #     with open(args.canvas_epoch_pruning_milestone) as f:
-    #         overall_pruning_milestones = json.load(f)
-    #     if args.local_rank == 0:
-    #         logger.info(f'Milestones (overall epochs) loaded: {overall_pruning_milestones}')
-
+    # if args.local_rank == 0 and not search_mode:
+    #     name = '-'.join([
+    #         datetime.now().strftime("%Y%m%d-%H%M%S"),
+    #         safe_model_name(args.model)
+    #     ])
+    #     output_dir = get_outdir(args.output if args.output else './output/train', name)
+    #     decreasing = True if args.eval_metric == 'loss' else False
+    #     saver = CheckpointSaver(
+    #         model=model, optimizer=w_optimizer, args=args, amp_scaler=loss_scaler,
+    #         checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
+    #     with open(os.path.join(output_dir, 'args.json'), 'w') as file:
+    #         json.dump(vars(args), fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
+    # warm_up(args, epoch, model, train_loader, eval_loader,
+    #                 warmup_loss_func, eval_loss_func, w_optimizer, lr_scheduler,
+    #                 amp_autocast, loss_scaler, logger, pruning_milestones=None)
     # Iterate over epochs.
-    all_train_metrics, all_eval_metrics = [], []
+    all_train_val_data_metrics = {}
+    all_train_metrics, all_eval_metrics, magnitude_alphas, one_hot_alphas = [], [], [], []
     for epoch in range(start_epoch, sched_epochs):
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
-
+        torch.cuda.empty_cache()
         # # Pruner.
         in_epoch_pruning_milestones = dict()
         # if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
@@ -301,35 +328,29 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         #         in_epoch_pruning_milestones = json.load(f)
         #     if args.local_rank == 0:
         #         logger.info(f'Milestones (first-epoch loss) loaded: {in_epoch_pruning_milestones}')
-
+        monitor_gpu_memory(args.device, logger)
         # Train.
-        train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
-                                        weight_optim, alpha_beta_optim, lr_scheduler, amp_autocast, loss_scaler, logger, evaluate,
+        train_metrics = train_one_epoch(args, epoch, model, train_loader, eval_loader, train_loss_func, eval_loss_func,
+                                        w_optimizer, arch_optimizer, lr_scheduler, amp_autocast, loss_scaler, logger,
                                         pruning_milestones=in_epoch_pruning_milestones)
         all_train_metrics.append(train_metrics)
-        
-        # Log the parameters
-        if evaluate:
-            for placeholder in model.canvas_cached_placeholders:
-                placeholder.canvas_placeholder_kernel.print_parameters(epoch)
+
+        if epoch == sched_epochs - 1:
+            magnitude_alphas.append(get_magnitude_scores_with_2D(model).tolist())
+            magnitude_alphas.append(get_magnitude_scores_with_1D(model).tolist())
+            one_hot_alphas.append(get_one_hot_scores(model).tolist())
+        # Log the parameters of the canvas kernels
+        for i, placeholder in enumerate(model.canvas_cached_placeholders):
+            placeholder.canvas_placeholder_kernel.print_parameters(i, epoch)
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):
             raise RuntimeError('NaN occurs during training')
-
-        # Normalize.
-        if args.distributed and args.dist_bn in ('broadcast', 'reduce'):
-            # if args.local_rank == 0:
-            #     logger.info("Distributing BatchNorm running means and vars")
-            distribute_bn(model, args.world_size, args.dist_bn == 'reduce')
-            
+  
         # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, amp_autocast, logger)
         all_eval_metrics.append(eval_metrics)
 
-        # Update the temperature parameters
-        darts.temperature_anneal(model)
-        
         # Update LR scheduler.
         if lr_scheduler is not None:
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
@@ -350,4 +371,18 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     if best_metric is not None:
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
-    return all_train_metrics, all_eval_metrics
+        
+    recent_top1_values = [eval_metrics['top1'] for eval_metrics in all_eval_metrics[-2:]]
+    average_top1 = sum(recent_top1_values) / len(recent_top1_values)
+    
+    all_train_val_data_metrics = {
+    "all_train_metrics": all_train_metrics,
+    "all_eval_metrics": all_eval_metrics,
+    "magnitude_alphas": magnitude_alphas,
+    "one_hot_alphas": one_hot_alphas,
+    "latest_top1": average_top1
+    }
+    
+    return all_train_val_data_metrics
+
+    

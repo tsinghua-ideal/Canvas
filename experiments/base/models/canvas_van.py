@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 from functools import partial
 
-from timm.models.layers import DropPath, to_2tuple
-from timm.models.registry import register_model
+from timm.layers import DropPath, to_2tuple
+from timm.models import register_model
 from timm.models.vision_transformer import _cfg
 
 import canvas

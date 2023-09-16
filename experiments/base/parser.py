@@ -31,6 +31,7 @@ def arg_parse():
                         help='Drop path rate (default: None)')
     parser.add_argument('--drop-block', type=float, default=None, metavar='PCT',
                         help='Drop block rate (default: None)')
+    parser.add_argument('--need-model_complexity_info', default=False, action='store_true', help='The complexity info will be given if used')
 
     # Dataset.
     parser.add_argument('--seed', type=int, default=42, metavar='S',
@@ -104,7 +105,7 @@ def arg_parse():
     parser.add_argument('--dist-bn', type=str, default='reduce',
                         help='Distribute BatchNorm stats between nodes after each epoch ("broadcast", "reduce", or "")')
 
-    # Optimizer parameters.
+    # Optimizer for weight parameters.
     parser.add_argument('--lr', type=float, default=1e-3, metavar='LR',
                         help='Learning rate (default: 1e-3)')
     parser.add_argument('--opt', default='adamw', type=str, metavar='OPTIMIZER',
@@ -121,17 +122,25 @@ def arg_parse():
                         help='Clip gradient norm (default: none, no clipping)')
     parser.add_argument('--clip-mode', type=str, default='norm',
                         help='Gradient clipping mode, one of ("norm", "value", "agc")')
-    #test
+    
+    # Optimizers for weight and architecture parameters trained separately.
     parser.add_argument('--w_lr', type=float, default=0.025, help='lr for weights')
     parser.add_argument('--w_lr_min', type=float, default=0.001, help='minimum lr for weights')
     parser.add_argument('--w_momentum', type=float, default=0.9, help='momentum for weights')
     parser.add_argument('--w_weight_decay', type=float, default=3e-4,
                         help='weight decay for weights')
-    # parser.add_argument('--w_grad_clip', type=float, default=5.,
-    #                     help='gradient clipping for weights')
-    parser.add_argument('--alpha_lr', type=float, default=3e-4, help='lr for alpha')
+    parser.add_argument('--w_grad_clip', type=float, default=5.,
+                        help='gradient clipping for weights')
+    parser.add_argument('--alpha_lr', type=float, default=6e-4, help='lr for alpha')
     parser.add_argument('--alpha_weight_decay', type=float, default=1e-3,
                         help='weight decay for alpha')
+    
+    # proxyless arch parameters 
+    parser.add_argument('--grad_update_arch_param_every', type=int, default=5)
+    parser.add_argument('--grad_update_steps', type=int, default=1)
+    parser.add_argument('--grad_binary_mode', type=str, default='two', choices=['full_v2', 'full', 'two'])
+    parser.add_argument('--grad_data_batch', type=int, default=None)
+       
     # Scheduler parameters.
     parser.add_argument('--sched', default='cosine', type=str, metavar='SCHEDULER',
                         help='LR scheduler (default: "step"')
@@ -157,7 +166,7 @@ def arg_parse():
                         help='Number of epochs to train (default: 300)')
     parser.add_argument('--decay-epochs', type=float, default=100, metavar='N',
                         help='Epoch interval to decay LR')
-    parser.add_argument('--warmup-epochs', type=int, default=5, metavar='N',
+    parser.add_argument('--warmup-epochs', type=int, default=10, metavar='N',
                         help='Epochs to warmup LR, if scheduler supports')
     parser.add_argument('--cooldown-epochs', type=int, default=10, metavar='N',
                         help='Epochs to cooldown LR at min_lr, after cyclic schedule ends')
@@ -165,7 +174,7 @@ def arg_parse():
                         help='Patience epochs for Plateau LR scheduler (default: 10')
     parser.add_argument('--decay-rate', '--dr', type=float, default=0.1, metavar='RATE',
                         help='LR decay rate (default: 0.1)')
-
+    
     # Misc.
     parser.add_argument('--darts', default=False, action='store_true', help='Enable DARTS mode')
     parser.add_argument('--entrans', default=False, action='store_true', help='Enable ENTRANS mode')
@@ -240,10 +249,8 @@ def arg_parse():
     parser.add_argument('--canvas-selector-save-dir', default='', help='Selector saving directory')
     parser.add_argument('--canvas-number-of-kernels', default=4, type = int, help='The number of kernels inside the replaced module')
     parser.add_argument('--compression-rate', default=1.0, help='The compression rate after replaced with replaced module')
-    parser.add_argument('--canvas-van-tiny', default=False, type=bool, help='Use canvas van tiny as the backbone')
+    parser.add_argument('--canvas-van-tiny', default=False, action='store_true', help='Use canvas van tiny as the backbone')
     
-    # EntranNAS preferences
-    parser.add_argument('--lambda', default=0.5, help='The hyperparameter used to control the degree of sparsification of final model')
 
     # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()

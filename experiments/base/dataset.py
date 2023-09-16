@@ -8,13 +8,18 @@ def get_loaders(args, proxy: bool = False):
     root = args.canvas_proxy_root if proxy else args.root
     if root == '':
         return None, None
-
+    logger = get_logger()
     # Get dataset.
     if args.local_rank == 0:
-        get_logger().info(f'Preparing data loaders in {root} (proxy={proxy})')
-    dataset_train = create_dataset(name='torch/cifar10', root=root, split=args.train_split, download=True, batch_size=args.batch_size)
-    dataset_eval = create_dataset(name='torch/cifar10', root=root, split=args.val_split, download=True, batch_size=args.batch_size)
-
+        get_logger().info(f'Preparing data loaders in {root} (proxy={proxy})') 
+    
+    if "imagewoof" in root.split('/')[-1]:
+        dataset_train = create_dataset(name='fastai/imagewoof2', root=root, split=args.train_split, download=False, batch_size=args.batch_size)
+        dataset_eval = create_dataset(name='fastai/imagewoof2', root=root, split=args.val_split, download=False, batch_size=args.batch_size)
+    else:
+        dataset_train = create_dataset(name='torch/cifar10', root=root, split=args.train_split, download=True, batch_size=args.batch_size)
+        dataset_eval = create_dataset(name='torch/cifar10', root=root, split=args.val_split, download=True, batch_size=args.batch_size)
+    
     # Setup mixup / cutmix.
     collate_fn = None
     mixup_active = args.mixup > 0 or args.cutmix > 0. or args.cutmix_minmax is not None
@@ -24,7 +29,6 @@ def get_loaders(args, proxy: bool = False):
             prob=args.mixup_prob, switch_prob=args.mixup_switch_prob, mode=args.mixup_mode,
             label_smoothing=args.smoothing, num_classes=args.num_classes)
         collate_fn = FastCollateMixup(**mixup_args)
-
     # Create data loaders w/ augmentation pipeline.
     train_loader = create_loader(
         dataset_train,

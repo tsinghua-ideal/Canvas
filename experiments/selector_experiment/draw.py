@@ -34,8 +34,14 @@ x_values = []  # Store the x values (start_epoch)
 for i, (filename, alphas_data) in enumerate(data_dict.items()):
     start_epoch = 0
     for j in range(1, len(alphas_data)):
-        if torch.argmax(torch.tensor(alphas_data[j])) != torch.argmax(torch.tensor(alphas_data[j - 1])):
-            start_epoch = j     
+        # if torch.argmax(torch.tensor(alphas_data[j])) != torch.argmax(torch.tensor(alphas_data[j - 1])):
+        #     start_epoch = j
+        # if torch.argmin(torch.tensor(alphas_data[j])) != torch.argmin(torch.tensor(alphas_data[j - 1])):
+        #     start_epoch = j
+        result1 = torch.all(torch.argsort(torch.tensor(alphas_data[j]))[:2] != torch.argsort(torch.tensor(alphas_data[j - 1]))[:2])
+        result2 = torch.all(torch.argsort(torch.tensor(alphas_data[j]))[:2] != torch.argsort(torch.tensor(alphas_data[j - 1]), descending=False)[-2:])
+        if result1 and result2:
+            start_epoch = j 
     x_values.append(int(start_epoch))
 
 # Set figure size

@@ -1,3 +1,5 @@
+
+
 import json
 import math
 import os
@@ -5,37 +7,25 @@ import time
 import torch
 import canvas
 
+from torch.autograd import grad
 from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 from timm.models import model_parameters, resume_checkpoint, safe_model_name
-from timm.utils import (
-    accuracy,
-    AverageMeter,
-    dispatch_clip_grad,
-    distribute_bn,
-    reduce_tensor,
-)
-from timm.utils import (
-    NativeScaler,
-    ApexScaler,
-    CheckpointSaver,
-    get_outdir,
-    update_summary,
-)
+from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
+from timm.utils import NativeScaler, ApexScaler, CheckpointSaver, get_outdir, update_summary
 
-from .proxyless import *
 from . import log, loss, optim, sche, darts
 
 
-def train_one_epoch(args, epoch, model, train_loader, 
-                    loss_func, optimizer, lr_scheduler,
-                    amp_autocast, loss_scaler, logger,
+def train_one_epoch(args, epoch, model, train_loader,  
+                    loss_func, w_optim, alpha_optim, lr_scheduler,
+                    amp_autocast, loss_scaler, logger, 
                     pruning_milestones=None):
-    # Second order optimizer.
-    second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
+    # Second order w_optim.
+    second_order = hasattr(w_optim, 'is_second_order') and w_optim.is_second_order
 
     # Meters.
     batch_time_m = AverageMeter()
@@ -49,21 +39,25 @@ def train_one_epoch(args, epoch, model, train_loader,
 
     # Iterate over this epoch.
     last_idx = len(train_loader) - 1
+    
+    # Update the weights of the model
     for batch_idx, (image, target)in enumerate(train_loader):
-
+        
         # Update starting time.
-        data_time_m.update(time.time() - end)      
+        data_time_m.update(time.time() - end)
         with amp_autocast():
             output = model(image)
             loss_value = loss_func(output, target)
 
         if not args.distributed:
             losses_m.update(loss_value.item(), image.size(0))
-
-        optimizer.zero_grad()
+        
+        # Update the weights parameters 
+        w_optim.zero_grad()
+        alpha_optim.zero_grad()  
         if loss_scaler is not None:
             loss_scaler(
-                loss_value, optimizer,
+                loss_value, w_optim,
                 clip_grad=args.clip_grad, clip_mode=args.clip_mode,
                 parameters=model_parameters(model, exclude_head='agc' in args.clip_mode),
                 create_graph=second_order)
@@ -73,8 +67,10 @@ def train_one_epoch(args, epoch, model, train_loader,
                 dispatch_clip_grad(
                     model_parameters(model, exclude_head='agc' in args.clip_mode),
                     value=args.clip_grad, mode=args.clip_mode)
-            optimizer.step()
-            
+            w_optim.step()
+            alpha_optim.step()
+
+
         # Sync.
         torch.cuda.synchronize()
         num_updates += 1
@@ -86,10 +82,10 @@ def train_one_epoch(args, epoch, model, train_loader,
 
         # Update time.
         end = time.time()
-
+        
         # Logging.
         if batch_idx == last_idx or batch_idx % args.log_interval == 0:
-            lrl = [param_group['lr'] for param_group in optimizer.param_groups]
+            lrl = [param_group['lr'] for param_group in w_optim.param_groups]
             lr = sum(lrl) / len(lrl)
 
             if args.distributed:
@@ -120,9 +116,8 @@ def train_one_epoch(args, epoch, model, train_loader,
 
             if math.isnan(losses_m.avg):
                 break
-
-    if hasattr(optimizer, 'sync_lookahead'):
-        optimizer.sync_lookahead()
+    if hasattr(w_optim, 'sync_lookahead'):
+        w_optim.sync_lookahead()
 
     metrics = OrderedDict([('loss', losses_m.avg)])
     return metrics
@@ -152,8 +147,6 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                 target = target[0:target.size(0):reduce_factor]
 
             loss_value = loss_func(output, target)
-            
-            
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
             if args.distributed:
@@ -162,7 +155,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                 acc5 = reduce_tensor(acc5, args.world_size)
             else:
                 reduced_loss = loss_value.data
-            
+                
             
             torch.cuda.synchronize()
 
@@ -204,11 +197,16 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
     
     # LR scheduler and epochs.
-    optimizer = optim.get_optimizer(args, model)
-    schedule = sche.get_schedule(args, optimizer)
-    lr_scheduler, sched_epochs = schedule 
+    weight_optim = torch.optim.SGD(darts.get_weights(model), args.w_lr, momentum=args.w_momentum,
+                               weight_decay=args.w_weight_decay)
     
-  # Create a logger.
+    alpha_optim = torch.optim.Adam(darts.get_alphas_undetached(model), args.alpha_lr, betas=(0.5, 0.999),
+                                weight_decay=args.alpha_weight_decay)
+    schedule = sche.get_schedule(args, weight_optim)
+    lr_scheduler, sched_epochs = schedule 
+
+
+    # Create a logger.
     logger = log.get_logger()
     
     if args.local_rank == 0:
@@ -225,7 +223,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         amp_autocast, loss_scaler = suppress, ApexScaler()
         # noinspection PyUnresolvedReferences
         from apex import amp
-        model, optimizer = amp.initialize(model, optimizer, opt_level='O1', verbosity=0,
+        model, weight_optim = amp.initialize(model, weight_optim, opt_level='O1', verbosity=0,
                                           loss_scale=args.apex_amp_loss_scale)
     else:
         amp_autocast, loss_scaler = suppress, None
@@ -236,7 +234,7 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if args.local_rank == 0:
             logger.info(f'Resuming from checkpoint {args.resume}')
         resume_epoch = resume_checkpoint(
-            model, args.resume, optimizer=optimizer, loss_scaler=loss_scaler,
+            model, args.resume, w_optim=weight_optim, loss_scaler=loss_scaler,
             log_info=(args.local_rank == 0)
         )
     start_epoch = resume_epoch if resume_epoch else 0
@@ -265,18 +263,10 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         output_dir = get_outdir(args.output if args.output else './output/train', name)
         decreasing = True if args.eval_metric == 'loss' else False
         saver = CheckpointSaver(
-            model=model, optimizer=optimizer, args=args, amp_scaler=loss_scaler,
+            model=model, optimizer=weight_optim, args=args, amp_scaler=loss_scaler,
             checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
         with open(os.path.join(output_dir, 'args.json'), 'w') as file:
             json.dump(vars(args), fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
-
-    # Pruning after epochs.
-    # overall_pruning_milestones = None
-    # if args.canvas_epoch_pruning_milestone:
-    #     with open(args.canvas_epoch_pruning_milestone) as f:
-    #         overall_pruning_milestones = json.load(f)
-    #     if args.local_rank == 0:
-    #         logger.info(f'Milestones (overall epochs) loaded: {overall_pruning_milestones}')
 
     # Iterate over epochs.
     all_train_metrics, all_eval_metrics, magnitude_alphas, one_hot_alphas = [], [], [], []
@@ -284,44 +274,29 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
 
-        # # Pruner.
-        in_epoch_pruning_milestones = dict()
-        # if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
-        #     with open(args.canvas_first_epoch_pruning_milestone) as f:
-        #         in_epoch_pruning_milestones = json.load(f)
-        #     if args.local_rank == 0:
-        #         logger.info(f'Milestones (first-epoch loss) loaded: {in_epoch_pruning_milestones}')
-
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
-                                        optimizer, lr_scheduler, amp_autocast, loss_scaler, logger, 
-                                        pruning_milestones=in_epoch_pruning_milestones)
+                                        weight_optim, alpha_optim, lr_scheduler, amp_autocast, loss_scaler, logger,
+                                        pruning_milestones=None)
         all_train_metrics.append(train_metrics)
-        # darts.temperature_anneal(model)
+        magnitude_alphas.append(darts.get_magnitude_scores(model).tolist())
+        one_hot_alphas.append(darts.get_one_hot_scores(model).tolist())
         
-        # if epoch == sched_epochs - 1:
-            # magnitude_alphas.append(darts.get_magnitude_scores_with_2D(model).tolist())
-            # magnitude_alphas.append(darts.get_magnitude_scores_with_1D(model).tolist())
-            # one_hot_alphas.append(darts.get_one_hot_scores(model).tolist())
-        
-        # Log the parameters of the canvas kernels
+        # Log the parameters of the placeholders
         for i, placeholder in enumerate(model.canvas_cached_placeholders):
             placeholder.canvas_placeholder_kernel.print_parameters(i, epoch)
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):
             raise RuntimeError('NaN occurs during training')
-
-        # Normalize.
-        if args.distributed and args.dist_bn in ('broadcast', 'reduce'):
-            # if args.local_rank == 0:
-            #     logger.info("Distributing BatchNorm running means and vars")
-            distribute_bn(model, args.world_size, args.dist_bn == 'reduce')
-            
+   
         # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, amp_autocast, logger)
         all_eval_metrics.append(eval_metrics)
 
+        # # Update the temperature parameters
+        # darts.temperature_anneal(model)
+        
         # Update LR scheduler.
         if lr_scheduler is not None:
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
@@ -342,15 +317,11 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     if best_metric is not None:
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
-    
-    average_top1 = sum(eval_metrics['top1'] for eval_metrics in all_eval_metrics[-2:]) / 2
-
     all_train_val_data_metrics = {
     "all_train_metrics": all_train_metrics,
     "all_eval_metrics": all_eval_metrics,
     "magnitude_alphas": magnitude_alphas,
-    "one_hot_alphas": one_hot_alphas,
-    "latest_top1": average_top1
+    "one_hot_alphas": one_hot_alphas
     }
     
     return all_train_val_data_metrics
