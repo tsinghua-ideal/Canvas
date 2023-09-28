@@ -124,23 +124,17 @@ def arg_parse():
                         help='Gradient clipping mode, one of ("norm", "value", "agc")')
     
     # Optimizers for weight and architecture parameters trained separately.
-    parser.add_argument('--w_lr', type=float, default=0.025, help='lr for weights')
-    parser.add_argument('--w_lr_min', type=float, default=0.001, help='minimum lr for weights')
-    parser.add_argument('--w_momentum', type=float, default=0.9, help='momentum for weights')
-    parser.add_argument('--w_weight_decay', type=float, default=3e-4,
-                        help='weight decay for weights')
-    parser.add_argument('--w_grad_clip', type=float, default=5.,
-                        help='gradient clipping for weights')
-    parser.add_argument('--alpha_lr', type=float, default=6e-4, help='lr for alpha')
-    parser.add_argument('--alpha_weight_decay', type=float, default=1e-3,
+    parser.add_argument('--alpha-lr', type=float, default=6e-4, help='lr for alpha')
+    parser.add_argument('--alpha-weight-decay', type=float, default=0,
                         help='weight decay for alpha')
+
     
     # proxyless arch parameters 
     parser.add_argument('--grad_update_arch_param_every', type=int, default=5)
     parser.add_argument('--grad_update_steps', type=int, default=1)
-    parser.add_argument('--grad_binary_mode', type=str, default='two', choices=['full_v2', 'full', 'two'])
+    parser.add_argument('--grad-binary-mode', type=str, default='two', choices=['full_v2', 'full', 'two'])
     parser.add_argument('--grad_data_batch', type=int, default=None)
-       
+
     # Scheduler parameters.
     parser.add_argument('--sched', default='cosine', type=str, metavar='SCHEDULER',
                         help='LR scheduler (default: "step"')
@@ -174,8 +168,9 @@ def arg_parse():
                         help='Patience epochs for Plateau LR scheduler (default: 10')
     parser.add_argument('--decay-rate', '--dr', type=float, default=0.1, metavar='RATE',
                         help='LR decay rate (default: 0.1)')
-    
+        
     # Misc.
+    parser.add_argument('--needs-profiler', default=False, action='store_true', help='Enable torch profiler')
     parser.add_argument('--darts', default=False, action='store_true', help='Enable DARTS mode')
     parser.add_argument('--entrans', default=False, action='store_true', help='Enable ENTRANS mode')
     parser.add_argument('--forbid-eval-nan', action='store_true', help='Whether to forbid NaN during evaluation')
@@ -216,6 +211,8 @@ def arg_parse():
                         help='Epoch accuracy milestone pruning')
     parser.add_argument('--canvas-log-dir', default='', type=str,
                         help='Canvas logging directory')
+    parser.add_argument('--canvas-tensorboard-log-dir', default=None, type=str,
+                        help='Canvas logging directory using tensorboard')
     parser.add_argument('--canvas-oss-bucket', default='', type=str,
                         help='Log into OSS buckets')
     parser.add_argument('--canvas-bmm-pct', default=0.1, type=float,

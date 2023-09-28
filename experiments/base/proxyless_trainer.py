@@ -6,12 +6,14 @@ from contextlib import suppress
 
 import torch
 import torch.nn.functional as F
+import torch.profiler
 
 from timm.models import model_parameters, resume_checkpoint, safe_model_name
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad, distribute_bn, reduce_tensor
 from timm.utils import NativeScaler, ApexScaler, CheckpointSaver, get_outdir, update_summary
+from torch.utils.tensorboard import SummaryWriter
 
-from . import log, loss, optim, sche
+from . import log, loss, optim, sche, darts
 from .proxyless import *
 
 def get_update_schedule(args, nBatch):
@@ -23,10 +25,8 @@ def get_update_schedule(args, nBatch):
 
 
 def train_one_epoch(args, epoch, model, train_loader, eval_loader,
-                    
-                    
                     train_loss_func, eval_loss_func, w_optimizer, arch_optimizer, lr_scheduler,
-                    amp_autocast, loss_scaler, logger, pruning_milestones=None):
+                    amp_autocast, loss_scaler, logger, writer=None, pruning_milestones=None, profiler=None):
     # Second order optimizer.
     second_order = hasattr(w_optimizer, 'is_second_order') and w_optimizer.is_second_order
     
@@ -41,7 +41,6 @@ def train_one_epoch(args, epoch, model, train_loader, eval_loader,
     losses_m = AverageMeter()
     end = time.time()
 
-
     # Switch to training mode.
     model.train()
 
@@ -50,14 +49,21 @@ def train_one_epoch(args, epoch, model, train_loader, eval_loader,
     for batch_idx, (image, target)in enumerate(train_loader):
         data_time_m.update(time.time() - end) 
         image, target = image.to(args.device), target.to(args.device)
-        reset_binary_gates(model)  # random sample binary gates
-        unused_modules_off(model)  # remove unused module for speedup
+        
+        # Random sample binary gates
+        reset_binary_gates_test(model)  
+        
+        # Remove unused module for speedup
+        unused_modules_off(model)  
+
         with amp_autocast():
             output = model(image)
             loss_value = train_loss_func(output, target)
         if not args.distributed:
             losses_m.update(loss_value.item(), image.size(0))
-        model.zero_grad()
+        # zero grads of weight_param, arch_param & binary_param
+        model.zero_grad() 
+         
         if loss_scaler is not None:
             loss_scaler(
                 loss_value, w_optimizer,
@@ -71,29 +77,37 @@ def train_one_epoch(args, epoch, model, train_loader, eval_loader,
                     model_parameters(model, exclude_head='agc' in args.clip_mode),
                     value=args.clip_grad, mode=args.clip_mode)
             w_optimizer.step()
+            
+        if args.needs_profiler and epoch >= 5:
+            profiler.step()
+            
+        # Back to normal mode
         unused_modules_back(model)
-
+        
         # Architecture parameter updates
         if epoch > args.warmup_epochs:
             
-            # update architecture parameters according to update_schedule
+            # Update architecture parameters according to update_schedule
             try:
                 image_eval, target_eval = next(valid_queue_iter)
             except:
                 valid_queue_iter = iter(eval_loader)
                 image_eval, target_eval = next(valid_queue_iter)
             for j in range(arch_update_schedule.get(batch_idx, 0)):
-                # switch to train mode
+                
+                # Switch to train mode
                 model.train()
+                
                 # Mix edge mode
                 ProxylessParallelKernels.MODE = args.grad_binary_mode
                 
-                # sample a batch of data from validation set
                 image_eval, target_eval = image_eval.to(args.device), target_eval.to(args.device)
+
+                # Random sample binary gates
+                reset_binary_gates_test(model)  
                 
-                # compute output
-                reset_binary_gates(model)  # random sample binary gates
-                unused_modules_off(model)  # remove unused module for speedup
+                # Remove unused module for speedup
+                unused_modules_off(model)  
                 with amp_autocast():
                     output_eval = model(image_eval)
                 if isinstance(output_eval, (tuple, list)):
@@ -105,20 +119,20 @@ def train_one_epoch(args, epoch, model, train_loader, eval_loader,
                     output_eval = output_eval.unfold(0, reduce_factor, reduce_factor).mean(dim=2)
                     target_eval = target_eval[0:target_eval.size(0):reduce_factor]
                     
-                # loss
+                # Loss
                 loss = eval_loss_func(output_eval, target_eval)
                 
-                # compute gradient and do SGD step
+                # Compute gradient
                 model.zero_grad()  # zero grads of weight_param, arch_param & binary_param
                 loss.backward()
                 
-                # set architecture parameter gradients
+                # Set architecture parameter gradients
                 set_arch_param_grad(model)
                 arch_optimizer.step()
                 if ProxylessParallelKernels.MODE == 'two':
                     rescale_updated_arch_param(model)
                     
-                # back to normal mode
+                # Back to normal mode
                 unused_modules_back(model)
                 ProxylessParallelKernels.MODE = None           
         
@@ -133,12 +147,18 @@ def train_one_epoch(args, epoch, model, train_loader, eval_loader,
 
         # Update time.
         end = time.time()
-
+   
         # Logging.
         if batch_idx == last_idx or batch_idx % args.log_interval == 0:
             lrl = [param_group['lr'] for param_group in w_optimizer.param_groups]
             lr = sum(lrl) / len(lrl)
 
+            # Log the parameters of the canvas kernels using tensorboard
+            if writer:
+                writer.add_scalar('Training/Loss', losses_m.avg, epoch)
+                writer.add_scalar('Training/Learning Rate', 
+                            lr, epoch)
+                
             if args.distributed:
                 reduced_loss = reduce_tensor(loss_value.data, args.world_size)
                 losses_m.update(reduced_loss.item(), image.size(0))
@@ -170,7 +190,7 @@ def train_one_epoch(args, epoch, model, train_loader, eval_loader,
 
     if hasattr(w_optimizer, 'sync_lookahead'):
         w_optimizer.sync_lookahead()
-
+        
     metrics = OrderedDict([('loss', losses_m.avg)])
     return metrics
 
@@ -182,13 +202,15 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
     losses_m = AverageMeter()
     top1_m = AverageMeter()
     top5_m = AverageMeter()
-
     end = time.time()
     last_idx = len(eval_loader) - 1
+    
     # set chosen op active
     set_chosen_module_active(model)
+    
     # remove unused modules
     unused_modules_off(model)
+    
     with torch.no_grad():
         for batch_idx, (image, target) in enumerate(eval_loader):
             with amp_autocast():
@@ -211,8 +233,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                 acc1 = reduce_tensor(acc1, args.world_size)
                 acc5 = reduce_tensor(acc5, args.world_size)
             else:
-                reduced_loss = loss_value.data
-            
+                reduced_loss = loss_value.data            
             
             torch.cuda.synchronize()
 
@@ -238,6 +259,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
                         loss=losses_m, top1=top1_m, top5=top5_m))
                 
     unused_modules_back(model)
+    
     # Record kernel scales.
     kernel_scales = []
     if hasattr(model, 'kernel_scales'):
@@ -250,38 +272,51 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
 
 def train(args, model, train_loader, eval_loader, search_mode: bool = False, proxy_mode: bool = False):
 
+    
+    
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
     
     # LR scheduler and epochs.
-    w_optimizer = optim.get_optimizer(args, get_parameters(model=model, keys=['AP_path'], mode='exclude'))  
+    w_optimizer = optim.get_optimizer(args, get_parameters(model=model, keys=['AP_path'], mode='exclude')) 
     arch_optimizer = torch.optim.Adam(get_parameters(model=model, keys=['AP_path_alpha'], mode='include'), args.alpha_lr, betas=(0.5, 0.999),
                                 weight_decay=args.alpha_weight_decay)
     schedule = sche.get_schedule(args, w_optimizer)
     lr_scheduler, sched_epochs = schedule 
     
+    # Using torch profiler to profile the training process
+    if args.needs_profiler:
+        profiler = torch.profiler.profile(
+            activities=[
+                torch.profiler.ProfilerActivity.CPU,
+                torch.profiler.ProfilerActivity.CUDA],
+            schedule=torch.profiler.schedule(
+                wait=1,
+                warmup=1,
+                active=4,
+                repeat=1),
+            on_trace_ready=torch.profiler.tensorboard_trace_handler(args.canvas_tensorboard_log_dir, worker_name='worker0'),
+            record_shapes=True,
+            profile_memory=True,  # This will take 1 to 2 minutes. Setting it to False could greatly speedup.
+            with_stack=True) 
+        profiler.start()
+    else:
+        profiler = None
     
   # Create a logger.
     logger = log.get_logger()
     
+    if args.canvas_tensorboard_log_dir:
+        logger.info(f'Writing tensorboard logs to {args.canvas_tensorboard_log_dir}')
+        writer = SummaryWriter(args.canvas_tensorboard_log_dir)
+    else:
+        writer = None
+        
     if args.local_rank == 0:
         logger.info('Begin training ...')
 
-    # AMP automatic cast.
-    if args.native_amp:
-        if args.local_rank == 0:
-            logger.info('Training with native PyTorch AMP')
-        amp_autocast, loss_scaler = torch.cuda.amp.autocast, NativeScaler()
-    elif args.apex_amp:
-        if args.local_rank == 0:
-            logger.info(f'Training with native Apex AMP (loss scale: {args.apex_amp_loss_scale})')
-        amp_autocast, loss_scaler = suppress, ApexScaler()
-        # noinspection PyUnresolvedReferences
-        from apex import amp
-        model, optimizer = amp.initialize(model, optimizer, opt_level='O1', verbosity=0,
-                                          loss_scale=args.apex_amp_loss_scale)
-    else:
-        amp_autocast, loss_scaler = suppress, None
+    # AMP automatic cast TODO.
+    amp_autocast, loss_scaler = suppress, None
 
     # Resume from checkpoint.
     resume_epoch = None
@@ -289,31 +324,16 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if args.local_rank == 0:
             logger.info(f'Resuming from checkpoint {args.resume}')
         resume_epoch = resume_checkpoint(
-            model, args.resume, optimizer=optimizer, loss_scaler=loss_scaler,
+            model, args.resume, optimizer=w_optimizer, loss_scaler=loss_scaler,
             log_info=(args.local_rank == 0)
         )
     start_epoch = resume_epoch if resume_epoch else 0
     if lr_scheduler is not None and start_epoch > 0:
         lr_scheduler.step(start_epoch)
 
-    # Checkpoint saver.
+    # Checkpoint saver.TODO
     best_metric, best_epoch = None, None
-    saver, output_dir = None, None
-    # if args.local_rank == 0 and not search_mode:
-    #     name = '-'.join([
-    #         datetime.now().strftime("%Y%m%d-%H%M%S"),
-    #         safe_model_name(args.model)
-    #     ])
-    #     output_dir = get_outdir(args.output if args.output else './output/train', name)
-    #     decreasing = True if args.eval_metric == 'loss' else False
-    #     saver = CheckpointSaver(
-    #         model=model, optimizer=w_optimizer, args=args, amp_scaler=loss_scaler,
-    #         checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
-    #     with open(os.path.join(output_dir, 'args.json'), 'w') as file:
-    #         json.dump(vars(args), fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
-    # warm_up(args, epoch, model, train_loader, eval_loader,
-    #                 warmup_loss_func, eval_loss_func, w_optimizer, lr_scheduler,
-    #                 amp_autocast, loss_scaler, logger, pruning_milestones=None)
+
     # Iterate over epochs.
     all_train_val_data_metrics = {}
     all_train_metrics, all_eval_metrics, magnitude_alphas, one_hot_alphas = [], [], [], []
@@ -321,27 +341,23 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if args.distributed and hasattr(train_loader.sampler, 'set_epoch'):
             train_loader.sampler.set_epoch(epoch)
         torch.cuda.empty_cache()
-        # # Pruner.
+        
+        # Pruner.TODO
         in_epoch_pruning_milestones = dict()
-        # if epoch == 0 and search_mode and not proxy_mode and args.canvas_first_epoch_pruning_milestone:
-        #     with open(args.canvas_first_epoch_pruning_milestone) as f:
-        #         in_epoch_pruning_milestones = json.load(f)
-        #     if args.local_rank == 0:
-        #         logger.info(f'Milestones (first-epoch loss) loaded: {in_epoch_pruning_milestones}')
-        monitor_gpu_memory(args.device, logger)
+
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, eval_loader, train_loss_func, eval_loss_func,
-                                        w_optimizer, arch_optimizer, lr_scheduler, amp_autocast, loss_scaler, logger,
-                                        pruning_milestones=in_epoch_pruning_milestones)
+                                        w_optimizer, arch_optimizer, lr_scheduler, amp_autocast, loss_scaler, logger, writer, 
+                                        pruning_milestones=in_epoch_pruning_milestones, profiler=profiler)
         all_train_metrics.append(train_metrics)
-
+          
         if epoch == sched_epochs - 1:
-            magnitude_alphas.append(get_magnitude_scores_with_2D(model).tolist())
-            magnitude_alphas.append(get_magnitude_scores_with_1D(model).tolist())
-            one_hot_alphas.append(get_one_hot_scores(model).tolist())
+            magnitude_alphas.append(get_sum_of_magnitude_scores_with_1D(model).tolist())
+            
         # Log the parameters of the canvas kernels
-        for i, placeholder in enumerate(model.canvas_cached_placeholders):
-            placeholder.canvas_placeholder_kernel.print_parameters(i, epoch)
+        if epoch >= args.warmup_epochs:
+            for i, placeholder in enumerate(model.canvas_cached_placeholders):
+                placeholder.canvas_placeholder_kernel.print_parameters(i, epoch)
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):
@@ -350,7 +366,12 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, amp_autocast, logger)
         all_eval_metrics.append(eval_metrics)
-
+        
+        #  Log the parameters of the canvas kernels using tensorboard
+        if writer:
+            writer.add_scalar('Testing/Accuracy', eval_metrics['top1'], epoch)
+            writer.add_scalar('Testing/Loss', eval_metrics['loss'], epoch)
+        
         # Update LR scheduler.
         if lr_scheduler is not None:
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
@@ -359,30 +380,24 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
         if math.isnan(eval_metrics['loss']) and args.forbid_eval_nan:
             raise RuntimeError('NaN occurs during validation')
 
-        # Summary and save checkpoint.
-        if output_dir is not None:
-            if args.local_rank == 0:
-                logger.info('Updating summary ...')
-            update_summary(
-                epoch, train_metrics, eval_metrics,
-                os.path.join(output_dir, 'summary.csv'),
-                write_header=best_metric is None)
-
     if best_metric is not None:
         if args.local_rank == 0:
             logger.info(f'Best metric: {best_metric} (epoch {best_epoch})')
         
-    recent_top1_values = [eval_metrics['top1'] for eval_metrics in all_eval_metrics[-2:]]
-    average_top1 = sum(recent_top1_values) / len(recent_top1_values)
-    
-    all_train_val_data_metrics = {
+    # Stop the profiler
+    if args.needs_profiler:
+            profiler.stop()
+            
+    # Close the writer
+    if writer:
+        writer.close()
+
+    return {
     "all_train_metrics": all_train_metrics,
     "all_eval_metrics": all_eval_metrics,
     "magnitude_alphas": magnitude_alphas,
     "one_hot_alphas": one_hot_alphas,
-    "latest_top1": average_top1
+    "latest_top1": all_eval_metrics[-1]['top1']
     }
-    
-    return all_train_val_data_metrics
 
     

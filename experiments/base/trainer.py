@@ -214,21 +214,8 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
     if args.local_rank == 0:
         logger.info('Begin training ...')
 
-    # AMP automatic cast.
-    if args.native_amp:
-        if args.local_rank == 0:
-            logger.info('Training with native PyTorch AMP')
-        amp_autocast, loss_scaler = torch.cuda.amp.autocast, NativeScaler()
-    elif args.apex_amp:
-        if args.local_rank == 0:
-            logger.info(f'Training with native Apex AMP (loss scale: {args.apex_amp_loss_scale})')
-        amp_autocast, loss_scaler = suppress, ApexScaler()
-        # noinspection PyUnresolvedReferences
-        from apex import amp
-        model, optimizer = amp.initialize(model, optimizer, opt_level='O1', verbosity=0,
-                                          loss_scale=args.apex_amp_loss_scale)
-    else:
-        amp_autocast, loss_scaler = suppress, None
+    # AMP automatic cast. TODO    
+    amp_autocast, loss_scaler = suppress, None
 
     # Resume from checkpoint.
     resume_epoch = None
@@ -297,16 +284,6 @@ def train(args, model, train_loader, eval_loader, search_mode: bool = False, pro
                                         optimizer, lr_scheduler, amp_autocast, loss_scaler, logger, 
                                         pruning_milestones=in_epoch_pruning_milestones)
         all_train_metrics.append(train_metrics)
-        # darts.temperature_anneal(model)
-        
-        # if epoch == sched_epochs - 1:
-            # magnitude_alphas.append(darts.get_magnitude_scores_with_2D(model).tolist())
-            # magnitude_alphas.append(darts.get_magnitude_scores_with_1D(model).tolist())
-            # one_hot_alphas.append(darts.get_one_hot_scores(model).tolist())
-        
-        # Log the parameters of the canvas kernels
-        for i, placeholder in enumerate(model.canvas_cached_placeholders):
-            placeholder.canvas_placeholder_kernel.print_parameters(i, epoch)
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):

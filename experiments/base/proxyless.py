@@ -37,7 +37,7 @@ class ProxylessParallelKernels(nn.Module):
         assert len(kernel_cls_list) >= 1
         self.module_list = nn.ModuleList([kernel_cls(*kwargs.values()) for kernel_cls in kernel_cls_list])
         self.length = len(self.module_list)
-        self.AP_path_alpha = nn.Parameter((1e-3) * torch.randn(self.length))  # architecture parameters
+        self.AP_path_alpha = nn.Parameter(torch.ones(self.length) * (1 / self.length))  # architecture parameters
         self.AP_path_wb = nn.Parameter(torch.Tensor(self.length))  # binary gates
         self.active_index = [0]
         self.inactive_index = None
@@ -46,12 +46,6 @@ class ProxylessParallelKernels(nn.Module):
     def forward(self, x: torch.Tensor):
         if ProxylessParallelKernels.MODE == 'two':
             return self.AP_path_wb[self.active_index[0]] * self.module_list[self.active_index[0]](x) + self.AP_path_wb[self.inactive_index[0]] * self.module_list[self.inactive_index[0]](x).detach()
-            # for _i in self.active_index:
-            #     oi = self.module_list[_i](x)
-            #     output = output + self.AP_path_wb[_i] * oi
-            # for _j in self.inactive_index:
-            #     oj = self.module_list[_j](x)
-            #     output = output + self.AP_path_wb[_j] * oj.detach()
         else:
             return self.active_module(x)
     
@@ -68,45 +62,6 @@ class ProxylessParallelKernels(nn.Module):
         self.active_index = [chosen_idx]
         self.inactive_index = [_i for _i in range(0, chosen_idx)] + \
                               [_i for _i in range(chosen_idx + 1, self.length)]
-
-    def binarize(self):
-        
-        # reset binary gates
-        self.AP_path_wb.data.zero_()
-        
-        # binarize according to probs
-        probs = self.probs_over_ops
-        if ProxylessParallelKernels.MODE == 'two':
-            
-            # sample two ops according to `probs`
-            sample_op = torch.multinomial(probs.data, 2, replacement=False)
-            probs_slice = F.softmax(torch.stack([
-                self.AP_path_alpha[idx] for idx in sample_op
-            ]), dim=0)
-                
-            # chose one to be active and the other to be inactive according to probs_slice
-            c = torch.multinomial(probs_slice.data, 1)[0]  # 0 or 1
-            active_op = sample_op[c].item()
-            inactive_op = sample_op[1 - c].item()
-            self.active_index = [active_op]
-            self.inactive_index = [inactive_op]
-            
-            # set binary gate
-            self.AP_path_wb.data[active_op] = 1.0
-            
-        else:
-            sample = torch.multinomial(probs.data, 1)[0].item()
-            self.active_index = [sample]
-            self.inactive_index = [_i for _i in range(0, sample)] + \
-                                  [_i for _i in range(sample + 1, self.length)]
-                                  
-            # set binary gate
-            self.AP_path_wb.data[sample] = 1.0
-            
-        # avoid over-regularization
-        for _i in range(self.length):
-            for name, param in self.module_list[_i].named_parameters():
-                param.grad = None
 
     def set_arch_param_grad(self):
         binary_grads = self.AP_path_wb.grad.data
@@ -137,15 +92,14 @@ class ProxylessParallelKernels(nn.Module):
         involved_idx = [idx for idx, _ in (self.active_index + self.inactive_index)]
         old_alphas = [alpha for _, alpha in (self.active_index + self.inactive_index)]
         new_alphas = [self.AP_path_alpha.data[idx] for idx in involved_idx]
-
         offset = math.log(
             sum([math.exp(alpha) for alpha in new_alphas]) / sum([math.exp(alpha) for alpha in old_alphas])
         )
-
         for idx in involved_idx:
             self.AP_path_alpha.data[idx] -= offset
-
+            
     
+                
     @property
     def probs_over_ops(self):
         return F.softmax(self.AP_path_alpha, dim=0)  # softmax to probability
@@ -154,15 +108,6 @@ class ProxylessParallelKernels(nn.Module):
     def chosen_index(self):
         return torch.argmax(self.probs_over_ops)
 
-    @property
-    def chosen_op(self):
-        return self.module_list[self.chosen_index]
-
-    @property
-    def random_op(self):
-        index = np.random.choice([_i for _i in range(self.length)], 1)[0]
-        return self.module_list[index]
-    
     def print_parameters(self, i, j):
         logger = log.get_logger()
         
@@ -175,17 +120,13 @@ class ProxylessParallelKernels(nn.Module):
         logger.info(self.probs_over_ops)
         logger.info('#####################')
         
-def get_magnitude_scores_with_1D(model):
-    """
-    Calculate and return the magnitude scores.
-
-    Args:
-        model: The model instance.
-
-    Returns:
-        The sum of softmax scores.
-    """
+         
+def get_sum_of_magnitude_scores_with_1D(model):
     return torch.sum(torch.stack([F.softmax(placeholder.canvas_placeholder_kernel.AP_path_alpha.detach().cpu(), dim=0) for placeholder in model.canvas_cached_placeholders]), dim=0)
+
+def get_multiplication_of_magnitude_scores_with_1D(model):
+    return torch.prod(torch.stack([F.softmax(placeholder.canvas_placeholder_kernel.AP_path_alpha.detach().cpu(), dim=0) for placeholder in model.canvas_cached_placeholders]),dim=0) * 1e18
+
 
 def get_one_hot_scores(model):
     """
@@ -201,37 +142,41 @@ def get_one_hot_scores(model):
                 for placeholder in model.canvas_cached_placeholders])
     return torch.sum(one_hot_scores, dim=0)
 
-def get_magnitude_scores_with_2D(model):
-    """
-    Calculate and return the magnitude scores.
-
-    Args:
-        model: The model instance.
-
-    Returns:
-        The sum of softmax scores.
-    """
-    return torch.stack([F.softmax(placeholder.canvas_placeholder_kernel.AP_path_alpha.detach().cpu(), dim=0) for placeholder in model.canvas_cached_placeholders])
-
 
 """ architecture parameters related methods """
 
-# #这个确实可以用上
-# def init_arch_params(model, init_type='normal', init_ratio=1e-3):
-#     for param in get_parameters(model=model, keys=['AP_path_alpha'], mode='include'):
-#         if init_type == 'normal':
-#             param.data.normal_(0, init_ratio)
-#         elif init_type == 'uniform':
-#             param.data.uniform_(-init_ratio, init_ratio)
-#         else:
-#             raise NotImplementedError
-
-def reset_binary_gates(model):
+         
+def reset_binary_gates_test(model):
+            
+    # reset binary gates
     for placeholder in model.canvas_cached_placeholders:
-        try:
-            placeholder.canvas_placeholder_kernel.binarize()
-        except AttributeError:
-            print(type(placeholder), ' do not support binarize')
+        placeholder.canvas_placeholder_kernel.AP_path_wb.data.zero_()
+
+    # binarize according to probs
+    probs = torch.sum(torch.stack([placeholder.canvas_placeholder_kernel.probs_over_ops for placeholder in model.canvas_cached_placeholders]), dim=0)
+    if ProxylessParallelKernels.MODE == 'two':
+        
+        # sample two ops according to `probs`
+        sample_op = torch.multinomial(probs.data, 2, replacement=False)
+        probs_slice = F.softmax(torch.stack([
+            probs[idx] for idx in sample_op
+        ]), dim=0)
+            
+        # chose one to be active and the other to be inactive according to probs_slice
+        c = torch.multinomial(probs_slice.data, 1)[0]  # 0 or 1
+        active_op = sample_op[c].item()
+        inactive_op = sample_op[1 - c].item()
+        for placeholder in model.canvas_cached_placeholders:
+            placeholder.canvas_placeholder_kernel.active_index = [active_op]
+            placeholder.canvas_placeholder_kernel.inactive_index = [inactive_op]
+            placeholder.canvas_placeholder_kernel.AP_path_wb.data[active_op] = 1.0
+    else:
+        sample = torch.multinomial(probs.data, 1)[0].item()
+        for placeholder in model.canvas_cached_placeholders:
+            placeholder.canvas_placeholder_kernel.active_index = [sample]
+            placeholder.canvas_placeholder_kernel.inactive_index = [_i for _i in range(0, sample)] + \
+                                                [_i for _i in range(sample + 1, placeholder.canvas_placeholder_kernel.length)]
+            placeholder.canvas_placeholder_kernel.AP_path_wb.data[sample] = 1.0
 
 def set_arch_param_grad(model):
     for placeholder in model.canvas_cached_placeholders:
@@ -247,7 +192,7 @@ def rescale_updated_arch_param(model):
         except AttributeError:
             print(type(placeholder), ' do not support `rescale_updated_arch_param()`')
             
-def sort_and_prune(alpha_list, kernel_list, percentage_to_keep=0.5):
+def sort_and_prune(alpha_list, kernel_list, percentage_to_keep=0.5, n=8):
     # num_keep = len(kernel_list) * percentage_to_keep
 
     # # 使用argsort获取排序后的alphas的索引
@@ -256,11 +201,13 @@ def sort_and_prune(alpha_list, kernel_list, percentage_to_keep=0.5):
     # # 选择排序后的索引中的前一半索引
     # num_indices_keep = sorted_indices[:int(num_keep)]
     
-    step = len(kernel_list) // 8
+    step = len(kernel_list) // n
     sorted_indices = torch.argsort(alpha_list, descending=True)
-    num_indices_keep = sorted_indices[::int(step)]
+    num_indices_keep = sorted_indices[:2].tolist() + sorted_indices[2::int(step)].tolist()
+    alpha_list = alpha_list.tolist()
+    
     # 根据索引获取对应的module_list子数组
-    return [kernel_list[i] for i in num_indices_keep]
+    return [kernel_list[i] for i in num_indices_keep], [alpha_list[i] for i in num_indices_keep]
 
 """ training related methods """
 
@@ -288,7 +235,6 @@ def unused_modules_back(model):
         for i in unused:
             placeholder.canvas_placeholder_kernel.module_list[i] = unused[i]
     model._unused_modules = None
-    gc.collect()
 
 def set_chosen_module_active(model):
     for placeholder in model.canvas_cached_placeholders:
@@ -296,3 +242,4 @@ def set_chosen_module_active(model):
             placeholder.canvas_placeholder_kernel.set_chosen_module_active()
         except AttributeError:
             print(type(placeholder), ' do not support `set_chosen_module_active()`')
+

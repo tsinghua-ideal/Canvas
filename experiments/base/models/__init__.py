@@ -8,6 +8,7 @@ from timm import data
 from .canvas_van import van_b0
 from ..log import get_logger
 from .. import darts
+from .. import proxyless
 
 def get_model(args, search_mode: bool = False):
     logger = get_logger()
@@ -51,7 +52,7 @@ def get_model(args, search_mode: bool = False):
               logger.info(f'Replacing kernel from {args.canvas_kernels}')
         assert len(args.canvas_kernels) == 1 or (len(args.canvas_kernels) > 1 and args.darts)
         packs = [canvas.KernelPack.load(kernel) for kernel in args.canvas_kernels]
-        cls = packs[0].module if len(packs) == 1 else partial(darts.ParallelKernels, 
+        cls = packs[0].module if len(packs) == 1 else partial(proxyless.ProxylessParallelKernels, 
                                                               kernel_cls_list=[pack.module for pack in packs])
         model = canvas.replace(model, cls, args.device)
     # Count FLOPs and params.
