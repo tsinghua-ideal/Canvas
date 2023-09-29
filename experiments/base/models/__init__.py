@@ -6,7 +6,7 @@ from functools import partial
 from timm import data
 
 from .canvas_van import canvas_van_tiny
-from .parallel_kernels import ParallelKernels
+from .proxyless import ParallelKernels
 from ..log import get_logger
 
 

@@ -42,6 +42,9 @@ class Placeholder(nn.Module):
         self.spatial_dims, self.c, self.h, self.w = 0, 0, 0, 0
         self.canvas_placeholder_kernel = Identity()
 
+    def get_kernel(self):
+        return self.canvas_placeholder_kernel
+
     def clear(self):
         r"""Reset all information, which is inferred during analysis.
         """
