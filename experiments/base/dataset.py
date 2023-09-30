@@ -1,3 +1,4 @@
+import torch
 from timm.data import create_dataset, FastCollateMixup, create_loader
 
 from .log import get_logger
@@ -25,7 +26,7 @@ def get_loaders(args, proxy: bool = False):
             label_smoothing=args.smoothing, num_classes=args.num_classes)
         collate_fn = FastCollateMixup(**mixup_args)
 
-    # Create data loaders w/ augmentation pipeline.
+    # Create data loaders w/ augmentation pipeline
     train_loader = create_loader(
         dataset_train,
         input_size=args.input_size,
@@ -52,7 +53,8 @@ def get_loaders(args, proxy: bool = False):
         distributed=args.distributed,
         collate_fn=collate_fn,
         pin_memory=args.pin_memory,
-        use_multi_epochs_loader=args.use_multi_epochs_loader
+        use_multi_epochs_loader=args.use_multi_epochs_loader,
+        device=torch.device(args.device)
     )
 
     eval_loader = create_loader(
@@ -67,7 +69,8 @@ def get_loaders(args, proxy: bool = False):
         num_workers=args.num_workers,
         distributed=args.distributed,
         crop_pct=args.crop_pct,
-        pin_memory=args.pin_memory
+        pin_memory=args.pin_memory,
+        device=torch.device(args.device)
     )
 
     return train_loader, eval_loader

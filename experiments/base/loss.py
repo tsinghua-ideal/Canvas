@@ -14,6 +14,6 @@ def get_loss_funcs(args):
             return BinaryCrossEntropy(target_threshold=args.bce_target_thresh) \
                 if args.bce_loss \
                 else LabelSmoothingCrossEntropy(smoothing=args.smoothing)
-        return nn.CrossEntropyLoss()
+        return nn.CrossEntropyLoss().cuda()
 
-    return get_train_loss().cuda(), nn.CrossEntropyLoss().cuda()
+    return get_train_loss().cuda(), nn.CrossEntropyLoss().cuda(), nn.CrossEntropyLoss().cuda()

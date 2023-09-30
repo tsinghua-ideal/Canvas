@@ -228,6 +228,13 @@ def arg_parse():
     parser.add_argument('--canvas-selector-dir', default='', help='Selector working directory')
     parser.add_argument('--canvas-selector-save-dir', default='', help='Selector saving directory')
 
+    # Proxyless mode
+    parser.add_argument('--proxyless', action='store_true', default=False)
+    parser.add_argument('--alpha-lr', type=float, default=0.001)
+    parser.add_argument('--alpha-weight-decay', type=float, default=0)
+    parser.add_argument('--num-iters-update-alphas', type=int, default=5)
+    parser.add_argument('--alpha_update_steps', type=int, default=1)
+
     # Parse program arguments, add timestamp information, and checks.
     args = parser.parse_args()
     setattr(args, 'timestamp', time.time_ns())

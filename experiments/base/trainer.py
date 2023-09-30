@@ -138,8 +138,6 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
         for batch_idx, (image, target) in enumerate(eval_loader):
             with amp_autocast():
                 output = model(image)
-            if isinstance(output, (tuple, list)):
-                output = output[0]
 
             # Augmentation reduction.
             reduce_factor = args.tta
@@ -192,7 +190,7 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
 
 def train(args, model, train_loader, eval_loader, search_mode: bool = False, proxy_mode: bool = False):
     # Loss functions for training and validation.
-    train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
+    train_loss_func, _, eval_loss_func = loss.get_loss_funcs(args)
 
     # LR scheduler and epochs.
     optimizer = optim.get_optimizer(args, model)

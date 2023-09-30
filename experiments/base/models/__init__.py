@@ -52,7 +52,7 @@ def get_model(args, search_mode: bool = False):
         model = canvas.replace(model, cls, args.device)
 
     # Count FLOPs and params.
-    if args.local_rank == 0:
+    if args.local_rank == 0 and not args.proxyless:
         macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
                                                          print_per_layer_stat=False, verbose=False)
         logger.info(f'MACs: {macs}, params: {params}')
