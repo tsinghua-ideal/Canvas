@@ -6,22 +6,17 @@ from functools import partial
 from timm import data
 
 from .canvas_van import van_b0
+from .proxyless import ParallelKernels
 from ..log import get_logger
-from .. import darts
-from .. import proxyless
+
 
 def get_model(args, search_mode: bool = False):
     logger = get_logger()
-    logger.info("args.canvas_van_tiny")
-    logger.info(args.canvas_van_tiny)
-    if args.canvas_van_tiny == True:
-        model = van_b0()
-    else:
-        model = timm.create_model(args.model,
-                                num_classes=args.num_classes,
-                                drop_rate=args.drop,
-                                drop_path_rate=args.drop_path,
-                                drop_block_rate=args.drop_block)
+    model = timm.create_model(args.model,
+                              num_classes=args.num_classes,
+                              drop_rate=args.drop,
+                              drop_path_rate=args.drop_path,
+                              drop_block_rate=args.drop_block)
     model.to(args.device)
 
     if args.num_classes is None:
@@ -49,19 +44,20 @@ def get_model(args, search_mode: bool = False):
     # Replace kernel.
     if not search_mode and len(args.canvas_kernels) > 0:
         if args.local_rank == 0:
-              logger.info(f'Replacing kernel from {args.canvas_kernels}')
-        assert len(args.canvas_kernels) == 1 or (len(args.canvas_kernels) > 1 and args.darts)
+            logger.info(f'Replacing kernel from {args.canvas_kernels}')
+        assert len(args.canvas_kernels) == 1 or (len(args.canvas_kernels) > 1 and args.proxyless)
         packs = [canvas.KernelPack.load(kernel) for kernel in args.canvas_kernels]
-        cls = packs[0].module if len(packs) == 1 else partial(proxyless.ProxylessParallelKernels, 
-                                                              kernel_cls_list=[pack.module for pack in packs])
+        cls = packs[0].module if len(packs) == 1 else \
+            partial(ParallelKernels, kernel_cls_list=[pack.module for pack in packs])
+        print(type(cls), type(model))
         model = canvas.replace(model, cls, args.device)
+
     # Count FLOPs and params.
-    if args.local_rank == 0:
-        macs, params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=False,
+    if args.local_rank == 0 and not args.proxyless:
+        g_macs, m_params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
                                                          print_per_layer_stat=False, verbose=False)
-        g_macs, m_params = macs / 1e9, params / 1e6
-        logger.info(f'G_MACs: {g_macs}, m_params: {m_params}')
-        
+        logger.info(f'MACs: {g_macs}, params: {m_params}')
+
     if args.need_model_complexity_info:
         return model, g_macs, m_params
     else:
