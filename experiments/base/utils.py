@@ -1,47 +1,6 @@
 import torch
  
 """  misc methods """
-def get_parameters(model, keys=None, mode='include', detached=False):
-    if keys is None:
-        for name, param in model.named_parameters():
-            if detached:
-                yield param.detach().cpu()
-            else:
-                yield param
-    elif mode == 'include':
-        for name, param in model.named_parameters():
-            flag = False
-            for key in keys:
-                if key in name:
-                    flag = True
-                    break
-            if flag:
-                if detached:
-                    yield param.detach().cpu()
-                else:
-                    yield param
-    elif mode == 'exclude':
-        for name, param in model.named_parameters():
-            flag = True
-            for key in keys:
-                if key in name:
-                    flag = False
-                    break
-            if flag:
-                if detached:
-                    yield param.detach().cpu()
-                else:
-                    yield param
-    else:
-        raise ValueError('do not support: %s' % mode)
-    
-def delta_ij(i, j):
-    if i == j:
-        return 1
-    else:
-        return 0
-
-
 def monitor_gpu_memory(device, logger):
     """
     监控指定GPU设备的显存使用情况和显存保留情况，并使用logger.info()打印出来。
