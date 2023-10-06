@@ -1,6 +1,6 @@
 import torch
 from torch import nn
-from typing import Tuple, Type
+from typing import Callable, Tuple
 
 import cpp_canvas
 from . import kernel_pack, placeholder, utils
@@ -257,8 +257,7 @@ def sample(m: nn.Module,
     return kernel_pack.KernelPack.load_from_cpp(pack)
 
 
-# def replace(m: nn.Module, module: Type[nn.Module], device: str = 'cuda:0', init_weights_func=utils.init_weights):
-def replace(m: nn.Module, module: Type[nn.Module], kernel_list, device: str = 'cuda:0', init_weights_func=utils.init_weights):
+def replace(m: nn.Module, module: Callable, device: str = 'cuda:0', init_weights_func=utils.init_weights):
     r"""Replace all kernel placeholders of n with sample kernels in pack.
 
         Parameters
@@ -266,8 +265,6 @@ def replace(m: nn.Module, module: Type[nn.Module], kernel_list, device: str = 'c
         m: torch.nn.Module
             The module to be replaced, all kernel placeholders in this
             will be reloaded with the corresponding kernels.
-        kernel_list: list
-            The list stored the kernel_packs
         module: nn.Module
             Torch module to replace.
         device: str
@@ -298,16 +295,9 @@ def replace(m: nn.Module, module: Type[nn.Module], kernel_list, device: str = 'c
 
     # Reload all kernels.
     kernels = m.canvas_cached_placeholders
-    # for name, param in m.named_parameters():
-    #             print(name, param.device)
-    
-    for i, kernel in enumerate(kernels):
-        # copy_module = deepcopy(module).to("cuda:0")
-        # kernel.reload(copy_module, device, init_weights_func)
-        kernel.reload(module, kernel_list, device, i, init_weights_func)
-        # kernel.reload(module, device, init_weights_func)
-    # for name, param in m.named_parameters():
-    #             print(name, param.device)
+    for kernel in kernels:
+        kernel.reload(module, device, init_weights_func)
+
     return m
 
 
