@@ -16,4 +16,5 @@ def get_loss_funcs(args):
                 else LabelSmoothingCrossEntropy(smoothing=args.smoothing)
         return nn.CrossEntropyLoss()
 
-    return get_train_loss().cuda(), nn.CrossEntropyLoss().cuda()
+    return get_train_loss().cuda(), get_train_loss().cuda(), nn.CrossEntropyLoss().cuda() if args.need_valid \
+        else get_train_loss().cuda(), nn.CrossEntropyLoss().cuda()
