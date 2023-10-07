@@ -13,7 +13,7 @@ from .models import proxyless
 from torch.utils.tensorboard import SummaryWriter
 
 
-def train_one_epoch(args, epoch, model, train_loader, valid_loader, train_loss_func, valid_loss_func, model_optimizer,
+def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_func, valid_loss_func, model_optimizer,
                     arch_optimizer, lr_scheduler, logger, writer=None, profiler=None):
     # Second order optimizer
     second_order = hasattr(model_optimizer, 'is_second_order') and model_optimizer.is_second_order
@@ -29,7 +29,7 @@ def train_one_epoch(args, epoch, model, train_loader, valid_loader, train_loss_f
 
     # Validation queue
     num_batch = len(train_loader)
-    valid_queue = dataset.get_next_valid_sample(valid_loader)
+
 
     # Iterate over this epoch
     num_updates = epoch * num_batch
@@ -94,7 +94,7 @@ def train_one_epoch(args, epoch, model, train_loader, valid_loader, train_loss_f
         # Sync
         # TODO: pay attention to IO.   
         torch.cuda.synchronize()
-        if args.needs_profiler and epoch > args.warmup_epochs:
+        if args.needs_profiler and epoch > args.warmup_epochs + 1:
             profiler.step()
         num_updates += 1
         batch_time_m.update(time.time() - end)
@@ -203,6 +203,7 @@ def validate(args, model, eval_loader, loss_func, logger):
 def train(args, model, train_loader, valid_loader, eval_loader):
     # Loss functions for training and validation
     train_loss_func, valid_loss_func, eval_loss_func = loss.get_loss_funcs(args)
+    valid_queue = dataset.get_next_valid_sample(valid_loader)
     
     # LR scheduler and epochs
     model_optimizer = optim.get_optimizer(args, proxyless.get_parameters(model=model, keys=['kernel_'], mode='exclude'))
@@ -247,7 +248,7 @@ def train(args, model, train_loader, valid_loader, eval_loader):
     all_train_metrics, all_eval_metrics, magnitude_alphas = [], [], []
     for epoch in range(1, sched_epochs + 1):
         # Train.
-        train_metrics = train_one_epoch(args, epoch, model, train_loader, valid_loader, train_loss_func, valid_loss_func,
+        train_metrics = train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_func, valid_loss_func,
                                         model_optimizer, arch_optimizer, lr_scheduler, logger, writer=writer, profiler=profiler)
         all_train_metrics.append(train_metrics)
         if epoch == sched_epochs - 1:
