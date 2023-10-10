@@ -218,3 +218,16 @@ def van_b0(pretrained=False, pretrained_cfg=None, pretrained_cfg_overlay=None, *
         model = load_model_weights(model, "van_b0", kwargs)
     return model
 
+# noinspection PyUnusedLocal
+@register_model
+def compact_van_b0(pretrained=False, pretrained_cfg=None, pretrained_cfg_overlay=None, **kwargs):
+    # noinspection PyUnusedLocal
+    model = VAN(
+        embed_dims=[32, 64, 160, 256], mlp_ratios=[8, 8, 4, 4],
+        norm_layer=partial(nn.LayerNorm, eps=1e-6), depths=[1, 1, 1, 1],
+        **kwargs)
+    model.default_cfg = _cfg()
+    if pretrained:
+        model = load_model_weights(model, "van_b0", kwargs)
+    return model
+

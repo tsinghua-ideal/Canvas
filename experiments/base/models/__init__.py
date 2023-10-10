@@ -5,7 +5,7 @@ import timm
 from functools import partial
 from timm import data
 
-from .canvas_van import van_b0
+from .canvas_van import van_b0, compact_van_b0
 from .proxyless import ParallelKernels
 from ..log import get_logger
 
