@@ -8,9 +8,10 @@ from .log import get_logger
 def get_next_valid_sample(loader):
     while True:
         for sample in loader:
+            
             yield sample
 
-def get_loaders(args, proxy: bool = False, needs_valid = False):
+def get_loaders(args, proxy: bool = False):
     # Whether proxy.
     root = args.canvas_proxy_root if proxy else args.root
     if root == '':
@@ -22,10 +23,10 @@ def get_loaders(args, proxy: bool = False, needs_valid = False):
 
     dataset_train = create_dataset(name='torch/cifar10', root=root, split=args.train_split, download=True)
     dataset_eval = create_dataset(name='torch/cifar10', root=root, split=args.val_split, download=True)
-    print(args.needs_valid)
+    
     if args.needs_valid:
         torch.manual_seed(42)
-        train_size = int(0.9 * len(dataset_train))
+        train_size = int(0.85 * len(dataset_train))
         valid_size = len(dataset_train) - train_size
         dataset_train, dataset_valid = random_split(dataset_train, [train_size, valid_size])
         logger.info(f'train_dataset: {len(dataset_train)}, valid_dataset: {len(dataset_valid)}')
@@ -101,8 +102,7 @@ def get_loaders(args, proxy: bool = False, needs_valid = False):
             use_multi_epochs_loader=args.use_multi_epochs_loader,
             device=torch.device(args.device)
         )
-        print(type(valid_loader))
-    
+
     eval_loader = create_loader(
         dataset_eval,
         input_size=args.input_size,
@@ -118,6 +118,6 @@ def get_loaders(args, proxy: bool = False, needs_valid = False):
         pin_memory=args.pin_memory,
         device=torch.device(args.device)
     )
-    print(f'train_loader:{train_loader}, valid_loader:{valid_loader}, eval_loader:{eval_loader}')
+    
     return (train_loader, valid_loader, eval_loader) if args.needs_valid else (train_loader, eval_loader)
 
