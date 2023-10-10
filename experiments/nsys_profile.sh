@@ -1,0 +1,1 @@
+nsys profile -w true -t cuda,nvtx,osrt,cudnn,cublas  --cuda-memory-usage true --gpu-metrics-device=0   --sample=system-wide --cudabacktrace=true -x true -o profile-out bash /scorpio/home/shenao/myProject/Canvas/experiments/darts_search_and_train.sh
