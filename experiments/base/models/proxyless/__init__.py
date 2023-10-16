@@ -1,5 +1,6 @@
 import logging
 from typing import List
+import numpy as np
 
 import torch
 import torch.nn.functional as F
@@ -15,12 +16,12 @@ def get_parallel_kernels(model: nn.Module) -> List[ParallelKernels]:
 def sample_and_binarize(model: torch.nn.Module, active_only: bool = True, valid_only: bool = False):
     parallels = get_parallel_kernels(model)
     for parallel in parallels:
-        assert isinstance(parallel, ParallelKernels)
+        assert isinstance(parallel, ParallelKernels_Test)
 
-    probs = F.softmax(torch.sum(torch.stack(
+    probs = F.softmax(torch.log(torch.prod(torch.stack(
         # TODO: may change to probs
-        [parallel.kernel_alphas for parallel in parallels]
-    ), dim=0), dim=0).detach()
+        [parallel.get_softmaxed_kernel_alphas() for parallel in parallels]
+    ), dim=0)), dim=0).detach()
     # TODO: support `ParallelKernels.active_only`
     # TODO: implement GPU version
     if active_only:
@@ -82,19 +83,6 @@ def get_sum_of_magnitude_scores_with_1D(model: nn.Module):
 def get_multiplication_of_magnitude_probs_with_1D(model: nn.Module):
     return torch.softmax(torch.log(torch.prod(torch.stack([parallel.get_softmaxed_kernel_alphas().detach() for parallel in get_parallel_kernels(model)]), dim=0)), dim=0)
 
-def sort_and_prune(alpha_list, kernel_list, percentage_to_keep=0.5, n=8):
-    # num_keep = len(kernel_list) * percentage_to_keep
-
-    # # 使用argsort获取排序后的kernel_alphas的索引
-    # sorted_indices = torch.argsort(alpha_list, descending=True)
-
-    # # 选择排序后的索引中的前一半索引
-    # num_indices_keep = sorted_indices[:int(num_keep)]
-    
-    step = len(kernel_list) // n
-    sorted_indices = torch.argsort(alpha_list, descending=True)
-    num_indices_keep = sorted_indices[:2].tolist() + sorted_indices[2::int(step)].tolist()
-    alpha_list = alpha_list.tolist()
-    
-    # 根据索引获取对应的module_list子数组
-    return [kernel_list[i] for i in num_indices_keep], [alpha_list[i] for i in num_indices_keep]
+def sort_and_prune(alpha_list, kernel_list):
+    sorted_indices = np.argsort(alpha_list)[::-1]
+    return [alpha_list[i] for i in sorted_indices], [kernel_list[i] for i in sorted_indices]
