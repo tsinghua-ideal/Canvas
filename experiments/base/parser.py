@@ -229,7 +229,7 @@ def arg_parse():
 
      # Proxyless mode
      parser.add_argument('--proxyless', action='store_true', default=False)
-     parser.add_argument('--needs-valid', action='store_true', default=True)
+     parser.add_argument('--needs-valid', action='store_true', default=False)
      parser.add_argument('--alpha-lr', type=float, default=0.001)
      parser.add_argument('--alpha-weight-decay', type=float, default=0.0)
      parser.add_argument('--num-iters-update-alphas', type=int, default=5)
