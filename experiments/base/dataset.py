@@ -43,7 +43,7 @@ def get_loaders(args, proxy: bool = False):
         
     # Create data loaders w/ augmentation pipeline.
     train_loader = create_loader(
-        dataset_train.dataset,
+        dataset_train.dataset if args.needs_valid else dataset_train,
         input_size=args.input_size,
         batch_size=args.batch_size,
         is_training=True,
