@@ -19,4 +19,4 @@ def get_loss_funcs(args):
     if args.needs_valid:
         return get_train_loss().cuda(), get_train_loss().cuda(), nn.CrossEntropyLoss().cuda()
     else:
-        get_train_loss().cuda(), nn.CrossEntropyLoss().cuda()
+        return get_train_loss().cuda(), nn.CrossEntropyLoss().cuda()
