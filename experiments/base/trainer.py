@@ -1,38 +1,24 @@
-import json
 import math
 import os
 import time
 import torch
-import canvas
 
 from collections import OrderedDict
 from contextlib import suppress
-from datetime import datetime
 
-from torch.nn.parallel import DistributedDataParallel as NativeDDP
-from timm.models import model_parameters, resume_checkpoint, safe_model_name
+from timm.models import model_parameters
 from timm.utils import (
     accuracy,
     AverageMeter,
     dispatch_clip_grad,
-    distribute_bn,
-    reduce_tensor,
-)
-from timm.utils import (
-    NativeScaler,
-    ApexScaler,
-    CheckpointSaver,
-    get_outdir,
-    update_summary,
 )
 
 from . import log, loss, optim, sche
-from .models import ParallelKernels
 
 
 def train_one_epoch(args, epoch, model, train_loader, 
                     loss_func, optimizer, lr_scheduler,
-                    amp_autocast, loss_scaler, logger):
+                    logger):
     # Second order optimizer.
     second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
 
@@ -51,16 +37,11 @@ def train_one_epoch(args, epoch, model, train_loader,
     for batch_idx, (image, target)in enumerate(train_loader):
 
         # Update starting time.
-        data_time_m.update(time.time() - end)      
-        with amp_autocast():
-            output = model(image)
-            loss_value = loss_func(output, target)
-
-        if not args.distributed:
-            losses_m.update(loss_value.item(), image.size(0))
-
+        data_time_m.update(time.time() - end)     
+         
+        output = model(image)
+        loss_value = loss_func(output, target)
         optimizer.zero_grad()
-
         loss_value.backward(create_graph=second_order)
         if args.clip_grad is not None:
             dispatch_clip_grad(
@@ -102,7 +83,6 @@ def train_one_epoch(args, epoch, model, train_loader,
                         rate_avg=image.size(0) * args.world_size / batch_time_m.avg,
                         lr=lr,
                         data_time=data_time_m))
-                progress = '{:.0f}'.format(100. * batch_idx / last_idx)
                 
             if math.isnan(losses_m.avg):
                 break
@@ -114,7 +94,7 @@ def train_one_epoch(args, epoch, model, train_loader,
     return metrics
 
 
-def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
+def validate(args, model, eval_loader, loss_func, logger):
     model.eval()
 
     batch_time_m = AverageMeter()
@@ -126,13 +106,11 @@ def validate(args, model, eval_loader, loss_func, amp_autocast, logger):
     last_idx = len(eval_loader) - 1
     with torch.no_grad():
         for batch_idx, (image, target) in enumerate(eval_loader):
-            with amp_autocast():
-                output = model(image)
-
+            output = model(image)
             loss_value = loss_func(output, target)           
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
+            
             torch.cuda.synchronize()
-
             losses_m.update(loss_value.item(), image.size(0))
             top1_m.update(acc1.item(), output.size(0))
             top5_m.update(acc5.item(), output.size(0))
@@ -168,7 +146,7 @@ def train(args, model, train_loader, eval_loader):
     # Set different number of epochs based on your target
         
     # Loss functions for training and validation.
-    train_loss_func, _, eval_loss_func = loss.get_loss_funcs(args)
+    train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
     
     # LR scheduler and epochs.
     optimizer = optim.get_optimizer(args, model)
@@ -181,23 +159,13 @@ def train(args, model, train_loader, eval_loader):
     if args.local_rank == 0:
         logger.info('Begin training ...')
 
-    # AMP automatic cast. TODO    
-    amp_autocast, loss_scaler = suppress, None
-
-    # Resume from checkpoint.
-    resume_epoch = None
-
-    start_epoch = resume_epoch if resume_epoch else 0
-    if lr_scheduler is not None and start_epoch > 0:
-        lr_scheduler.step(start_epoch)
-
     # Iterate over epochs.
-    all_train_metrics, all_eval_metrics, magnitude_alphas = [], [], []
-    for epoch in range(start_epoch, sched_epochs):
+    all_train_metrics, all_eval_metrics, best_metric, best_epoch = [], [], 0.0, 0
+    for epoch in range(1, sched_epochs + 1):
         
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
-                                        optimizer, lr_scheduler, amp_autocast, loss_scaler, logger)
+                                        optimizer, lr_scheduler, logger)
         all_train_metrics.append(train_metrics)
 
         # Check NaN errors.
@@ -205,9 +173,20 @@ def train(args, model, train_loader, eval_loader):
             raise RuntimeError('NaN occurs during training')
 
         # Evaluate.
-        eval_metrics = validate(args, model, eval_loader, eval_loss_func, amp_autocast, logger)
+        eval_metrics = validate(args, model, eval_loader, eval_loss_func, logger)
         all_eval_metrics.append(eval_metrics)
-
+        if eval_metrics['top1'] > best_metric:
+            best_metric = eval_metrics['top1']
+            best_epoch = epoch
+            
+        # Checkpoint.
+        if epoch in range(1, sched_epochs + 1, 1):
+            net_state_dict = model.state_dict()
+            path = os.path.join(args.output, f'checkpoint_epochs_{args.epochs}_warmup_epochs_{args.warmup_epochs}_{args.model}.pth')
+            os.makedirs(path, exist_ok=True)
+            path_state_dict = os.path.join(path, f'checkpoint_epoch_{epoch}.pth')
+            torch.save(net_state_dict, path_state_dict)
+            
         # Update LR scheduler.
         if lr_scheduler is not None:
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
@@ -219,7 +198,8 @@ def train(args, model, train_loader, eval_loader):
     all_train_val_data_metrics = {
     "all_train_metrics": all_train_metrics,
     "all_eval_metrics": all_eval_metrics,
-    "magnitude_alphas": magnitude_alphas
+    'best_metric': best_metric,
+    'best_epoch': best_epoch
     }
     
     return all_train_val_data_metrics
