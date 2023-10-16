@@ -7,7 +7,7 @@ import torch.profiler
 from timm.models import model_parameters
 from timm.utils import accuracy, AverageMeter, dispatch_clip_grad
 
-from . import log, loss, optim, sche, dataset, darts
+from . import log, loss, optim, sche, dataset
 from .models import proxyless
 
 from torch.utils.tensorboard import SummaryWriter
@@ -83,7 +83,7 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
                     # Backward and optimize
                     model.zero_grad()
                     loss.backward()
-                    with torch.profiler.record_function("arch_optimizer_step"):
+                    with torch.profiler.record_function('arch_optimizer_step'):
                         proxyless.set_alpha_grad(model)
                         arch_optimizer.step()
                     proxyless.rescale_kernel_alphas(model)
@@ -245,18 +245,17 @@ def train(args, model, train_loader, valid_loader, eval_loader):
 
     # Iterate over epochs
     best_metric, best_epoch = None, None
-    all_train_metrics, all_eval_metrics, magnitude_alphas = [], [], []
+    all_train_metrics, all_eval_metrics, best_metric,  magnitude_alphas = [], [], 0.0, {}
     for epoch in range(1, sched_epochs + 1):
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_func, valid_loss_func,
                                         model_optimizer, arch_optimizer, lr_scheduler, logger, writer=writer, profiler=profiler)
         all_train_metrics.append(train_metrics)
-        if epoch == sched_epochs - 1:
-            magnitude_alphas.append(proxyless.get_sum_of_magnitude_scores_with_1D(model).tolist())
-      
+        
         # Log the parameters of the Canvas kernels
         if epoch > args.warmup_epochs:
-            proxyless.print_parameters(model)
+            proxyless.print_parameters(model)          
+            magnitude_alphas[epoch] = proxyless.get_multiplication_of_magnitude_probs_with_1D(model).tolist()
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):
@@ -265,6 +264,10 @@ def train(args, model, train_loader, valid_loader, eval_loader):
         # Evaluate.
         eval_metrics = validate(args, model, eval_loader, eval_loss_func, logger)
         all_eval_metrics.append(eval_metrics)
+        if eval_metrics['top1'] > best_metric:
+            best_metric = eval_metrics['top1']
+            best_epoch = epoch
+            
         #  Log the parameters of the canvas kernels using tensorboard
         if writer:
             writer.add_scalar('Testing/Accuracy', eval_metrics['top1'], epoch)
@@ -288,9 +291,11 @@ def train(args, model, train_loader, valid_loader, eval_loader):
     # Close the writer
     if writer:
         writer.close()
-
+        
     return {
-    "all_train_metrics": all_train_metrics,
-    "all_eval_metrics": all_eval_metrics,
-    "magnitude_alphas": magnitude_alphas
+    'all_train_metrics': all_train_metrics,
+    'all_eval_metrics': all_eval_metrics,
+    'best_metric': best_metric,
+    'best_epoch': best_epoch,
+    'magnitude_alphas': magnitude_alphas
     }
