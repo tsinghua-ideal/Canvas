@@ -141,7 +141,12 @@ def get_placeholders(m: nn.Module,
             if isinstance(kernel, Placeholder):
                 kernel.id = len(m.canvas_cached_placeholders)
                 m.canvas_cached_placeholders.append(kernel)
-
+        if len(m.canvas_cached_placeholders) == 0:
+            print('No `canvas.Placeholder` found in the module, '
+              'you may use `function `replace_module_with_placeholder` to refactor your model with placeholders.')
+            delattr(m, 'canvas_cached_placeholders')
+            return []
+        
     # Analyze shapes.
     if example_input is not None:
         if not isinstance(example_input, torch.Tensor):
