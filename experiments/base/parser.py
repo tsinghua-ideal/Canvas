@@ -19,9 +19,9 @@ def arg_parse():
                               'model default if none)')
      parser.add_argument('--crop-pct', default=None, type=float,
                          metavar='N', help='Input image center crop percent (for validation only)')
-     parser.add_argument('--mean', type=float, nargs='+', default=None, metavar='MEAN',
+     parser.add_argument('--mean', type=float, nargs='+', default=(0.5, 0.5, 0.5), metavar='MEAN',
                          help='Override mean pixel value of dataset')
-     parser.add_argument('--std', type=float, nargs='+', default=None, metavar='STD',
+     parser.add_argument('--std', type=float, nargs='+', default=(0.5, 0.5, 0.5), metavar='STD',
                          help='Override std deviation of of dataset')
      parser.add_argument('--interpolation', default='', type=str, metavar='NAME',
                          help='Image resize interpolation type (overrides model)')
