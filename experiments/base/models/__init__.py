@@ -4,11 +4,10 @@ import ptflops
 import timm
 from functools import partial
 from timm import data
-
 from .canvas_van import van_b0, compact_van_b0
 from .proxyless import ParallelKernels
 from ..log import get_logger
-
+from ..darts import replace_module_with_placeholder
 
 def get_model(args, search_mode: bool = False):
     logger = get_logger()
@@ -38,9 +37,18 @@ def get_model(args, search_mode: bool = False):
     setattr(args, 'crop_pct', data_config['crop_pct'])
 
     # Initialize placeholders.
-    example_input = torch.zeros((1, ) + args.input_size).to(args.device)
-    canvas.get_placeholders(model, example_input)
-
+    example_input = torch.zeros((2, ) + args.input_size).to(args.device)
+    if len(canvas.get_placeholders(model, example_input)) == 0:
+        module_dict = {
+        # torch.nn.Conv2d: "conv"
+        # ,
+        timm.models.resnet.BasicBlock: "resblock"
+        }    
+        logger.info(f'No placeholders found, replacing modules with {module_dict}')
+        replaced, not_replaced = replace_module_with_placeholder(model, module_dict)
+        logger.info(f'Replaced {replaced} modules with placeholders, {not_replaced} modules not replaced.')
+        canvas.get_placeholders(model, example_input)
+    
     # Replace kernel.
     if not search_mode and len(args.canvas_kernels) > 0:
         if args.local_rank == 0:
@@ -49,13 +57,12 @@ def get_model(args, search_mode: bool = False):
         packs = [canvas.KernelPack.load(kernel) for kernel in args.canvas_kernels]
         cls = packs[0].module if len(packs) == 1 else \
             partial(ParallelKernels, kernel_cls_list=[pack.module for pack in packs])
-        print(type(cls), type(model))
         model = canvas.replace(model, cls, args.device)
 
     # Count FLOPs and params.
     if args.local_rank == 0 and not args.proxyless:
         g_macs, m_params = ptflops.get_model_complexity_info(model, args.input_size, as_strings=True,
-                                                         print_per_layer_stat=False, verbose=False)
+                                                         print_per_layer_stat=True, verbose=True)
         logger.info(f'MACs: {g_macs}, params: {m_params}')
 
     if args.need_model_complexity_info:
