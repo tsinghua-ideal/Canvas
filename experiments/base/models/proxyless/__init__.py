@@ -16,17 +16,12 @@ def get_parallel_kernels(model: nn.Module) -> List[ParallelKernels]:
 def sample_and_binarize(model: torch.nn.Module, active_only: bool = True, valid_only: bool = False):
     parallels = get_parallel_kernels(model)
     for parallel in parallels:
-        assert isinstance(parallel, ParallelKernels_Test)
-
-    probs = F.softmax(torch.log(torch.prod(torch.stack(
-        # TODO: may change to probs
-        [parallel.get_softmaxed_kernel_alphas() for parallel in parallels]
-    ), dim=0)), dim=0).detach()
-    # TODO: support `ParallelKernels.active_only`
-    # TODO: implement GPU version
+        assert isinstance(parallel, ParallelKernels)
+    probs = F.softmax(torch.sum(torch.stack(
+        [parallel.kernel_alphas for parallel in parallels]
+    ), dim=0), dim=0).detach()
     if active_only:
         active_idx, inactive_idx = torch.multinomial(probs, 1), None
-    # TODO:implement valid_only version
     elif valid_only:
         active_idx, inactive_idx = torch.argmax(probs), None
     else:
@@ -37,7 +32,7 @@ def sample_and_binarize(model: torch.nn.Module, active_only: bool = True, valid_
 
     active_only = inactive_idx is None
     for parallel in parallels:
-        parallel.set_indices(active_idx, inactive_idx, active_only)
+        parallel.set_indices(active_idx=active_idx, inactive_idx=inactive_idx, active_only=active_only)
 
 def restore_modules(model: nn.Module):
     for parallel in get_parallel_kernels(model):

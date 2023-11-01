@@ -11,7 +11,7 @@ class ParallelKernels(nn.Module):
         super().__init__()
         assert len(kernel_cls_list) > 1
         self.module_list = nn.ModuleList([kernel_cls(*kwargs.values()) for kernel_cls in kernel_cls_list])
-        self.kernel_alphas = nn.Parameter(torch.full((len(self), ), 0.05))
+        self.kernel_alphas = nn.Parameter(torch.full((len(self), ), 1 / len(self)))
         self.kernel_binary_gate = nn.Parameter(torch.Tensor(len(self)))
         self.active_only = None
         self.module_list_backup = None
@@ -26,6 +26,7 @@ class ParallelKernels(nn.Module):
         self.active_idx, self.inactive_idx = active_idx, inactive_idx
         self.kernel_binary_gate.data.zero_()
         self.kernel_binary_gate.data[active_idx] = 1
+        
         assert self.module_list_backup is None
         self.module_list_backup = []
         for i in range(len(self)):
@@ -81,10 +82,10 @@ class ParallelKernels_Test(nn.Module):
         super().__init__()
         assert len(kernel_cls_list) > 1
         self.module_list = nn.ModuleList([None for _ in kernel_cls_list])
-        self.kernel_alphas = nn.Parameter(torch.full((len(self), ), 0.05))
+        self.kernel_alphas = nn.Parameter(torch.full((len(self), ), 1 / len(self)))
         self.kernel_binary_gate = nn.Parameter(torch.Tensor(len(self)))
         self.active_only = None
-        self.module_list_backup = [kernel_cls(*kwargs.values()).cuda() for kernel_cls in kernel_cls_list]
+        self.module_list_backup = nn.ModuleList([kernel_cls(*kwargs.values()).cpu() for kernel_cls in kernel_cls_list])
         self.active_idx, self.inactive_idx = None, None
         self.old_active_inactive_alpha = None
 
@@ -96,6 +97,7 @@ class ParallelKernels_Test(nn.Module):
         self.active_idx, self.inactive_idx = active_idx, inactive_idx
         self.kernel_binary_gate.data.zero_()
         self.kernel_binary_gate.data[active_idx] = 1
+        
         assert self.module_list[active_idx] is None 
         if inactive_idx is not None:
             assert self.module_list[inactive_idx] is None
@@ -103,9 +105,8 @@ class ParallelKernels_Test(nn.Module):
                 self.module_list[i] = self.module_list_backup[i].to('cuda')
                 self.module_list_backup[i] = None
         else:
-            i = active_idx
-            self.module_list[i] = self.module_list_backup[i].to('cuda')
-            self.module_list_backup[i] = None
+            self.module_list[active_idx] = self.module_list_backup[active_idx].to('cuda')
+            self.module_list_backup[active_idx] = None
 
     def restore_all(self):
         assert self.module_list[self.active_idx] is not None
@@ -115,12 +116,10 @@ class ParallelKernels_Test(nn.Module):
                 assert self.module_list_backup[i] is None
                 self.module_list_backup[i] = self.module_list[i].to('cpu')
                 self.module_list[i] = None
-                assert self.module_list[i] is None
         else:
-            i = self.active_idx
-            self.module_list_backup[i] = self.module_list[i].to('cpu')
-            self.module_list[i] = None
-            assert self.module_list[i] is None
+            self.module_list_backup[self.active_idx] = self.module_list[self.active_idx].to('cpu')
+            self.module_list[self.active_idx] = None
+            assert self.module_list[self.active_idx] is None
         self.active_idx, self.inactive_idx = None, None
 
     def __len__(self):
