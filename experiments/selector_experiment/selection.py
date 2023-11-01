@@ -1,6 +1,8 @@
+import fcntl
 import gc
 import json
 import os
+import pickle
 import torch
 import time
 import random
@@ -11,8 +13,8 @@ from functools import partial
 import canvas
 from canvas import KernelPack, placeholder
 
-from base import dataset, device, log, models, parser, proxyless_train
-from base.proxyless import *
+from base import dataset, device, log, models, parser, proxyless_trainer
+from experiments.base.models.proxyless import *
 
 if __name__ == '__main__':
     
@@ -40,46 +42,49 @@ if __name__ == '__main__':
         gc.collect()
         model = deepcopy(cpu_clone).to(args.device)
         if pack is not None:
-            canvas.replace(model, partial(ProxylessParallelKernels, pack), args.device)
-            
-    target_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/preliminary_kernels_selected"  
-    if not os.path.isdir(target_folder):
-        logger.info('Given path must be a directory')
+            canvas.replace(model, partial(ParallelKernels, pack), args.device)
 
-    cur_subfolders, new_subfolders = [f.name for f in os.scandir(target_folder) if f.is_dir()], []
+    
     
     # Seed random number generator with current time and shuffle the current subfolders
     random.seed(time.time())
-    random.shuffle(cur_subfolders)
-    
-    logger.info(f'Number of kernels: {len(cur_subfolders)}')
     group_number = 0
-    start_idx = 0
     oom_count = 0
+    FILE = f'{args.target_folder}/my_container.pkl'
     
     # Sample
     while True:
         group_number += 1
-        
-        #如果这一轮不够了，然后shuffle下一轮的kernel，并且更新当前轮的kernel总数     
-        end_idx = start_idx + args.canvas_number_of_kernels
-        if end_idx < len(cur_subfolders):       
-            group_folders = cur_subfolders[start_idx:end_idx]
-            start_idx += args.canvas_number_of_kernels  
+        file = open(FILE, 'rb+')
+        fcntl.flock(file.fileno(), fcntl.LOCK_EX)
+        print('acquire lock') 
+        my_container = pickle.load(file)
+        end_idx = my_container.start_idx + args.canvas_number_of_kernels
+        if end_idx < len(my_container.cur_subfolders):       
+            group_folders = my_container.cur_subfolders[my_container.start_idx:end_idx]
+            my_container.start_idx += args.canvas_number_of_kernels  
         else:
-            group_folders = cur_subfolders[start_idx:]
-            if len(new_subfolders) < args.canvas_number_of_kernels:
+            group_folders = my_container.cur_subfolders[my_container.start_idx:]
+            if len(my_container.new_subfolders) < args.canvas_number_of_kernels:
                 break
             else:
-                # shuffle下一轮的元素
-                random.shuffle(new_subfolders)
-                start_idx = 0
-                cur_subfolders = new_subfolders
-                new_subfolders = []
-
+                
+                # Shuffle next-round's elements
+                random.shuffle(my_container.new_subfolders)
+                my_container.start_idx = 0
+                my_container.cur_subfolders = my_container.new_subfolders
+                my_container.new_subfolders = []
+                
+        file.seek(0)  
+        pickle.dump(my_container, file)
+        fcntl.flock(file.fileno(), fcntl.LOCK_UN)
+        file.close()
+        time.sleep(2)
+        print('release lock') 
+        
         folder_names = [f"{folder}" for folder in group_folders]
         logger.info(f'folder_names: {folder_names}')
-        group_folders_full_name = [os.path.join(target_folder, f) for f in group_folders]
+        group_folders_full_name = [os.path.join(args.target_folder, f) for f in group_folders]
         
         # Train parallel kernels
         all_eval_metrics, all_train_metrics = {}, {}
@@ -88,16 +93,29 @@ if __name__ == '__main__':
         restore_model_params_and_replace(module_list)   
         exception_info = None  
         try:
-            parallel_kernels_train_eval_metrics = proxyless_train.train(args, model=model,
+            parallel_kernels_train_eval_metrics = proxyless_trainer.train(args, model=model,
                                         train_loader=train_loader, eval_loader=eval_loader)
-            
-            # 获取最好的一部分kernel的文件夹名，然后加入下一轮的列表里
-            new_subfolders.append(sort_and_prune(get_magnitude_scores_with_1D(model), group_folders))
+            file = open(FILE, 'rb+')
+            fcntl.flock(file.fileno(), fcntl.LOCK_EX)
+            my_container = pickle.load(file)
+            my_container.new_subfolders.append(sort_and_prune(get_sum_of_magnitude_scores_with_1D(model), group_folders))
+            file.seek(0)
+            pickle.dump(my_container, file)
+            fcntl.flock(file.fileno(), fcntl.LOCK_UN)
+            file.close()
             
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
-            cur_subfolders.append(group_folders)
+            file = open(FILE, 'rb+')
+            fcntl.flock(file.fileno(), fcntl.LOCK_EX)
+            my_container = pickle.load(file)
+            my_container.cur_subfolders.append(group_folders)
+            file.seek(0)
+            pickle.dump(my_container, file)
+            fcntl.flock(file.fileno(), fcntl.LOCK_UN)
+            file.close()
+                
             oom_count += 1
             continue
         
@@ -131,7 +149,7 @@ if __name__ == '__main__':
                     'extra': extra},
                     fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
             
-    # Make directory (may overwrite).我需要foldername，这样下次我就可以很快的进行reload
+    # Make directory (may overwrite).
     if os.path.exists(args.canvas_log_dir):
         assert os.path.isdir(args.canvas_log_dir), 'Canvas logging path must be a directory'
     if 'exception' in extra:
@@ -147,5 +165,5 @@ if __name__ == '__main__':
     
     # Save args and metrics.
     with open(os.path.join(path, f'{group_number}_{os.environ["CUDA_VISIBLE_DEVICES"]}.json'), 'w') as file:
-        json.dump({'args': vars(args), 'subfolders': new_subfolders},
+        json.dump({'args': vars(args)},
                 fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
