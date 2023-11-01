@@ -210,10 +210,13 @@ cython_debug/
 # Experiments input
 experiments/datasets
 experiments/output/train/
-# Experiments output
-experiments/collections/
 
+# Experiments output
 .vscode/launch.json
-experiments/test
 output/train/
-experiments/darts_search_and_train.sh
+experiments/run_tmux.sh
+
+# Experiments collections
+experiments/collections/preliminary_kernels_selected
+experiments/collections/baseline
+experiments/collections/validation_experiments
