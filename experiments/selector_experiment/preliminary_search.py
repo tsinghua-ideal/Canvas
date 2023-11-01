@@ -96,8 +96,6 @@ if __name__ == '__main__':
     args.epochs = 1
     total_g_macs, total_m_params = placeholder_macs, placeholder_params  
     for j in round_range:
-        if passed == 2000:
-            break
         logger.info('Sampling a new kernel ...')
         try:
             kernel_pack = canvas.sample(model,
@@ -134,22 +132,8 @@ if __name__ == '__main__':
         try:
             logger.info('Darts evaluating on main dataset ...')
 
-            train_metrics, eval_metrics = trainer.train(args, model=model,
+            metrics = trainer.train(args, model=model,
                                         train_loader=train_loader, eval_loader=eval_loader, evaluate = True)
-    
-            # 获取最近两次的'top1'值
-            latest_top1_values = [metrics['top1'] for metrics in eval_metrics[-2:]]
-
-            # 计算最近两次'top1'的平均值
-            average_top1 = sum(latest_top1_values) / len(latest_top1_values)
-
-            # If worse than backbone VAB[3, 3, 5, 2], then pass TODO 
-            if average_top1 < 49.65:
-                failed += 1
-                continue
-            else:
-                passed += 1
-            logger.info(f'passed:{passed}, failed{failed}')   
             
         except RuntimeError as ex:
             exception_info = f'{ex}'
@@ -161,4 +145,4 @@ if __name__ == '__main__':
         extra = {}
         if exception_info:
             extra['exception'] = exception_info
-        log.save(args, [kernel_pack], kernel_pack, train_metrics, eval_metrics, extra)
+        log.save(args, [kernel_pack], kernel_pack, metrics["train_metrics"], metrics["eval_metrics"], extra)
