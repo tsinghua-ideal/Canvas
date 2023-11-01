@@ -3,7 +3,7 @@ import json
 import os
 import torch
 import random
-import socket
+import time
 
 from copy import deepcopy
 from functools import partial
@@ -48,9 +48,9 @@ if __name__ == '__main__':
             NotImplementedError()      
             
     target_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/preliminary_kernels_selected"  
-    single_result_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/validation_experiments/single_with_compact_van_new"
+    single_result_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/validation_experiments/single_cifar100"
     subfolders = [f.name for f in os.scandir(target_folder) if f.is_dir()]
-    seed = 42
+    seed = time.time()
     random.seed(seed)
     random.shuffle(subfolders)
     logger.info(f'Number of kernels: {len(subfolders)}')
@@ -118,33 +118,4 @@ if __name__ == '__main__':
         sum_sorted_top1_ranking = sorted(top1_ranking.items(), key=lambda x: x[1])
         group_number += 1 
 
-        extra = {'kernel_pack_list': folder_names, 'sum_sorted_top1_ranking': sum_sorted_top1_ranking}
-        if exception_info:
-            extra['exception'] = exception_info
-
-
-        # Make directory (may overwrite).
-        if os.path.exists(args.canvas_log_dir):
-            assert os.path.isdir(args.canvas_log_dir), 'Canvas logging path must be a directory'
-        if 'exception' in extra:
-            exception_info = extra['exception']
-            if 'memory' in exception_info or 'NaN' in exception_info or 'Pruned' in exception_info:
-                # Do not record these types.
-                continue
-            else:
-                error_type = 'Error'
-            dir_name = f'Canvas_{error_type}_'
-        else:
-            dir_name = f'seed_{seed}_num_{args.canvas_number_of_kernels}_start_{start_idx}_end_{end_idx}'
-            if os.path.exists(os.path.join(args.canvas_log_dir, dir_name)):
-                logger.info(f'group result:{dir_name} has been generated')
-                continue
-        path = os.path.join(args.canvas_log_dir, dir_name)
-        if os.path.exists(path):
-            logger.info('Overwriting results ...')
-        os.makedirs(path, exist_ok=True)
-
-        # Save args and metrics.
-        with open(os.path.join(path, 'metrics.json'), 'w') as file:
-            json.dump({'args': vars(args), 'extra': extra},
-                    fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
+        

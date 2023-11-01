@@ -1,7 +1,6 @@
 import gc
 import json
 import os
-import torch
 import time
 import random
 import socket
@@ -29,7 +28,7 @@ if __name__ == '__main__':
     logger.info(f'Configuring model {args.model} ...')
     model = models.get_model(args, search_mode=True)   
     train_loader, valid_loader, eval_loader = dataset.get_loaders(args)
-
+    
     # Initialization of search.
     cpu_clone = deepcopy(model).cpu()
 
@@ -40,14 +39,14 @@ if __name__ == '__main__':
         model = deepcopy(cpu_clone).to(args.device)
         if pack is not None:
             if isinstance(pack, list):
-                canvas.replace(model, partial(ParallelKernels_Test, pack), args.device)
+                canvas.replace(model, partial(ParallelKernels, pack), args.device)
             else:
                 canvas.replace(model, pack, args.device)
         else:
             NotImplementedError()      
             
     target_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/preliminary_kernels_selected"  
-    single_result_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/validation_experiments/single_with_compact_van_new"
+    single_result_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/validation_experiments/single_cifar100"
     subfolders = [f.name for f in os.scandir(target_folder) if f.is_dir()]
     seed = time.time()
     random.seed(seed)
@@ -87,8 +86,6 @@ if __name__ == '__main__':
         try:
             parallel_kernels_train_eval_metrics = proxyless_trainer.train(args, model=model,
                                         train_loader=train_loader, valid_loader=valid_loader, eval_loader=eval_loader)
-            if parallel_kernels_train_eval_metrics['all_eval_metrics'][-1]['top1'] < 70:
-                continue
         except RuntimeError as ex:
             exception_info = f'{ex}'
             logger.warning(f'Exception: {exception_info}')
@@ -98,21 +95,19 @@ if __name__ == '__main__':
         top1_ranking, sum_sorted_top1_ranking = {}, {}
         
         # Get other scores
-        multiplication_probs_log = get_multiplication_of_magnitude_probs_with_1D(model)
-        corresponding_scores, sample_kernel_list = sort_and_prune(alpha_list=multiplication_probs_log.tolist(), kernel_list=kernel_pack_list)
+        magnitude_scores = get_sum_of_magnitude_scores_with_1D(model)
+        corresponding_scores, sample_kernel_list = sort_and_prune(alpha_list=magnitude_scores.tolist(), kernel_list=kernel_pack_list)
         
         exception_info = None  
         
         for kernel_pack in sample_kernel_list:
             target_file = os.path.join(single_result_folder, f'{kernel_pack.name}/metrics.json')
             if os.path.exists(target_file):
-                logger.info(f'{kernel_pack.name} has been trained')
                 with open(target_file, "r") as json_file:
                     data = json.load(json_file)
                     assert 'top1_value' in data['extra']
                     top1_ranking[kernel_pack.name] = data['extra']['top1_value']
             else:
-                logger.info(f'{kernel_pack.name} has not been trained')
                 top1_ranking[kernel_pack.name] = 0
         sorted_top1_ranking = sorted(top1_ranking.items(), key=lambda x: x[1], reverse=True)
         sorted_top1_ranking_dict = {}
@@ -131,13 +126,11 @@ if __name__ == '__main__':
             for kernel_pack in sample_kernel_list:
                 target_file = os.path.join(single_result_folder, f'{kernel_pack.name}/metrics.json')
                 if os.path.exists(target_file):
-                    logger.info(f'{kernel_pack.name} has been trained')
                     with open(target_file, "r") as json_file:
                         data = json.load(json_file)
                         assert 'top1_value' in data['extra']
                         top1_ranking_i[kernel_pack.name] = data['extra']['top1_value']
                 else:
-                    logger.info(f'{kernel_pack.name} has not been trained')
                     top1_ranking_i[kernel_pack.name] = 0
             sorted_top1_ranking_i = sorted(top1_ranking_i.items(), key=lambda x: x[1], reverse=True)
             sorted_top1_ranking_dict = {}
@@ -148,7 +141,7 @@ if __name__ == '__main__':
                 compare_dict_i[k + 1] = (kernel_pack.name, sorted_top1_ranking_dict[kernel_pack.name][1])
             compare_dict_full[f'epoch_{epoch}'] = compare_dict_i
             
-        extra = {'kernel_pack_list': folder_names, 'multiplication_probs_log': multiplication_probs_log.tolist(), \
+        extra = {'kernel_pack_list': folder_names, 'magnitude_scores': magnitude_scores.tolist(), \
                  'sorted_top1_ranking': sorted_top1_ranking, 'compare_dict': compare_dict, \
                  'magnitude_alphas': parallel_kernels_train_eval_metrics['magnitude_alphas'], 'compare_dict_full': compare_dict_full}
         

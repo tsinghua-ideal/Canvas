@@ -49,7 +49,6 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
 
         # Backward
         loss_value.backward(create_graph=second_order)
-
         
         # Clip gradients
         if args.clip_grad is not None:
@@ -59,12 +58,10 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
 
         # Update model parameters only
         model_optimizer.step()
-
+        
         # Restore modules
         proxyless.restore_modules(model)
 
-        
-            
         # Arch parameter updates
         if epoch > args.warmup_epochs:
             if (batch_idx + 1) % args.num_iters_update_alphas == 0:
@@ -137,12 +134,7 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
         writer.add_scalar('Training/Loss', losses_m.avg, epoch)
         writer.add_scalar('Training/Learning Rate', 
                     lr, epoch)
-        writer.add_scalar('Training/Alpha Learning Rate', 
-                    arch_optimizer.param_groups[0]['lr'], epoch)
-        # grads = {name: param.grad for name, param in model.named_parameters() if param.grad is not None}
-        # for name, grad in grads.items():
-        #     writer.add_histogram(name + '/grad', grad, epoch)
-                    
+        
     if hasattr(model_optimizer, 'sync_lookahead'):
         model_optimizer.sync_lookahead()
 
@@ -255,7 +247,7 @@ def train(args, model, train_loader, valid_loader, eval_loader):
         # Log the parameters of the Canvas kernels
         if epoch > args.warmup_epochs:
             proxyless.print_parameters(model)          
-            magnitude_alphas[epoch] = proxyless.get_multiplication_of_magnitude_probs_with_1D(model).tolist()
+            magnitude_alphas[epoch] = proxyless.get_sum_of_magnitude_scores_with_1D(model).tolist()
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):

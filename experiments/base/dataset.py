@@ -1,4 +1,3 @@
-import random
 import torch
 from torch.utils.data import random_split
 from timm.data import create_dataset, FastCollateMixup, create_loader
@@ -8,7 +7,6 @@ from .log import get_logger
 def get_next_valid_sample(loader):
     while True:
         for sample in loader:
-            
             yield sample
 
 def get_loaders(args, proxy: bool = False):
@@ -21,8 +19,8 @@ def get_loaders(args, proxy: bool = False):
     if args.local_rank == 0:
         get_logger().info(f'Preparing data loaders in {root} (proxy={proxy})') 
 
-    dataset_train = create_dataset(name='torch/cifar10', root=root, split=args.train_split, download=True)
-    dataset_eval = create_dataset(name='torch/cifar10', root=root, split=args.val_split, download=True)
+    dataset_train = create_dataset(name='torch/cifar100', root=root, split=args.train_split, download=True)
+    dataset_eval = create_dataset(name='torch/cifar100', root=root, split=args.val_split, download=True)
     
     if args.needs_valid:
         torch.manual_seed(42)
@@ -59,8 +57,6 @@ def get_loaders(args, proxy: bool = False):
         vflip=args.vflip,
         color_jitter=args.color_jitter,
         auto_augment=args.aa,
-        # num_aug_repeats=aug_repeats,
-        # num_aug_splits=0,
         interpolation=args.train_interpolation,
         mean=args.mean,
         std=args.std,
@@ -90,8 +86,6 @@ def get_loaders(args, proxy: bool = False):
             vflip=args.vflip,
             color_jitter=args.color_jitter,
             auto_augment=args.aa,
-            # num_aug_repeats=aug_repeats,
-            # num_aug_splits=0,
             interpolation=args.train_interpolation,
             mean=args.mean,
             std=args.std,
