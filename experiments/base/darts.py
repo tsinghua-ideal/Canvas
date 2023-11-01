@@ -86,13 +86,9 @@ class InGtOut(nn.Module):
         Returns:
             torch.Tensor: Aggregated output tensor.
         """
-        split_outputs = []
-        # print(f"old channel = {print(x.shape)}, factor = {self.factor}")
+        assert x.shape[1] % self.factor == 0, "Input dimension x.shape[1] must be divisible by self.factor"
         tensors = torch.split(x, x.shape[1] // self.factor, dim = 1)
-        for tensor in tensors:
-            output = self.layer(tensor)
-            split_outputs.append(output)
-        aggregated_output = torch.sum(torch.stack(split_outputs), dim=0)
+        aggregated_output = torch.sum(torch.stack([self.layer(tensor) for tensor in tensors]), dim=0)
         return aggregated_output
     
     
@@ -143,8 +139,6 @@ def filter(module: nn.Module, type: str = "conv", max_count: int = 0) -> bool:
                 return False
             count = max(module.in_channels, module.out_channels) // width
             if count > max_count != 0:
-                return False
-            if module.in_channels * module.out_channels < 256 * 256 - 1:
                 return False
             return True
         case "resblock":
