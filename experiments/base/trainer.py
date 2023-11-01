@@ -4,8 +4,7 @@ import time
 import torch
 
 from collections import OrderedDict
-from contextlib import suppress
-
+from torch.utils.tensorboard import SummaryWriter
 from timm.models import model_parameters
 from timm.utils import (
     accuracy,
@@ -18,7 +17,7 @@ from . import log, loss, optim, sche
 
 def train_one_epoch(args, epoch, model, train_loader, 
                     loss_func, optimizer, lr_scheduler,
-                    logger):
+                    logger, writer=None):
     # Second order optimizer.
     second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
 
@@ -43,6 +42,7 @@ def train_one_epoch(args, epoch, model, train_loader,
         loss_value = loss_func(output, target)
         optimizer.zero_grad()
         loss_value.backward(create_graph=second_order)
+        losses_m.update(loss_value.item(), image.size(0))
         if args.clip_grad is not None:
             dispatch_clip_grad(
                 model_parameters(model, exclude_head='agc' in args.clip_mode),
@@ -86,7 +86,13 @@ def train_one_epoch(args, epoch, model, train_loader,
                 
             if math.isnan(losses_m.avg):
                 break
-
+            
+    # Log the parameters of the canvas kernels using tensorboard
+    if writer:
+        writer.add_scalar('Training/Loss', losses_m.avg, epoch)
+        writer.add_scalar('Training/Learning Rate', 
+                    lr, epoch)
+    
     if hasattr(optimizer, 'sync_lookahead'):
         optimizer.sync_lookahead()
 
@@ -143,11 +149,8 @@ def validate(args, model, eval_loader, loss_func, logger):
 
 
 def train(args, model, train_loader, eval_loader):
-    # Set different number of epochs based on your target
-        
     # Loss functions for training and validation.
     train_loss_func, eval_loss_func = loss.get_loss_funcs(args)
-    
     # LR scheduler and epochs.
     optimizer = optim.get_optimizer(args, model)
     schedule = sche.get_schedule(args, optimizer)
@@ -155,7 +158,12 @@ def train(args, model, train_loader, eval_loader):
     
   # Create a logger.
     logger = log.get_logger()
-    
+    if args.canvas_tensorboard_log_dir:
+        logger.info(f'Writing tensorboard logs to {args.canvas_tensorboard_log_dir}')
+        writer = SummaryWriter(args.canvas_tensorboard_log_dir)
+    else:
+        writer = None
+        
     if args.local_rank == 0:
         logger.info('Begin training ...')
 
@@ -165,7 +173,7 @@ def train(args, model, train_loader, eval_loader):
         
         # Train.
         train_metrics = train_one_epoch(args, epoch, model, train_loader, train_loss_func,
-                                        optimizer, lr_scheduler, logger)
+                                        optimizer, lr_scheduler, logger, writer=writer)
         all_train_metrics.append(train_metrics)
 
         # Check NaN errors.
@@ -179,14 +187,11 @@ def train(args, model, train_loader, eval_loader):
             best_metric = eval_metrics['top1']
             best_epoch = epoch
             
-        # Checkpoint.
-        if epoch in range(1, sched_epochs + 1, 1):
-            net_state_dict = model.state_dict()
-            path = os.path.join(args.output, f'checkpoint_epochs_{args.epochs}_warmup_epochs_{args.warmup_epochs}_{args.model}.pth')
-            os.makedirs(path, exist_ok=True)
-            path_state_dict = os.path.join(path, f'checkpoint_epoch_{epoch}.pth')
-            torch.save(net_state_dict, path_state_dict)
-            
+        #  Log the parameters of the canvas kernels using tensorboard
+        if writer:
+            writer.add_scalar('Testing/Accuracy', eval_metrics['top1'], epoch)
+            writer.add_scalar('Testing/Loss', eval_metrics['loss'], epoch)
+        
         # Update LR scheduler.
         if lr_scheduler is not None:
             lr_scheduler.step(epoch + 1, eval_metrics[args.eval_metric])
@@ -194,7 +199,11 @@ def train(args, model, train_loader, eval_loader):
         # Check NaN errors.
         if math.isnan(eval_metrics['loss']) and args.forbid_eval_nan:
             raise RuntimeError('NaN occurs during validation')
-
+    
+    # Close the writer
+    if writer:
+        writer.close()
+        
     all_train_val_data_metrics = {
     "all_train_metrics": all_train_metrics,
     "all_eval_metrics": all_eval_metrics,
