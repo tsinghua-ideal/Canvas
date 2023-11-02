@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch import nn
 
 import canvas
-from .parallel_kernels import ParallelKernels, ParallelKernels_Test
+from .parallel_kernels import ParallelKernels
 
 
 def get_parallel_kernels(model: nn.Module) -> List[ParallelKernels]:
@@ -33,7 +33,7 @@ def sample_and_binarize(model: torch.nn.Module, active_only: bool = True, valid_
     active_only = inactive_idx is None
     for parallel in parallels:
         parallel.set_indices(active_idx=active_idx, inactive_idx=inactive_idx, active_only=active_only)
-
+     
 def restore_modules(model: nn.Module):
     for parallel in get_parallel_kernels(model):
         parallel.restore_all()
