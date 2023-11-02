@@ -26,6 +26,7 @@ class ParallelKernels(nn.Module):
         self.active_idx, self.inactive_idx = active_idx, inactive_idx
         self.kernel_binary_gate.data.zero_()
         self.kernel_binary_gate.data[active_idx] = 1
+        
         assert self.module_list_backup is None
         self.module_list_backup = []
         for i in range(len(self)):

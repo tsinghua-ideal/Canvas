@@ -28,7 +28,7 @@ crop_pct=1.0
 # Optimizer parameters.TO DO
 opt="adamw"
 lr=0.003
-weight_decay=0.001
+weight_decay=0.0005
 alpha_lr=0.001
 alpha_weight_decay=0.0
 clip_grad=0.01
