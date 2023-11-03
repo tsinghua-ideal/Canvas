@@ -1,5 +1,4 @@
 import math
-import os
 import time
 import torch
 
@@ -18,9 +17,6 @@ from . import log, loss, optim, sche
 def train_one_epoch(args, epoch, model, train_loader, 
                     loss_func, optimizer, lr_scheduler,
                     logger, writer=None):
-    # Second order optimizer.
-    second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
-
     # Meters.
     batch_time_m = AverageMeter()
     data_time_m = AverageMeter()
@@ -33,7 +29,7 @@ def train_one_epoch(args, epoch, model, train_loader,
 
     # Iterate over this epoch.
     last_idx = len(train_loader) - 1
-    for batch_idx, (image, target)in enumerate(train_loader):
+    for batch_idx, (image, target) in enumerate(train_loader):
 
         # Update starting time.
         data_time_m.update(time.time() - end)     
@@ -41,7 +37,7 @@ def train_one_epoch(args, epoch, model, train_loader,
         output = model(image)
         loss_value = loss_func(output, target)
         optimizer.zero_grad()
-        loss_value.backward(create_graph=second_order)
+        loss_value.backward()
         losses_m.update(loss_value.item(), image.size(0))
         if args.clip_grad is not None:
             dispatch_clip_grad(
@@ -65,7 +61,6 @@ def train_one_epoch(args, epoch, model, train_loader,
         if batch_idx == last_idx or batch_idx % args.log_interval == 0:
             lrl = [param_group['lr'] for param_group in optimizer.param_groups]
             lr = sum(lrl) / len(lrl)
-
             if args.local_rank == 0:
                 logger.info(
                     'Train: {} [{:>4d}/{} ({:>3.0f}%)]  '
@@ -92,12 +87,8 @@ def train_one_epoch(args, epoch, model, train_loader,
         writer.add_scalar('Training/Loss', losses_m.avg, epoch)
         writer.add_scalar('Training/Learning Rate', 
                     lr, epoch)
-    
-    if hasattr(optimizer, 'sync_lookahead'):
-        optimizer.sync_lookahead()
 
-    metrics = OrderedDict([('loss', losses_m.avg)])
-    return metrics
+    return OrderedDict([('loss', losses_m.avg)])
 
 
 def validate(args, model, eval_loader, loss_func, logger):
@@ -205,10 +196,10 @@ def train(args, model, train_loader, eval_loader):
         writer.close()
         
     all_train_val_data_metrics = {
-    "all_train_metrics": all_train_metrics,
-    "all_eval_metrics": all_eval_metrics,
-    'best_metric': best_metric,
-    'best_epoch': best_epoch
+        "all_train_metrics": all_train_metrics,
+        "all_eval_metrics": all_eval_metrics,
+        'best_metric': best_metric,
+        'best_epoch': best_epoch
     }
     
     return all_train_val_data_metrics

@@ -6,6 +6,7 @@ from typing import Callable, Dict
 import canvas
 from . import log
   
+
 class ParallelKernels(nn.Module):
     """
     A module representing a parallel combination of multiple kernels with weighted outputs.

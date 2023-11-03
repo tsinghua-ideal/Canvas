@@ -31,7 +31,7 @@ if __name__ == '__main__':
     
     # Training utils.
     logger.info(f'Configuring model {args.model} ...')
-    model = models.get_model(args, search_mode=True)
+    model = models.get_model(args)
     # for name, param in model.named_parameters():
     #     print(name, param.device)
     g_macs, m_params = 0, 0
@@ -221,8 +221,7 @@ if __name__ == '__main__':
             # model = model.to(args.device)
             all_train_eval_data = \
                 trainer.train(args, model=model,
-                              train_loader=train_loader, eval_loader=eval_loader,
-                              search_mode=True)
+                              train_loader=train_loader, eval_loader=eval_loader)
             score = max([item['top1'] for item in eval_metrics])
             logger.info(f'Solution score: {score}')
             if score > current_best_score:

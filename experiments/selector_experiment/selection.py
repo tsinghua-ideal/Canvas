@@ -28,7 +28,7 @@ if __name__ == '__main__':
 
     # Training utils.
     logger.info(f'Configuring model {args.model} ...')
-    model = models.get_model(args, search_mode=True)   
+    model = models.get_model(args)   
     train_loader, eval_loader = dataset.get_loaders(args)
 
     # Initialization of search.
@@ -47,7 +47,6 @@ if __name__ == '__main__':
     
     
     # Seed random number generator with current time and shuffle the current subfolders
-    random.seed(time.time())
     group_number = 0
     oom_count = 0
     FILE = f'{args.target_folder}/my_container.pkl'

@@ -12,7 +12,7 @@ class ParallelKernels(nn.Module):
         assert len(kernel_cls_list) > 1
         self.module_list = nn.ModuleList([kernel_cls(*kwargs.values()) for kernel_cls in kernel_cls_list])
         self.kernel_alphas = nn.Parameter(torch.full((len(self), ), 1 / len(self)))
-        self.kernel_binary_gate = nn.Parameter(torch.Tensor(len(self)))
+        self.kernel_binary_gate = nn.Parameter(torch.zeros(len(self)))
         self.active_only = None
         self.module_list_backup = None
         self.active_idx, self.inactive_idx = None, None
@@ -26,7 +26,6 @@ class ParallelKernels(nn.Module):
         self.active_idx, self.inactive_idx = active_idx, inactive_idx
         self.kernel_binary_gate.data.zero_()
         self.kernel_binary_gate.data[active_idx] = 1
-        
         assert self.module_list_backup is None
         self.module_list_backup = []
         for i in range(len(self)):
@@ -76,6 +75,7 @@ class ParallelKernels(nn.Module):
         b = torch.logaddexp(self.old_active_inactive_alpha[0], self.old_active_inactive_alpha[1])
         self.kernel_alphas.data[self.active_idx] -= a - b
         self.kernel_alphas.data[self.inactive_idx] -= a - b
+
 
 class ExampleModel(nn.Module):
     def __init__(self):

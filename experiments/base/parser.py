@@ -31,9 +31,11 @@ def arg_parse():
                          help='Drop path rate (default: None)')
      parser.add_argument('--drop-block', type=float, default=None, metavar='PCT',
                          help='Drop block rate (default: None)')
-     parser.add_argument('--need-model_complexity_info', default=False, action='store_true', help='The complexity info will be given if used')
+     parser.add_argument('--need-model-complexity-info', default=False, action='store_true', help='The complexity info will be given if used')
 
      # Dataset.
+     parser.add_argument('--dataset', type=str, required=True,
+                         help='dataset name')
      parser.add_argument('--seed', type=int, default=42, metavar='S',
                          help='Random seed (default: 42)')
      parser.add_argument('--root', metavar='DIR', type=str, required=True,
@@ -50,6 +52,7 @@ def arg_parse():
                          help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
      parser.add_argument('--use-multi-epochs-loader', action='store_true', default=False,
                          help='Use the multi-epochs-loader to save time at the beginning of every epoch')
+     parser.add_argument('--proportion-of-training-set', type=float, default=0.85, metavar='N')
 
      # Dataset augmentation.
      parser.add_argument('--no-aug', action='store_true', default=False,
@@ -226,6 +229,9 @@ def arg_parse():
      parser.add_argument('--canvas-selector-save-dir', default='', help='Selector saving directory')
      parser.add_argument('--canvas-number-of-kernels', default=4, type = int, help='The number of kernels inside the replaced module')
      parser.add_argument('--compression-rate', default=1.0, help='The compression rate after replaced with replaced module')
+     parser.add_argument('--search-mode', action='store_true', default=False)
+     parser.add_argument('--target-folder', type=str, default=None, help="Description of target folder")
+     parser.add_argument('--single-result-folder', type=str, default=None, help="Description of single result folder")
 
      # Proxyless mode
      parser.add_argument('--proxyless', action='store_true', default=False)

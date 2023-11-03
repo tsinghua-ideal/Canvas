@@ -50,8 +50,6 @@ if __name__ == '__main__':
     target_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/preliminary_kernels_selected"  
     single_result_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/validation_experiments/single_cifar100"
     subfolders = [f.name for f in os.scandir(target_folder) if f.is_dir()]
-    seed = time.time()
-    random.seed(seed)
     random.shuffle(subfolders)
     logger.info(f'Number of kernels: {len(subfolders)}')
     group_number = 1

@@ -34,7 +34,7 @@ if __name__ == '__main__':
     
     # Training utils.
     logger.info(f'Configuring model {args.model} ...')
-    model, original_macs, original_params = models.get_model(args, search_mode=True)
+    model, original_macs, original_params = models.get_model(args)
     
     # Replace modules with Placeholders
     if args.canvas_van_tiny == False:

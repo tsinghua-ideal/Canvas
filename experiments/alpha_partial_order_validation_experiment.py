@@ -26,7 +26,7 @@ if __name__ == '__main__':
     
     # Training utils.
     logger.info(f'Configuring model {args.model} ...')
-    model = models.get_model(args, search_mode=True)   
+    model = models.get_model(args)   
     train_loader, valid_loader, eval_loader = dataset.get_loaders(args)
     
     # Initialization of search.
@@ -45,14 +45,9 @@ if __name__ == '__main__':
         else:
             NotImplementedError()      
             
-    target_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/preliminary_kernels_selected"  
-    single_result_folder = "/scorpio/home/shenao/myProject/Canvas/experiments/collections/validation_experiments/single_cifar100"
-    subfolders = [f.name for f in os.scandir(target_folder) if f.is_dir()]
-    seed = time.time()
-    random.seed(seed)
+    subfolders = [f.name for f in os.scandir(args.target_folder) if f.is_dir()]
     random.shuffle(subfolders)
     logger.info(f'Number of kernels: {len(subfolders)}')
-    group_number = 1
     start_idx = 0
     cur_idx = start_idx
     group_folders = []
@@ -60,22 +55,19 @@ if __name__ == '__main__':
     # Sample
     while start_idx < len(subfolders): 
         while len(group_folders) < args.canvas_number_of_kernels and cur_idx < len(subfolders):
-            kernel_pack = KernelPack.load_from_dir(os.path.join(target_folder, subfolders[cur_idx]))
-            target_file = os.path.join(single_result_folder, f'{kernel_pack.name}/metrics.json')
+            kernel_pack = KernelPack.load_from_dir(os.path.join(args.target_folder, subfolders[cur_idx]))
+            target_file = os.path.join(args.single_result_folder, f'{kernel_pack.name}/metrics.json')
             if os.path.exists(target_file):
                 group_folders.append(subfolders[cur_idx])
-                if len(group_folders) == int(0.5 * args.canvas_number_of_kernels):
-                    new_start_idx = cur_idx + 1
                 cur_idx += 1
             else:
                 cur_idx += 1
         if cur_idx == len(subfolders):
             break
-        end_idx = cur_idx + 1
-        cur_idx = new_start_idx
+        end_idx = cur_idx - 1
         folder_names = [f"{folder}" for folder in group_folders]
         logger.info(f'folder_names: {folder_names}')
-        group_folders_full_name = [os.path.join(target_folder, f) for f in group_folders]
+        group_folders_full_name = [os.path.join(args.target_folder, f) for f in group_folders]
         
         # Train parallel kernels
         all_eval_metrics = {}
@@ -101,7 +93,7 @@ if __name__ == '__main__':
         exception_info = None  
         
         for kernel_pack in sample_kernel_list:
-            target_file = os.path.join(single_result_folder, f'{kernel_pack.name}/metrics.json')
+            target_file = os.path.join(args.single_result_folder, f'{kernel_pack.name}/metrics.json')
             if os.path.exists(target_file):
                 with open(target_file, "r") as json_file:
                     data = json.load(json_file)
@@ -116,15 +108,13 @@ if __name__ == '__main__':
         compare_dict = {}  
         for i, kernel_pack in enumerate(sample_kernel_list):
             compare_dict[i + 1] = (kernel_pack.name, sorted_top1_ranking_dict[kernel_pack.name][1])
-        group_number += 1 
         
-        # 
         compare_dict_full = {}
         for epoch in range(args.warmup_epochs + 1, args.epochs, 5):
             compare_dict_i, top1_ranking_i = {}, {}
             corresponding_scores, sample_kernel_list = sort_and_prune(alpha_list=parallel_kernels_train_eval_metrics['magnitude_alphas'][epoch], kernel_list=kernel_pack_list)
             for kernel_pack in sample_kernel_list:
-                target_file = os.path.join(single_result_folder, f'{kernel_pack.name}/metrics.json')
+                target_file = os.path.join(args.single_result_folder, f'{kernel_pack.name}/metrics.json')
                 if os.path.exists(target_file):
                     with open(target_file, "r") as json_file:
                         data = json.load(json_file)
@@ -161,7 +151,7 @@ if __name__ == '__main__':
                 error_type = 'Error'
             dir_name = f'Canvas_{error_type}_'
         else:
-            dir_name = f'Canvas_{seed}_{start_idx}_to_{end_idx}_{args.canvas_number_of_kernels}_{group_number}_machine_{socket.gethostname()}_GPU_{os.environ["CUDA_VISIBLE_DEVICES"]}'
+            dir_name = f'Canvas_{args.seed}_{start_idx}_to_{end_idx}_{args.canvas_number_of_kernels}_machine_{socket.gethostname()}_GPU_{os.environ["CUDA_VISIBLE_DEVICES"]}'
         path = os.path.join(args.canvas_log_dir, dir_name)
         if os.path.exists(path):
             logger.info('Overwriting results ...')
@@ -174,4 +164,4 @@ if __name__ == '__main__':
                     fp=file, sort_keys=True, indent=4, separators=(',', ':'), ensure_ascii=False)
         
         # Update start_idx.
-        start_idx = new_start_idx
+        start_idx = cur_idx

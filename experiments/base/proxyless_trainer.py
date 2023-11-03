@@ -15,8 +15,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_func, valid_loss_func, model_optimizer,
                     arch_optimizer, lr_scheduler, logger, writer=None, profiler=None):
-    # Second order optimizer
-    second_order = hasattr(model_optimizer, 'is_second_order') and model_optimizer.is_second_order
 
     # Meters
     batch_time_m = AverageMeter()
@@ -30,25 +28,22 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
     # Validation queue
     num_batch = len(train_loader)
 
-
     # Iterate over this epoch
     num_updates = epoch * num_batch
     last_idx = num_batch - 1
     for batch_idx, (image, target) in enumerate(train_loader):
         data_time_m.update(time.time() - end)
-
         # Random sample binary gates
-        proxyless.sample_and_binarize(model, True)
+        proxyless.sample_and_binarize(model, active_only=True, valid=False)
 
         # Forward
         output = model(image)
         loss_value = train_loss_func(output, target)
         losses_m.update(loss_value.item(), image.size(0))
-
-        model.zero_grad()
+        model_optimizer.zero_grad()
 
         # Backward
-        loss_value.backward(create_graph=second_order)
+        loss_value.backward()
         
         # Clip gradients
         if args.clip_grad is not None:
@@ -65,12 +60,11 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
         # Arch parameter updates
         if epoch > args.warmup_epochs:
             if (batch_idx + 1) % args.num_iters_update_alphas == 0:
-                for i in range(args.alpha_update_steps):
+                for _ in range(args.alpha_update_steps):
                     valid_image, valid_target = next(valid_queue)
-                    model.train()
 
-                    # Make two of the kernels active and inactive
-                    proxyless.sample_and_binarize(model, active_only=False)
+                    # Make one kernel active and one kernel inactive
+                    proxyless.sample_and_binarize(model, active_only=False, valid=False)
 
                     # Forward
                     assert args.tta == 0
@@ -78,18 +72,16 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
                     loss = valid_loss_func(valid_output, valid_target)
 
                     # Backward and optimize
-                    model.zero_grad()
+                    arch_optimizer.zero_grad()
                     loss.backward()
-                    with torch.profiler.record_function('arch_optimizer_step'):
-                        proxyless.set_alpha_grad(model)
-                        arch_optimizer.step()
+                    proxyless.set_alpha_grad(model)
+                    arch_optimizer.step()
                     proxyless.rescale_kernel_alphas(model)
                     
                     # Restore modules
                     proxyless.restore_modules(model)
 
         # Sync
-        # TODO: pay attention to IO.   
         torch.cuda.synchronize()
         if args.needs_profiler and epoch > args.warmup_epochs + 1:
             profiler.step()
@@ -107,8 +99,6 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
         if batch_idx == last_idx or batch_idx % args.log_interval == 0:
             lrl = [param_group['lr'] for param_group in model_optimizer.param_groups]
             lr = sum(lrl) / len(lrl)
-            
-            
             logger.info(
                 'Train: {} [{:>4d}/{} ({:>3.0f}%)]  '
                 'Loss: {loss.val:#.4g} ({loss.avg:#.3g})  '
@@ -138,13 +128,12 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
     if hasattr(model_optimizer, 'sync_lookahead'):
         model_optimizer.sync_lookahead()
 
-    metrics = OrderedDict([('loss', losses_m.avg)])
-    return metrics
+    return OrderedDict([('loss', losses_m.avg)])
 
 
 def validate(args, model, eval_loader, loss_func, logger):
     model.eval()
-
+    
     batch_time_m = AverageMeter()
     losses_m = AverageMeter()
     top1_m = AverageMeter()
@@ -152,18 +141,16 @@ def validate(args, model, eval_loader, loss_func, logger):
     end = time.time()
     last_idx = len(eval_loader) - 1
 
-    # Only activate one module
-    proxyless.sample_and_binarize(model,active_only=False, valid_only=True)
+    # Make the kernel with largest score active
+    proxyless.sample_and_binarize(model, active_only=True, valid=True)
 
     with torch.no_grad():
         for batch_idx, (image, target) in enumerate(eval_loader):
             output = model(image)
-
-            # Augmentation reduction
             assert args.tta == 0
             loss_value = loss_func(output, target)
             acc1, acc5 = accuracy(output, target, topk=(1, 5))
-
+            
             torch.cuda.synchronize()
             losses_m.update(loss_value.item(), image.size(0))
             top1_m.update(acc1.item(), output.size(0))
@@ -285,9 +272,9 @@ def train(args, model, train_loader, valid_loader, eval_loader):
         writer.close()
         
     return {
-    'all_train_metrics': all_train_metrics,
-    'all_eval_metrics': all_eval_metrics,
-    'best_metric': best_metric,
-    'best_epoch': best_epoch,
-    'magnitude_alphas': magnitude_alphas
+        'all_train_metrics': all_train_metrics,
+        'all_eval_metrics': all_eval_metrics,
+        'best_metric': best_metric,
+        'best_epoch': best_epoch,
+        'magnitude_alphas': magnitude_alphas
     }

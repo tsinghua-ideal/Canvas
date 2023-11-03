@@ -22,7 +22,7 @@ if __name__ == '__main__':
 
     # Training utils.
     logger.info(f'Configuring model {args.model} ...')
-    model = models.get_model(args, search_mode=True)
+    model = models.get_model(args)
     train_loader, eval_loader = dataset.get_loaders(args)
 
     # Load checkpoint.
