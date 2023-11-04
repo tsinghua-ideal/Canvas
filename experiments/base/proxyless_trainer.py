@@ -53,7 +53,7 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
 
         # Update model parameters only
         model_optimizer.step()
-        
+
         # Restore modules
         proxyless.restore_modules(model)
 
@@ -75,7 +75,7 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
                     arch_optimizer.zero_grad()
                     loss.backward()
                     proxyless.set_alpha_grad(model)
-                    arch_optimizer.step()
+                    arch_optimizer.step()      
                     proxyless.rescale_kernel_alphas(model)
                     
                     # Restore modules
@@ -88,10 +88,6 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
         num_updates += 1
         batch_time_m.update(time.time() - end)
 
-        # Update scheduler step.
-        if lr_scheduler is not None:
-            lr_scheduler.step_update(num_updates=num_updates, metric=losses_m.avg)
-        
         # Update time.
         end = time.time()
 
@@ -124,10 +120,11 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
         writer.add_scalar('Training/Loss', losses_m.avg, epoch)
         writer.add_scalar('Training/Learning Rate', 
                     lr, epoch)
+    
+    # Update scheduler step.
+    if lr_scheduler is not None:
+        lr_scheduler.step(epoch=epoch)
         
-    if hasattr(model_optimizer, 'sync_lookahead'):
-        model_optimizer.sync_lookahead()
-
     return OrderedDict([('loss', losses_m.avg)])
 
 
@@ -190,7 +187,7 @@ def train(args, model, train_loader, valid_loader, eval_loader):
                                       args.alpha_lr, betas=(0.5, 0.999), weight_decay=args.alpha_weight_decay)
     schedule = sche.get_schedule(args, model_optimizer)
     lr_scheduler, sched_epochs = schedule
-
+    
     # Using Torch profiler to profile the training process
     if args.needs_profiler:
         profiler = torch.profiler.profile(
