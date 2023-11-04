@@ -57,8 +57,7 @@ def arg_parse():
      # Dataset augmentation.
      parser.add_argument('--no-aug', action='store_true', default=False,
                          help='Disable all training augmentation, override other train aug args')
-     parser.add_argument('--scale', type=float, nargs='+', default=[0.08, 1.0], metavar='PCT',
-                         help='Random resize scale (default: 0.08 1.0)')
+     parser.add_argument('--scale', type=float, default=1.0, metavar='PCT')
      parser.add_argument('--ratio', type=float, nargs='+', default=[3./4., 4./3.], metavar='RATIO',
                          help='Random resize aspect ratio (default: 0.75 1.33)')
      parser.add_argument('--hflip', type=float, default=0.5,
@@ -153,6 +152,7 @@ def arg_parse():
                          help='Epoch interval to decay LR')
      parser.add_argument('--warmup-epochs', type=int, default=10, metavar='N',
                          help='Epochs to warmup LR, if scheduler supports')
+     parser.add_argument('--warmup-prefix', default=True)
      parser.add_argument('--cooldown-epochs', type=int, default=10, metavar='N',
                          help='Epochs to cooldown LR at min_lr, after cyclic schedule ends')
      parser.add_argument('--patience-epochs', type=int, default=10, metavar='N',

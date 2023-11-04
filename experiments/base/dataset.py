@@ -57,10 +57,20 @@ def get_batches(data_dict, key, batch_size, crop_size):
     num_epoch_examples = len(data_dict['images'])
     shuffled = torch.randperm(num_epoch_examples, device='cuda')
 
-    if key == 'train':
+    if key == 'train' or key == 'valid':
         images = batch_crop(data_dict['images'], crop_size)
         images = batch_flip_lr(images)
         images = batch_cutout(images, patch_size=3)
+        train_transformer = transforms.Compose([
+            # transforms.RandomResizedCrop(size=(32, 32), scale=(0.95,1.0), antialias=True),
+            transforms.RandomHorizontalFlip(),   # Randomly flip the image horizontally
+            # transforms.RandomRotation(10),       # Randomly rotate the image by up to 10 degrees
+            # transforms.ColorJitter(brightness=0.8, contrast=0.2, saturation=0.2, hue=0.2),  # Adjust brightness, contrast, saturation, and hue
+            # transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Apply a random affine transformation
+            transforms.RandomPerspective(),     # Apply a random perspective transformation
+        ])
+        images = train_transformer(images)
+
     else:
         images = data_dict['images']
     labels = data_dict['labels']
@@ -132,14 +142,16 @@ def get_loaders(args):
 
     # Padding
     assert train_dataset['images'].shape[-1] == train_dataset['images'].shape[-2], 'Images must be square'
-    crop_size = train_dataset['images'].shape[-1]
+    train_crop_size = int(train_dataset['images'].shape[-1] * args.scale)
     train_dataset['images'] = F.pad(train_dataset['images'], (2, ) * 4, 'reflect')
-    
     if args.needs_valid:
         assert valid_dataset['images'].shape[-1] == valid_dataset['images'].shape[-2], 'Images must be square'
-        crop_size = valid_dataset['images'].shape[-1]
+        valid_crop_size = int(valid_dataset['images'].shape[-1] * args.scale)
         valid_dataset['images'] = F.pad(valid_dataset['images'], (2, ) * 4, 'reflect')
-    train_loader = FuncDataloader(partial(get_batches, data_dict=train_dataset, key='train', batch_size=args.batch_size, crop_size=crop_size), len=len(train_dataset['images']) // args.batch_size)
-    valid_loader = FuncDataloader(partial(get_batches, data_dict=valid_dataset, key='valid', batch_size=args.batch_size, crop_size=crop_size), len(valid_dataset['images']) // args.batch_size) if args.needs_valid else None
-    eval_loader = FuncDataloader(partial(get_batches, data_dict=eval_dataset, key='eval', batch_size=args.batch_size, crop_size=crop_size), len(eval_dataset['images']) // args.batch_size)
+    # TODO: Add random crop to eval_dataset
+    eval_crop_size = eval_dataset['images'].shape[-1]
+    
+    train_loader = FuncDataloader(partial(get_batches, data_dict=train_dataset, key='train', batch_size=args.batch_size, crop_size=train_crop_size), len=len(train_dataset['images']) // args.batch_size)
+    valid_loader = FuncDataloader(partial(get_batches, data_dict=valid_dataset, key='valid', batch_size=args.batch_size, crop_size=valid_crop_size), len=len(valid_dataset['images']) // args.batch_size) if args.needs_valid else None
+    eval_loader = FuncDataloader(partial(get_batches, data_dict=eval_dataset, key='eval', batch_size=args.batch_size, crop_size=eval_crop_size), len(eval_dataset['images']) // args.batch_size)
     return (train_loader, valid_loader, eval_loader) if args.needs_valid else (train_loader, eval_loader)
