@@ -4,6 +4,7 @@ import ptflops
 import timm
 from functools import partial
 from timm import data
+
 from .canvas_van import van_b0, compact_van_b0
 from .proxyless import ParallelKernels
 from ..log import get_logger
@@ -39,24 +40,24 @@ def get_model(args):
 
     # Initialize placeholders.
     example_input = torch.zeros((2, ) + args.input_size).to(args.device)
-    if len(canvas.get_placeholders(model, example_input)) == 0:
+    if len(canvas.get_placeholders(model, example_input)) == 0 and args.needs_replace:
         module_dict = {
-            timm.models.resnet.BasicBlock: "resblock"
+            torch.nn.Conv2d: "conv"
         }
-        logger.info(f'No placeholders found, replacing modules with {module_dict}')
+        logger.info(f'No placeholders found, replacing modules: {module_dict} with Placeholders')
         replaced, not_replaced = replace_module_with_placeholder(model, module_dict)
         logger.info(f'Replaced {replaced} modules with placeholders, {not_replaced} modules not replaced.')
         canvas.get_placeholders(model, example_input)
     
     # Replace kernel.
-    if not args.search_mode and len(args.canvas_kernels) > 0:
+    if not args.search_mode and len(args.canvas_kernels) > 0 and args.needs_replace:
         if args.local_rank == 0:
             logger.info(f'Replacing kernel from {args.canvas_kernels}')
         assert len(args.canvas_kernels) == 1 or (len(args.canvas_kernels) > 1 and args.proxyless)
         packs = [canvas.KernelPack.load(kernel) for kernel in args.canvas_kernels]
         cls = packs[0].module if len(packs) == 1 else \
             partial(ParallelKernels, kernel_cls_list=[pack.module for pack in packs])
-        model = canvas.replace(model, cls, args.device)
+        model = canvas.replace(model, cls, args.device)    
     
     # Count FLOPs and params.
     if args.local_rank == 0 and not args.proxyless:
