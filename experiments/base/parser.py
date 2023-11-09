@@ -2,6 +2,10 @@ import argparse
 import time
 
 
+def str2bool(str):
+	return True if str.lower() == 'true' else False
+
+
 def arg_parse():
      parser = argparse.ArgumentParser(description='Canvas ImageNet trainer/searcher')
 
@@ -12,7 +16,7 @@ def arg_parse():
                          help='Number of label classes (model default if none)')
      parser.add_argument('--gp', default=None, type=str, metavar='POOL',
                          help='Global pool type, one of (fast, avg, max, avgmax, avgmaxc, model default if none)')
-     parser.add_argument('--img-size', type=int, default=None, metavar='N',
+     parser.add_argument('--patch-size', type=int, default=None, metavar='N',
                          help='Image patch size (model default if none)')
      parser.add_argument('--input-size', default=(3, 224, 224), nargs=3, type=int, metavar='N N N',
                          help='Input all image dimensions (d h w, e.g. --input-size 3 224 224, '
@@ -57,7 +61,8 @@ def arg_parse():
      # Dataset augmentation.
      parser.add_argument('--no-aug', action='store_true', default=False,
                          help='Disable all training augmentation, override other train aug args')
-     parser.add_argument('--scale', type=float, default=1.0, metavar='PCT')
+     parser.add_argument('--scale', type=float, nargs='+', default=[0.08, 1.0], metavar='PCT',
+                         help='Random resize scale (default: 0.08 1.0)')
      parser.add_argument('--ratio', type=float, nargs='+', default=[3./4., 4./3.], metavar='RATIO',
                          help='Random resize aspect ratio (default: 0.75 1.33)')
      parser.add_argument('--hflip', type=float, default=0.5,
@@ -232,7 +237,8 @@ def arg_parse():
      parser.add_argument('--search-mode', action='store_true', default=False)
      parser.add_argument('--target-folder', type=str, default=None, help="Description of target folder")
      parser.add_argument('--single-result-folder', type=str, default=None, help="Description of single result folder")
-
+     parser.add_argument('--needs-replace', type=str2bool, default=True)
+     
      # Proxyless mode
      parser.add_argument('--proxyless', action='store_true', default=False)
      parser.add_argument('--needs-valid', action='store_true', default=False)

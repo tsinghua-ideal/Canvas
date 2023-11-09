@@ -29,7 +29,6 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
     num_batch = len(train_loader)
 
     # Iterate over this epoch
-    num_updates = epoch * num_batch
     last_idx = num_batch - 1
     for batch_idx, (image, target) in enumerate(train_loader):
         data_time_m.update(time.time() - end)
@@ -85,7 +84,6 @@ def train_one_epoch(args, epoch, model, train_loader, valid_queue, train_loss_fu
         torch.cuda.synchronize()
         if args.needs_profiler and epoch > args.warmup_epochs + 1:
             profiler.step()
-        num_updates += 1
         batch_time_m.update(time.time() - end)
 
         # Update time.
@@ -231,7 +229,7 @@ def train(args, model, train_loader, valid_loader, eval_loader):
         # Log the parameters of the Canvas kernels
         if epoch > args.warmup_epochs:
             proxyless.print_parameters(model)          
-            magnitude_alphas[epoch] = proxyless.get_sum_of_magnitude_scores_with_1D(model).tolist()
+            magnitude_alphas[epoch] = proxyless.get_multiplication_of_magnitude_probs_with_1D(model).tolist()
 
         # Check NaN errors.
         if math.isnan(train_metrics['loss']):

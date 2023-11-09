@@ -87,7 +87,7 @@ if __name__ == '__main__':
         top1_ranking, sum_sorted_top1_ranking = {}, {}
         
         # Get other scores
-        magnitude_scores = get_sum_of_magnitude_scores_with_1D(model)
+        magnitude_scores = get_multiplication_of_magnitude_probs_with_1D(model)
         corresponding_scores, sample_kernel_list = sort_and_prune(alpha_list=magnitude_scores.tolist(), kernel_list=kernel_pack_list)
         
         exception_info = None  
