@@ -126,7 +126,7 @@ class Kernel_4740052357514212317(nn.Module):
 ```bibtex
 @misc{zhao2023canvas,
       title={Canvas: End-to-End Kernel Architecture Search in Neural Networks}, 
-      author={Chenggang Zhao and Genghan Zhang and Mingyu Gao},
+      author={Chenggang Zhao and Genghan Zhang and Ao Shen and Mingyu Gao},
       year={2023},
       eprint={2304.07741},
       archivePrefix={arXiv},
